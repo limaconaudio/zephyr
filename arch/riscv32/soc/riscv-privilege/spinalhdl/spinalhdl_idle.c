@@ -9,7 +9,7 @@
 #include <logging/kernel_event_logger.h>
 
 /* enable interrupts and enter wait mode */
-static ALWAYS_INLINE void gotham_idle(unsigned int key)
+static ALWAYS_INLINE void spinalhdl_idle(unsigned int key)
 {
 #ifdef CONFIG_KERNEL_EVENT_LOGGER_SLEEP
 	_sys_k_event_logger_enter_sleep();

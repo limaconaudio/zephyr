@@ -1,4 +1,4 @@
-# Kconfig.gotham - SPINALHDL SoC UART configuration option
+# Kconfig.spinalhdl - SPINALHDL SoC UART configuration option
 #
 #
 # SPDX-License-Identifier: Apache-2.0
