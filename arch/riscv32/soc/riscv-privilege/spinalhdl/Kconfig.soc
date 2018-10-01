@@ -1,0 +1,15 @@
+# Kconfig - RISCV32_SPINALHDL SOC configuration options
+#
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+choice
+prompt "SPINALHDL SOC implementation"
+depends on SOC_SERIES_RISCV32_SPINALHDL
+
+config SOC_RISCV32_SPINALHDL
+	bool "SPINALHDL SoC implementation"
+	select ATOMIC_OPERATIONS_C
+
+endchoice

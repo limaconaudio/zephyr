@@ -126,6 +126,8 @@ extern u32_t _timer_cycle_get_32(void);
 #include <arch/riscv32/riscv32-qemu/asm_inline.h>
 #elif defined(CONFIG_SOC_FAMILY_RISCV_PRIVILEGE)
 #include <arch/riscv32/riscv-privilege/asm_inline.h>
+#elif defined(CONFIG_SOC_RISCV32_SPINALHDL)
+#include <arch/riscv32/spinalhdl/asm_inline.h>
 #endif
 
 #ifdef __cplusplus
