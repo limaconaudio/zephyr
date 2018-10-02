@@ -1,0 +1,28 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+title: SPINALHDL UART
+id: spinalhdl,uart0
+version: 0.1
+
+description: >
+    This binding gives a base representation of the SPIANLHDL UART
+
+inherits:
+    !include uart.yaml
+
+properties:
+    compatible:
+      type: string
+      category: required
+      description: compatible strings
+      constraint: "spinalhdl,uart0"
+      generation: define
+
+    reg:
+      type: array
+      description: mmio register space
+      generation: define
+      category: required
+...
