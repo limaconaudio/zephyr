@@ -1,0 +1,20 @@
+/dts-v1/;
+
+#include <riscv32-spinalhdl.dtsi>
+
+/ {
+	model = "Arty";
+	compatible = "arty,arty";
+	chosen {
+		zephyr,console = &uart0;
+	};
+};
+
+&gpio0 {
+	status = "ok";
+};
+
+&uart0 {
+	status = "ok";
+	current-speed = <115200>;
+};
