@@ -1,0 +1,30 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+title: SPINALHDL PLIC
+id: spinalhdl,plic0
+version: 0.1
+
+description: >
+    This binding describes the SPINALHDL Platform-Local Interrupt Controller
+
+properties:
+  compatible:
+      category: required
+      type: string
+      description: compatible strings
+      constraint: "spinalhdl,plic0"
+      generation: define
+
+  reg:
+      category: required
+      type: int
+      description: mmio register space
+      generation: define
+
+base_label: PLIC
+
+"#cells":
+  - irq
+...
