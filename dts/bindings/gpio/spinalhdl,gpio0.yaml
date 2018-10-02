@@ -1,0 +1,25 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+title: SPINALHDL GPIO
+id: spinalhdl,gpio0
+version: 0.1
+
+description: >
+    This is a representation of the SPINALHDL GPIO nodes
+
+properties:
+    compatible:
+      type: string
+      category: required
+      description: compatible strings
+      constraint: "spinalhdl,gpio0"
+      generation: define
+
+    reg:
+      type: int
+      description: mmio register space
+      generation: define
+      category: required
+...
