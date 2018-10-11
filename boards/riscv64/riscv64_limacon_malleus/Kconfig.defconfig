@@ -1,0 +1,22 @@
+
+if BOARD_RISCV_GNSS
+
+config BOARD
+        default riscv_gnss
+
+config CONSOLE
+	def_bool y
+
+config UART_CONSOLE
+	def_bool y
+
+config UART_INTERRUPT_DRIVEN
+	def_bool y
+
+config CONSOLE_HANDLER_SHELL
+	def_bool y
+
+config STDOUT_CONSOLE
+	def_bool y
+
+endif # BOARD_RISCV_GNSS
