@@ -150,6 +150,9 @@ struct _kernel {
 
 	/* nested interrupt count */
 	uint32_t nested;
+#ifdef CONFIG_RISCV64
+	uint32_t dummy_align8;
+#endif
 
 	/* interrupt stack pointer base */
 	char *irq_stack;

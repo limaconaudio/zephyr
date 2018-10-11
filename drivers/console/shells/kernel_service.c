@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <kernel_version.h>
 #include <misc/printk.h>
 #include <misc/shell.h>
 #include <init.h>

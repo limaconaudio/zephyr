@@ -1,0 +1,7 @@
+menuconfig UART_RISCV_GNSS
+	bool "RISC-V GNSS board UART driver"
+	default y
+	help
+	Enable the UART driver, built in generic CPU designs generated from
+	VHDL.
+

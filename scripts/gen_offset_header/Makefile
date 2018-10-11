@@ -1,4 +1,7 @@
 HOSTCFLAGS_gen_offset_header.o += -DKERNEL_VERSION=0 -Wall -Werror -g
+ifeq ($(ARCH),riscv64)
+HOSTCFLAGS_gen_offset_header.o += -DARCH_64BITS
+endif
 HOSTCFLAGS_gen_idt.o += -Wno-unused-result
 
 hostprogs-y	+= gen_offset_header

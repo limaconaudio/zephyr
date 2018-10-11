@@ -37,6 +37,10 @@ config NIOS2
 	bool "Nios II Gen 2 architecture"
 	select ATOMIC_OPERATIONS_C
 
+config RISCV64
+	bool "RISC-V 64-bits architecture"
+	select ATOMIC_OPERATIONS_C
+
 endchoice
 
 #

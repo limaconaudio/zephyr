@@ -259,11 +259,19 @@ static int ehdrLoad(int fd)
 
 	/* 64-bit ELF module not supported (for now) */
 
+#ifdef ARCH_64BITS
+	if (ehdr.e_ident[EI_CLASS] != ELFCLASS64)
+	{
+		fprintf(stderr, "ELF32 class not supported\n");
+		return -1;
+	}
+#else
 	if (ehdr.e_ident[EI_CLASS] != ELFCLASS32)
 	{
 		fprintf(stderr, "ELF64 class not supported\n");
 		return -1;
 	}
+#endif
 
 	/*
 	 * Dynamically determine the endianess of the host (in the absence of
@@ -341,7 +349,7 @@ static int shdrsLoad(int fd)
  * @param pSymTblSize ptr to symbol table size
  * @returns 0 if found, -1 if not
  */
-static int symTblFind(unsigned *pSymTblOffset, unsigned *pSymTblSize)
+static int symTblFind(Elf32_Off *pSymTblOffset, unsigned *pSymTblSize)
 {
 	unsigned  ix;    /* loop index */
 
@@ -534,8 +542,13 @@ static void headerAbsoluteSymbolsDump(int fd, FILE *fp, Elf32_Off symTblOffset,
 					(strstr(&pStringTable[aSym.st_name],
 						 STRUCT_SIZ_SUFFIX) != NULL))
 			{
+#ifdef ARCH_64BITS
+				fprintf(fp, "#define\t%s\t0x%" PRIx64 "\n",
+						&pStringTable[aSym.st_name], aSym.st_value);
+#else
 				fprintf(fp, "#define\t%s\t0x%X\n",
 						&pStringTable[aSym.st_name], aSym.st_value);
+#endif
 			}
 		}
 	}

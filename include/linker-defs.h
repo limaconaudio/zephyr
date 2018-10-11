@@ -41,6 +41,8 @@
 /* Nothing yet to include */
 #elif defined(CONFIG_NIOS2)
 /* Nothing yet to include */
+#elif defined(CONFIG_RISCV64)
+/* Nothing yet to include */
 #else
 #error Arch not supported.
 #endif

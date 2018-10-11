@@ -28,9 +28,16 @@
 extern "C" {
 #endif
 
+#ifdef ARCH_64BITS
+#include <inttypes.h>
+typedef uint64_t   Elf32_Addr;
+typedef uint64_t   Elf32_Off;
+typedef uint64_t   Elf32_DWord;
+#else
 typedef unsigned int    Elf32_Addr;
-typedef unsigned short  Elf32_Half;
 typedef unsigned int    Elf32_Off;
+#endif
+typedef unsigned short  Elf32_Half;
 typedef int             Elf32_Sword;
 typedef unsigned int    Elf32_Word;
 
@@ -168,14 +175,26 @@ typedef struct
 	{
 	Elf32_Word	sh_name;
 	Elf32_Word	sh_type;	/* SHT_... */
+#ifdef ARCH_64BITS
+	Elf32_DWord	sh_flags;	/* SHF_... */
+	Elf32_Addr	sh_addr;
+	Elf32_Off	sh_offset;
+	Elf32_DWord	sh_size;
+#else
 	Elf32_Word	sh_flags;	/* SHF_... */
 	Elf32_Addr	sh_addr;
 	Elf32_Off	sh_offset;
 	Elf32_Word	sh_size;
+#endif
 	Elf32_Word	sh_link;
 	Elf32_Word	sh_info;
+#ifdef ARCH_64BITS
+	Elf32_DWord	sh_addralign;
+	Elf32_DWord	sh_entsize;
+#else
 	Elf32_Word	sh_addralign;
 	Elf32_Word	sh_entsize;
+#endif
 } Elf32_Shdr;
 
 #define SHDRSZ sizeof(Elf32_Shdr)
@@ -228,11 +247,19 @@ typedef struct
 typedef struct
 	{
 	Elf32_Word	st_name;
+#ifdef ARCH_64BITS
+	unsigned char	st_info;
+	unsigned char	st_other;
+	Elf32_Half	st_shndx;
+	Elf32_Addr	st_value;
+	Elf32_DWord	st_size;
+#else
 	Elf32_Addr	st_value;
 	Elf32_Word	st_size;
 	unsigned char	st_info;
 	unsigned char	st_other;
 	Elf32_Half	st_shndx;
+#endif
 	} Elf32_Sym;
 
 #define STN_UNDEF	0
@@ -300,10 +327,17 @@ typedef struct
 	Elf32_Off	p_offset;
 	Elf32_Addr	p_vaddr;
 	Elf32_Addr	p_paddr;
+#ifdef ARCH_64BITS
+	Elf32_DWord	p_filesz;
+	Elf32_DWord	p_memsz;
+	Elf32_DWord	p_flags;
+	Elf32_DWord	p_align;
+#else
 	Elf32_Word	p_filesz;
 	Elf32_Word	p_memsz;
 	Elf32_Word	p_flags;
 	Elf32_Word	p_align;
+#endif
 	} Elf32_Phdr;
 
 #define PHDRSZ sizeof(Elf32_Phdr)

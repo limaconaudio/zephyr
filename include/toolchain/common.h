@@ -86,6 +86,10 @@
 
     #define PERFOPT_ALIGN .balign 4
 
+  #elif defined(CONFIG_RISCV64)
+
+    #define PERFOPT_ALIGN .balign  8
+
   #else
 
     #error Architecture unsupported

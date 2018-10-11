@@ -31,6 +31,7 @@
 #include <atomic.h>
 #include <toolchain.h>
 #include <arch/cpu.h>
+#include <irq.h>
 
 /**
  *

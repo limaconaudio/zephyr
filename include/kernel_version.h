@@ -19,6 +19,8 @@
 #ifndef _kernel_version__h_
 #define _kernel_version__h_
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

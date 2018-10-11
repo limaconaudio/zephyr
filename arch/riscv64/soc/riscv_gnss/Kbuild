@@ -1,0 +1,8 @@
+ccflags-y +=-I$(srctree)/arch/riscv64/include
+ccflags-y +=-I$(srctree)/include
+ccflags-y +=-I$(srctree)/include/drivers
+ccflags-y +=-I$(srctree)/drivers
+
+asflags-y := ${ccflags-y}
+
+obj-y += soc.o dhry/dhry_1.o dhry/dhry_2.o

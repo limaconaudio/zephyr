@@ -1,0 +1,4 @@
+cd samples/shell
+export ZEPHYR_BASE=/home/teeshina/svn/20170117_zephyr16/zephyr
+make ARCH=riscv64 CROSS_COMPILE=/home/teeshina/riscv/gnu-toolchain-rv64ima/bin/riscv64-unknown-elf- BOARD=riscv_gnss 2>&1 | tee _err.log
+elf2raw64 outdir/riscv_gnss/zephyr.elf -h -f 262144 -l 8 -o fwimage.hex

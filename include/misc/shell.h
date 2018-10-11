@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+#ifndef __MISC_SHELL_H__
+#define __MISC_SHELL_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -126,3 +129,4 @@ static inline int shell_run(struct device *dev) { return 0; }
 }
 #endif
 
+#endif  // __MISC_SHELL_H__

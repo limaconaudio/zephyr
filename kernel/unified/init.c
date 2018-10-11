@@ -370,7 +370,11 @@ FUNC_NORETURN void _Cstart(void)
 #else
 	/* floating point is NOT used during nanokernel init */
 
+#ifdef CONFIG_RISCV64
+	char __stack dummy_stack[sizeof(struct k_thread)];
+#else
 	char __stack dummy_stack[_K_THREAD_NO_FLOAT_SIZEOF];
+#endif
 	void *dummy_thread = dummy_stack;
 #endif
 

@@ -279,6 +279,11 @@ A##a:
 		",%0"                              \
 		"\n\t.type\t" #name ",%%object" :  : "n"(value))
 
+#elif defined(CONFIG_RISCV64)
+
+#define GEN_ABSOLUTE_SYM(name, value) \
+	__asm__(".globl\t" #name "\n")
+
 #else
 #error processor architecture not supported
 #endif

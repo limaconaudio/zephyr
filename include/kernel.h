@@ -29,6 +29,7 @@
 #include <sections.h>
 #include <atomic.h>
 #include <errno.h>
+#include <irq.h>
 #include <misc/__assert.h>
 #include <misc/dlist.h>
 #include <misc/slist.h>
@@ -650,7 +651,11 @@ struct _timeout {
 	sys_dlist_t node;
 	struct k_thread *thread;
 	sys_dlist_t *wait_q;
+#ifdef CONFIG_RISCV64
+	int64_t delta_ticks_from_prev;
+#else
 	int32_t delta_ticks_from_prev;
+#endif
 	_timeout_func_t func;
 };
 

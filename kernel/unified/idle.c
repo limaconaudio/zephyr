@@ -154,6 +154,11 @@ void idle(void *unused1, void *unused2, void *unused3)
 		(void)irq_lock();
 		_sys_power_save_idle(_get_next_timeout_expiry());
 
+#ifdef CONFIG_RISCV64
+		// I didn't understood where preemptive switch must occurs
+		k_yield();
+#else
 		IDLE_YIELD_IF_COOP();
+#endif
 	}
 }
