@@ -1,0 +1,11 @@
+# Kconfig - RISCV64_K210 SOC implementation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config SOC_SERIES_RISCV64_K210
+	bool "K210 SOC implementation"
+	depends on RISCV64
+	select SOC_FAMILY_RISCV_PRIVILEGE
+	help
+	  Enable support for K210 SOC

@@ -1,0 +1,6 @@
+# Kconfig - riscv SOC series supporting the riscv privileged architecture spec
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+source "soc/riscv64/riscv-privilege/*/Kconfig.series"

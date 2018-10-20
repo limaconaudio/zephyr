@@ -35,6 +35,8 @@
 /* Nothing yet to include */
 #elif defined(CONFIG_RISCV32)
 /* Nothing yet to include */
+#elif defined(CONFIG_RISCV64)
+/* Nothing yet to include */
 #elif defined(CONFIG_XTENSA)
 /* Nothing yet to include */
 #elif defined(CONFIG_ARCH_POSIX)

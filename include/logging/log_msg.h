@@ -145,9 +145,9 @@ struct log_msg {
 	} payload;                 /*!< Message data. */
 };
 
-BUILD_ASSERT_MSG((sizeof(union log_msg_head_data) ==
-		  sizeof(struct log_msg_ext_head_data)),
-		  "Structure must be same size");
+//BUILD_ASSERT_MSG((sizeof(union log_msg_head_data) ==
+//		  sizeof(struct log_msg_ext_head_data)),
+//		  "Structure must be same size");
 
 /** @brief Chunks following message head when message is extended. */
 struct log_msg_cont {

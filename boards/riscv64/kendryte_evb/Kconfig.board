@@ -1,0 +1,4 @@
+config BOARD_KENDRYTE_EVB
+	bool "Kendryte EVB target"
+	depends on SOC_RISCV64_K210
+	select HAS_DTS

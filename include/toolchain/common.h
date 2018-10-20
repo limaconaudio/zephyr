@@ -78,6 +78,9 @@
 	  defined(CONFIG_XTENSA)
     #define PERFOPT_ALIGN .balign 4
 
+  #elif defined(CONFIG_RISCV64)
+    #define PERFOPT_ALIGN .balign 4
+
   #elif defined(CONFIG_ARCH_POSIX)
 
   #else

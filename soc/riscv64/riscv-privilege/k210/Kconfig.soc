@@ -1,0 +1,14 @@
+# Kconfig - RISCV64_K210 SOC configuration options
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+choice
+prompt "K210 SOC implementation"
+depends on SOC_SERIES_RISCV64_K210
+
+config SOC_RISCV64_K210
+	bool "K210 SOC implementation"
+	select ATOMIC_OPERATIONS_C
+
+endchoice

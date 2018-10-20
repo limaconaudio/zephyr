@@ -35,6 +35,10 @@ static unsigned char __kernel __aligned(CONFIG_NEWLIB_LIBC_ALIGNED_HEAP_SIZE)
 #include <soc.h>
 #define USED_RAM_SIZE  (USED_RAM_END_ADDR - RISCV_RAM_BASE)
 #define MAX_HEAP_SIZE  (RISCV_RAM_SIZE - USED_RAM_SIZE)
+#elif CONFIG_RISCV64
+#include <soc.h>
+#define USED_RAM_SIZE  (USED_RAM_END_ADDR - RISCV_RAM_BASE)
+#define MAX_HEAP_SIZE  (RISCV_RAM_SIZE - USED_RAM_SIZE)
 #elif CONFIG_ARM
 #include <soc.h>
 #define USED_RAM_SIZE  (USED_RAM_END_ADDR - CONFIG_SRAM_BASE_ADDRESS)

@@ -7,7 +7,7 @@
 	 * '$(ARCH)-zephyr-elf-ld --verbose'
 	 */
 
-#if !defined(CONFIG_RISCV32) && !defined(CONFIG_XTENSA)
+#if !defined(CONFIG_RISCV32) && !defined(CONFIG_RISCV64) && defined(CONFIG_XTENSA)
 	SECTION_PROLOGUE(.rel.dyn,,)
 	{
 	*(.rel.init)
@@ -62,7 +62,8 @@
 	}
 #endif /* !defined(CONFIG_RISCV32) */
 
-#if defined(CONFIG_ARM) || defined(CONFIG_NIOS2) || defined(CONFIG_RISCV32)
+#if defined(CONFIG_ARM) || defined(CONFIG_NIOS2) || defined(CONFIG_RISCV32) || defined(CONFIG_RISCV64)
+
 	SECTION_PROLOGUE(.rela.dyn,,)
 	{
 	*(.rela.init)
@@ -93,7 +94,8 @@
 	*(.rela._k_timer.*)
 	*(.rela._static_thread_data.*)
 
-#if defined(CONFIG_RISCV32)
+#if defined(CONFIG_RISCV32) || defined(CONFIG_RISCV64)
+
 	*(.rela.devconfig.*)
 	*(.rela.exception.*)
 	*(.rela.gnu.linkonce.sw_isr_table)
@@ -103,7 +105,7 @@
 	}
 #endif
 
-#if !defined(CONFIG_RISCV32) && !defined(CONFIG_XTENSA)
+#if !defined(CONFIG_RISCV32) && !defined(CONFIG_RISCV64) && defined(CONFIG_XTENSA)
 	SECTION_PROLOGUE(.rel.plt,,)
 	{
 	*(.rel.plt)
@@ -116,7 +118,8 @@
 	}
 #endif /* !defined(CONFIG_RISCV32) */
 
-#if defined(CONFIG_ARM) || defined(CONFIG_NIOS2) || defined(CONFIG_RISCV32)
+#if defined(CONFIG_ARM) || defined(CONFIG_NIOS2) || defined(CONFIG_RISCV32) || defined(CONFIG_RISCV64)
+
 	SECTION_PROLOGUE(.rela.plt,,)
 	{
 	*(.rela.plt)

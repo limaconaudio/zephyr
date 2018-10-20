@@ -19,6 +19,8 @@
 #include <arch/nios2/arch.h>
 #elif defined(CONFIG_RISCV32)
 #include <arch/riscv32/arch.h>
+#elif defined(CONFIG_RISCV64)
+#include <arch/riscv64/arch.h>
 #elif defined(CONFIG_XTENSA)
 #include <arch/xtensa/arch.h>
 #elif defined(CONFIG_ARCH_POSIX)

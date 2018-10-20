@@ -44,11 +44,11 @@ extern struct _isr_table_entry _sw_isr_table[];
  *
  * More discussion in include/linker/intlist.ld
  */
-struct _isr_list {
+struct __attribute__((packed)) _isr_list {
 	/** IRQ line number */
-	s32_t irq;
+	s64_t irq;
 	/** Flags for this IRQ, see ISR_FLAG_* definitions */
-	s32_t flags;
+	s64_t flags;
 	/** ISR to call */
 	void *func;
 	/** Parameter for non-direct IRQs */

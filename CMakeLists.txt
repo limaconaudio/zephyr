@@ -212,6 +212,8 @@ zephyr_cc_option(-fno-pie)
 zephyr_cc_option(-fno-pic)
 zephyr_cc_option(-fno-strict-overflow)
 zephyr_cc_option(-Wno-pointer-sign)
+zephyr_cc_option(-mcmodel=medany)
+zephyr_cc_option(--save-temps)
 
 zephyr_compile_options_ifdef(CONFIG_STACK_CANARIES -fstack-protector-all)
 

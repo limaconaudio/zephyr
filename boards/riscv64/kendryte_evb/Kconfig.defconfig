@@ -1,0 +1,6 @@
+if BOARD_KENDRYTE_EVB
+
+config BOARD
+	default "kendryte_evb"
+
+endif

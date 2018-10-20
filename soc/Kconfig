@@ -22,7 +22,7 @@ endmenu
 #
 config SOC_NOINIT_LD
 	bool
-	depends on (ARC || ARM || X86 || NIOS2 || RISCV32)
+	depends on (ARC || ARM || X86 || NIOS2 || RISCV32 || RISCV64)
 	help
 	  Include an SoC specific linker script fragment named soc-noinit.ld
 	  for inserting additional data and linker directives into
@@ -33,7 +33,7 @@ config SOC_NOINIT_LD
 
 config SOC_RODATA_LD
 	bool
-	depends on (ARC || ARM || X86 || NIOS2 || RISCV32)
+	depends on (ARC || ARM || X86 || NIOS2 || RISCV32 || RISCV64)
 	help
 	  Include an SoC specific linker script fragment named soc-rodata.ld
 	  for inserting additional data and linker directives into
@@ -44,7 +44,7 @@ config SOC_RODATA_LD
 
 config SOC_RWDATA_LD
 	bool
-	depends on (ARC || ARM || X86 || NIOS2 || RISCV32)
+	depends on (ARC || ARM || X86 || NIOS2 || RISCV32 || RISCV64)
 	help
 	  Include an SoC specific linker script fragment named soc-rwdata.ld
 	  for inserting additional data and linker directives into
