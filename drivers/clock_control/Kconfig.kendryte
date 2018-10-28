@@ -1,0 +1,11 @@
+# Kconfig - Clock controller driver configuration options
+
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig CLOCK_CONTROL_KENDRYTE
+	bool "Kendryte Clock controller support"
+	depends on SOC_FAMILY_RISCV_PRIVILEGE
+	help
+	 Enable support for the Kendryte clock driver.

@@ -19,11 +19,11 @@
 #define PLIC_MAX_PRIORITY      PLIC_RISCV_MAX_PRIORITY
 
 /* Clock controller. */
-#define PRCI_BASE_ADDR               0x10008000
+#define SYSCTL_BASE_ADDR	0x50440000
 
 /* Timer configuration */
-#define RISCV_MTIME_BASE             0x0200BFF8
-#define RISCV_MTIMECMP_BASE          0x02004000
+#define RISCV_MTIME_BASE	0x0200BFF8
+#define RISCV_MTIMECMP_BASE	0x02004000
 
 /* lib-c hooks required RAM defined variables */
 #define RISCV_RAM_BASE               CONFIG_RISCV_RAM_BASE_ADDR
