@@ -62,18 +62,15 @@ SECTIONS
 		*(.iplt)
 	}
 
-    GROUP_START(ROM)
+    GROUP_START(ROMABLE_REGION)
+
     _image_rom_start = .;
 
     SECTION_PROLOGUE(_VECTOR_SECTION_NAME,,)
     {
-		. = ALIGN(4);
+		. = ALIGN(8);
 		KEEP(*(.vectors.*))
-    } GROUP_LINK_IN(ROM)
-
-    GROUP_END(ROM)
-
-    GROUP_START(ROMABLE_REGION)
+    } GROUP_LINK_IN(ROMABLE_REGION)
 
     SECTION_PROLOGUE(_RESET_SECTION_NAME,,)
     {
@@ -88,7 +85,7 @@ SECTIONS
 
     SECTION_PROLOGUE(_TEXT_SECTION_NAME,,)
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 #ifdef CONFIG_GEN_SW_ISR_TABLE
 		KEEP(*(SW_ISR_TABLE))
 #endif
@@ -108,7 +105,7 @@ SECTIONS
 
     SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
 	{
-		 . = ALIGN(4);
+		 . = ALIGN(8);
 		 *(.rodata)
 		 *(".rodata.*")
 		 *(.gnu.linkonce.r.*)
@@ -128,7 +125,7 @@ SECTIONS
 
     SECTION_DATA_PROLOGUE(_DATA_SECTION_NAME,,)
 	{
-		 . = ALIGN(4);
+		 . = ALIGN(8);
 		 _image_ram_start = .;
 		 __data_ram_start = .;
 
@@ -155,7 +152,7 @@ SECTIONS
 		 * For performance, BSS section is assumed to be 8 byte aligned and
 		 * a multiple of 8 bytes
 		 */
-		 . = ALIGN(4);
+		 . = ALIGN(8);
 		 __bss_start = .;
 		 *(.sbss)
 		 *(".sbss.*")
@@ -164,9 +161,9 @@ SECTIONS
 		 COMMON_SYMBOLS
 		 /*
 		  * As memory is cleared in words only, it is simpler to ensure the BSS
-		  * section ends on a 8 byte boundary. This wastes a maximum of 3 bytes.
+		  * section ends on a 8 byte boundary.
 		  */
-		  __bss_end = ALIGN(4);
+		  __bss_end = ALIGN(8);
 	}  GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
 
     SECTION_PROLOGUE(_NOINIT_SECTION_NAME,(NOLOAD),)
