@@ -11,64 +11,81 @@
 #include <uart.h>
 #include <board.h>
 
-#define RXDATA_EMPTY   (1 << 31)   /* Receive FIFO Empty */
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
 
-#define TXDATA_FULL    (1 << 31)   /* Transmit FIFO Full */
+#define TXDATA_FULL    (1 << 6)   /* Transmit FIFO Full */
 
-#define TXCTRL_TXEN    (1 << 0)    /* Activate Tx Channel */
+struct uart_kendryte_regs_t
+{
+    union
+    {
+        uint32_t RBR;
+        uint32_t DLL;
+        uint32_t THR;
+    };
 
-#define RXCTRL_RXEN    (1 << 0)    /* Activate Rx Channel */
+    union
+    {
+        uint32_t DLH;
+        uint32_t IER;
+    };
 
-#define IE_TXWM        (1 << 0)    /* TX Interrupt Enable/Pending */
-#define IE_RXWM        (1 << 1)    /* RX Interrupt Enable/Pending */
+    union
+    {
+        uint32_t FCR;
+        uint32_t IIR;
+    };
 
-/*
- * RX/TX Threshold count to generate TX/RX Interrupts.
- * Used by txctrl and rxctrl registers
- */
-#define CTRL_CNT(x)    (((x) & 0x07) << 16)
-
-struct uart_kendryte_regs_t {
-	u32_t tx;
-	u32_t rx;
-	u32_t txctrl;
-	u32_t rxctrl;
-	u32_t ie;
-	u32_t ip;
-	u32_t div;
+    uint32_t LCR;
+    uint32_t MCR;
+    uint32_t LSR;
+    uint32_t MSR;
+    uint32_t SCR;
+    uint32_t LPDLL;
+    uint32_t LPDLH;
+    uint32_t reserve[18];
+    uint32_t FAR;
+    uint32_t TFR;
+    uint32_t RFW;
+    uint32_t USR;
+    uint32_t TFL;
+    uint32_t RFL;
+    uint32_t SRR;
+    uint32_t SRTS;
+    uint32_t SBCR;
+    uint32_t SDMAM;
+    uint32_t SFE;
+    uint32_t SRT;
+    uint32_t STET;
+    uint32_t HTX;
+    uint32_t DMASA;
+    uint32_t TCR;
+    uint32_t DE_EN;
+    uint32_t RE_EN;
+    uint32_t DET;
+    uint32_t TAT;
+    uint32_t DLF;
+    uint32_t RAR;
+    uint32_t TAR;
+    uint32_t LCR_EXT;
+    uint32_t R[5];
+    uint32_t CPR;
+    uint32_t UCV;
+    uint32_t CTR;
 };
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-typedef void (*irq_cfg_func_t)(void);
-#endif
 
 struct uart_kendryte_device_config {
 	u32_t       port;
 	u32_t       sys_clk_freq;
 	u32_t       baud_rate;
-	u32_t       rxcnt_irq;
-	u32_t       txcnt_irq;
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	irq_cfg_func_t cfg_func;
-#endif
 };
 
-struct uart_kendryte_data {
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	uart_irq_callback_user_data_t callback;
-	void *cb_data;
-#endif
-};
-/*
 #define DEV_CFG(dev)						\
 	((const struct uart_kendryte_device_config * const)	\
 	 (dev)->config->config_info)
 #define DEV_UART(dev)						\
 	((struct uart_kendryte_regs_t *)(DEV_CFG(dev))->port)
-#define DEV_DATA(dev)						\
-	((struct uart_kendryte_data * const)(dev)->driver_data)
-*/
+
 /**
  * @brief Output a character in polled mode.
  *
@@ -82,15 +99,14 @@ struct uart_kendryte_data {
 static unsigned char uart_kendryte_poll_out(struct device *dev,
 					 unsigned char c)
 {
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
+	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
 
 	/* Wait while TX FIFO is full */
-/*	while (uart->tx & TXDATA_FULL)
-		;
+	while (!(uart->LSR & TXDATA_FULL));
 
-	uart->tx = (int)c;
+	uart->THR = (char)c;
 
-*/	return c;
+	return c;
 }
 
 /**
@@ -103,235 +119,44 @@ static unsigned char uart_kendryte_poll_out(struct device *dev,
  */
 static int uart_kendryte_poll_in(struct device *dev, unsigned char *c)
 {
-/*	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-	u32_t val = uart->rx;
+	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
+	u32_t val = uart->RBR;
 
-	if (val & RXDATA_EMPTY)
-		return -1;
+	*c = (uint8_t)(val & RXDATA_MASK);
 
-	*c = (unsigned char)(val & RXDATA_MASK);
-*/
 	return 0;
 }
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-
-/**
- * @brief Fill FIFO with data
- *
- * @param dev UART device struct
- * @param tx_data Data to transmit
- * @param size Number of bytes to send
- *
- * @return Number of bytes sent
- */
-static int uart_kendryte_fifo_fill(struct device *dev,
-				const u8_t *tx_data,
-				int size)
-{
-/*	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-	int i;
-
-	for (i = 0; i < size && !(uart->tx & TXDATA_FULL); i++)
-		uart->tx = (int)tx_data[i];
-
-*/	return 0;
-}
-
-/**
- * @brief Read data from FIFO
- *
- * @param dev UART device struct
- * @param rxData Data container
- * @param size Container size
- *
- * @return Number of bytes read
- */
-static int uart_kendryte_fifo_read(struct device *dev,
-				u8_t *rx_data,
-				const int size)
-{
-/*	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-	int i;
-	u32_t val;
-
-	for (i = 0; i < size; i++) {
-		val = uart->rx;
-
-		if (val & RXDATA_EMPTY)
-			break;
-
-		rx_data[i] = (u8_t)(val & RXDATA_MASK);
-	}
-
-*/	return 0;
-}
-
-/**
- * @brief Enable TX interrupt in ie register
- *
- * @param dev UART device struct
- *
- * @return N/A
- */
-static void uart_kendryte_irq_tx_enable(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	uart->ie |= IE_TXWM;
-}
-
-/**
- * @brief Disable TX interrupt in ie register
- *
- * @param dev UART device struct
- *
- * @return N/A
- */
-static void uart_kendryte_irq_tx_disable(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	uart->ie &= ~IE_TXWM;
-}
-
-/**
- * @brief Check if Tx IRQ has been raised
- *
- * @param dev UART device struct
- *
- * @return 1 if an IRQ is ready, 0 otherwise
- */
-static int uart_kendryte_irq_tx_ready(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	return !!(uart->ip & IE_TXWM);
-}
-
-/**
- * @brief Check if nothing remains to be transmitted
- *
- * @param dev UART device struct
- *
- * @return 1 if nothing remains to be transmitted, 0 otherwise
- */
-static int uart_kendryte_irq_tx_complete(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-	/*
-	 * No TX EMTPY flag for this controller,
-	 * just check if TX FIFO is not full
-	 */
-//	return !(uart->tx & TXDATA_FULL);
-	return 0;
-}
-
-/**
- * @brief Enable RX interrupt in ie register
- *
- * @param dev UART device struct
- *
- * @return N/A
- */
-static void uart_kendryte_irq_rx_enable(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	uart->ie |= IE_RXWM;
-}
-
-/**
- * @brief Disable RX interrupt in ie register
- *
- * @param dev UART device struct
- *
- * @return N/A
- */
-static void uart_kendryte_irq_rx_disable(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	uart->ie &= ~IE_RXWM;
-}
-
-/**
- * @brief Check if Rx IRQ has been raised
- *
- * @param dev UART device struct
- *
- * @return 1 if an IRQ is ready, 0 otherwise
- */
-static int uart_kendryte_irq_rx_ready(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	return !!(uart->ip & IE_RXWM);
-}
-
-/* No error interrupt for this controller */
-static void uart_kendryte_irq_err_enable(struct device *dev)
-{
-	ARG_UNUSED(dev);
-}
-
-static void uart_kendryte_irq_err_disable(struct device *dev)
-{
-	ARG_UNUSED(dev);
-}
-
-/**
- * @brief Check if any IRQ is pending
- *
- * @param dev UART device struct
- *
- * @return 1 if an IRQ is pending, 0 otherwise
- */
-static int uart_kendryte_irq_is_pending(struct device *dev)
-{
-//	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
-
-//	return !!(uart->ip & (IE_RXWM | IE_TXWM));
-}
-
-static int uart_kendryte_irq_update(struct device *dev)
-{
-	return 1;
-}
-
-/**
- * @brief Set the callback function pointer for IRQ.
- *
- * @param dev UART device struct
- * @param cb Callback function pointer.
- *
- * @return N/A
- */
-static void uart_kendryte_irq_callback_set(struct device *dev,
-					uart_irq_callback_user_data_t cb,
-					void *cb_data)
-{
-//	struct uart_kendryte_data *data = DEV_DATA(dev);
-
-//	data->callback = cb;
-//	data->cb_data = cb_data;
-}
-
-static void uart_kendryte_irq_handler(void *arg)
-{
-//	struct device *dev = (struct device *)arg;
-//	struct uart_kendryte_data *data = DEV_DATA(dev);
-
-//	if (data->callback)
-//		data->callback(data->cb_data);
-}
-
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
-
 
 static int uart_kendryte_init(struct device *dev)
 {
+	const struct uart_kendryte_device_config * const cfg = DEV_CFG(dev);
+	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
+
+	uint8_t databits, stopbit_val, parity_val;
+	uint32_t u16_div = (cfg->sys_clk_freq + 16  * cfg->baud_rate / 2) /
+				(16 * cfg->baud_rate);
+
+	databits = 8;
+	stopbit_val = 0;
+	parity_val = 0;
+
+        /* Set UART registers */
+        uart->TCR &= ~(1u);
+        uart->TCR &= ~(1u << 3);
+        uart->TCR &= ~(1u << 4);
+        uart->TCR |= (1u << 2);
+        uart->TCR &= ~(1u << 1);
+        uart->DE_EN &= ~(1u);
+
+        uart->LCR |= 1u << 7;
+        uart->DLL = u16_div & 0xFF;
+        uart->DLH = u16_div >> 8;
+        uart->LCR = 0;
+        uart->LCR = (databits - 5) | (stopbit_val << 2) | (parity_val << 3);
+        uart->LCR &= ~(1u << 7);
+        uart->MCR &= ~3;
+//        uart->IER = 1; Interrupt Enable?
+
 	return 0;
 }
 
@@ -339,98 +164,20 @@ static const struct uart_driver_api uart_kendryte_driver_api = {
 	.poll_in          = uart_kendryte_poll_in,
 	.poll_out         = uart_kendryte_poll_out,
 	.err_check        = NULL,
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.fifo_fill        = uart_kendryte_fifo_fill,
-	.fifo_read        = uart_kendryte_fifo_read,
-	.irq_tx_enable    = uart_kendryte_irq_tx_enable,
-	.irq_tx_disable   = uart_kendryte_irq_tx_disable,
-	.irq_tx_ready     = uart_kendryte_irq_tx_ready,
-	.irq_tx_complete  = uart_kendryte_irq_tx_complete,
-	.irq_rx_enable    = uart_kendryte_irq_rx_enable,
-	.irq_rx_disable   = uart_kendryte_irq_rx_disable,
-	.irq_rx_ready     = uart_kendryte_irq_rx_ready,
-	.irq_err_enable   = uart_kendryte_irq_err_enable,
-	.irq_err_disable  = uart_kendryte_irq_err_disable,
-	.irq_is_pending   = uart_kendryte_irq_is_pending,
-	.irq_update       = uart_kendryte_irq_update,
-	.irq_callback_set = uart_kendryte_irq_callback_set,
-#endif
 };
 
 #ifdef CONFIG_UART_KENDRYTE_PORT_0
-
-static struct uart_kendryte_data uart_kendryte_data_0;
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void uart_kendryte_irq_cfg_func_0(void);
-#endif
 
 static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_0 = {
 	.port         = CONFIG_KENDRYTE_UART_0_BASE_ADDR,
 	.sys_clk_freq = CONFIG_KENDRYTE_UART_0_CLK_FREQ,
 	.baud_rate    = CONFIG_KENDRYTE_UART_0_CURRENT_SPEED,
-	.rxcnt_irq    = CONFIG_UART_KENDRYTE_PORT_0_RXCNT_IRQ,
-	.txcnt_irq    = CONFIG_UART_KENDRYTE_PORT_0_TXCNT_IRQ,
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.cfg_func     = uart_kendryte_irq_cfg_func_0,
-#endif
 };
 
 DEVICE_AND_API_INIT(uart_kendryte_0, CONFIG_KENDRYTE_UART_0_LABEL,
 		    uart_kendryte_init,
-		    &uart_kendryte_data_0, &uart_kendryte_dev_cfg_0,
+		    NULL, &uart_kendryte_dev_cfg_0,
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		    (void *)&uart_kendryte_driver_api);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void uart_kendryte_irq_cfg_func_0(void)
-{
-	IRQ_CONNECT(CONFIG_KENDRYTE_UART_0_IRQ_0,
-		    CONFIG_UART_KENDRYTE_PORT_0_IRQ_PRIORITY,
-		    uart_kendryte_irq_handler, DEVICE_GET(uart_kendryte_0),
-		    0);
-
-	irq_enable(CONFIG_KENDRYTE_UART_0_IRQ_0);
-}
-#endif
 
 #endif /* CONFIG_UART_KENDRYTE_PORT_0 */
-
-#ifdef CONFIG_UART_KENDRYTE_PORT_1
-
-static struct uart_kendryte_data uart_kendryte_data_1;
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void uart_kendryte_irq_cfg_func_1(void);
-#endif
-
-static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_1 = {
-	.port         = CONFIG_KENDRYTE_UART_1_BASE_ADDR,
-	.sys_clk_freq = CONFIG_KENDRYTE_UART_1_CLK_FREQ,
-	.baud_rate    = CONFIG_KENDRYTE_UART_1_CURRENT_SPEED,
-	.rxcnt_irq    = CONFIG_UART_KENDRYTE_PORT_1_RXCNT_IRQ,
-	.txcnt_irq    = CONFIG_UART_KENDRYTE_PORT_1_TXCNT_IRQ,
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.cfg_func     = uart_kendryte_irq_cfg_func_1,
-#endif
-};
-
-DEVICE_AND_API_INIT(uart_kendryte_1, CONFIG_KENDRYTE_UART_1_LABEL,
-		    uart_kendryte_init,
-		    &uart_kendryte_data_1, &uart_kendryte_dev_cfg_1,
-		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
-		    (void *)&uart_kendryte_driver_api);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void uart_kendryte_irq_cfg_func_1(void)
-{
-	IRQ_CONNECT(CONFIG_KENDRYTE_UART_1_IRQ_0,
-		    CONFIG_UART_KENDRYTE_PORT_1_IRQ_PRIORITY,
-		    uart_kendryte_irq_handler, DEVICE_GET(uart_kendryte_1),
-		    0);
-
-	irq_enable(CONFIG_KENDRYTE_UART_1_IRQ_0);
-}
-#endif
-
-#endif /* CONFIG_UART_KENDRYTE_PORT_1 */
