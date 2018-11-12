@@ -7,6 +7,8 @@
 #ifndef ZEPHYR_INCLUDE_DRIVERS_CLOCK_CONTROL_KENDRYTE_CLOCK_H_
 #define ZEPHYR_INCLUDE_DRIVERS_CLOCK_CONTROL_KENDRYTE_CLOCK_H_
 
+#define KENDRYTE_CLOCK_CONTROL_NAME "kendryte-clock"
+
 enum kendryte_peripheral_clocks_t {
     	KENDRYTE_CLOCK_PLL0 = 0,
     	KENDRYTE_CLOCK_PLL1,
@@ -50,10 +52,6 @@ enum kendryte_peripheral_clocks_t {
     	KENDRYTE_CLOCK_HCLK,
     	KENDRYTE_CLOCK_IN0,
     	KENDRYTE_CLOCK_MAX
-};
-
-struct kendryte_clock_control_t {
-	enum kendryte_peripheral_clocks_t clocks;
 };
 
 /**

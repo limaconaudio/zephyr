@@ -28,10 +28,9 @@ static int sysctl_clock_bus_enable(struct device *dev,
 	const struct kendryte_clock_control_config *info =
 					dev->config->config_info;
 	kendryte_sysctl *sysctl = (struct _kendryte_sysctl *)info->base;
-	struct kendryte_clock_control_t *kendryte_clock =
-				(struct kendryte_clock_control_t *)(sub_system);
+	u32_t subsys = POINTER_TO_UINT(sub_system);
 
-        switch (kendryte_clock->clocks) {
+        switch (subsys) {
             /*
              * These peripheral devices are under APB0
              * GPIO, UART1, UART2, UART3, SPI_SLAVE, I2S0, I2S1,
@@ -92,10 +91,9 @@ static int sysctl_device_bus_enable(struct device *dev,
 	const struct kendryte_clock_control_config *info =
 					dev->config->config_info;
 	kendryte_sysctl *sysctl = (struct _kendryte_sysctl *)info->base;
-	struct kendryte_clock_control_t *kendryte_clock =
-				(struct kendryte_clock_control_t *)(sub_system);
+	u32_t subsys = POINTER_TO_UINT(sub_system);
 
-        switch (kendryte_clock->clocks) {
+        switch (subsys) {
         /*
          * These devices are PLL
          */
@@ -290,7 +288,7 @@ static struct kendryte_clock_control_config clock_kendryte_config = {
 };
 
 DEVICE_AND_API_INIT(clock_kendryte,
-		    "kendryte_clock",
+		    KENDRYTE_CLOCK_CONTROL_NAME,
 		    &kendryte_clock_control_init,
 		    NULL, &clock_kendryte_config,
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,

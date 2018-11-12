@@ -10,6 +10,9 @@
 #include <arch/cpu.h>
 #include <uart.h>
 #include <board.h>
+#include <clock_control.h>
+
+#include <clock_control/kendryte_clock.h>
 
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
 
@@ -75,9 +78,10 @@ struct uart_kendryte_regs_t
 };
 
 struct uart_kendryte_device_config {
-	u32_t       port;
-	u32_t       sys_clk_freq;
-	u32_t       baud_rate;
+	u32_t	*port;
+	u32_t	sys_clk_freq;
+	u32_t	baud_rate;
+	u32_t	clock_id;
 };
 
 #define DEV_CFG(dev)						\
@@ -131,10 +135,15 @@ static int uart_kendryte_init(struct device *dev)
 {
 	const struct uart_kendryte_device_config * const cfg = DEV_CFG(dev);
 	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
+	struct device *clk =
+		device_get_binding(KENDRYTE_CLOCK_CONTROL_NAME);
 
 	uint8_t databits, stopbit_val, parity_val;
 	uint32_t u16_div = (cfg->sys_clk_freq + 16  * cfg->baud_rate / 2) /
 				(16 * cfg->baud_rate);
+
+	/* enable clock */
+	clock_control_on(clk, (void *)cfg->clock_id);
 
 	databits = 8;
 	stopbit_val = 0;
@@ -169,9 +178,10 @@ static const struct uart_driver_api uart_kendryte_driver_api = {
 #ifdef CONFIG_UART_KENDRYTE_PORT_0
 
 static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_0 = {
-	.port         = CONFIG_KENDRYTE_UART_0_BASE_ADDR,
-	.sys_clk_freq = CONFIG_KENDRYTE_UART_0_CLK_FREQ,
-	.baud_rate    = CONFIG_KENDRYTE_UART_0_CURRENT_SPEED,
+	.port		= (u32_t *)CONFIG_KENDRYTE_UART_0_BASE_ADDR,
+	.sys_clk_freq	= CONFIG_KENDRYTE_UART_0_CLK_FREQ,
+	.baud_rate	= CONFIG_KENDRYTE_UART_0_CURRENT_SPEED,
+	.clock_id	= KENDRYTE_CLOCK_UART1,
 };
 
 DEVICE_AND_API_INIT(uart_kendryte_0, CONFIG_KENDRYTE_UART_0_LABEL,

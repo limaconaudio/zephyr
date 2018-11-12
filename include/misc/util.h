@@ -22,10 +22,18 @@
 /* Helper to pass a int as a pointer or vice-versa.
  * Those are available for 32 bits architectures:
  */
+#ifdef CONFIG_RISCV64
+#define POINTER_TO_UINT(x) ((u64_t) (x))
+#define UINT_TO_POINTER(x) ((void *) (x))
+#define POINTER_TO_INT(x)  ((s64_t) (x))
+#define INT_TO_POINTER(x)  ((void *) (x))
+
+#else
 #define POINTER_TO_UINT(x) ((u32_t) (x))
 #define UINT_TO_POINTER(x) ((void *) (x))
 #define POINTER_TO_INT(x)  ((s32_t) (x))
 #define INT_TO_POINTER(x)  ((void *) (x))
+#endif
 
 /* Evaluates to 0 if cond is true-ish; compile error otherwise */
 #define ZERO_OR_COMPILE_ERROR(cond) ((int) sizeof(char[1 - 2 * !(cond)]) - 1)
