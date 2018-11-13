@@ -35,6 +35,14 @@
 			reg = <0x2000000 0x10000>;
 			reg-names = "control";
 		};
+		gpio: gpio@50200000 {
+			compatible = "kendryte,gpio";
+			gpio-controller;
+			reg = <0x50200000 0x10000>;
+			reg-names = "control";
+			#gpio-cells = <2>;
+			status = "disabled";
+		};
 		plic: interrupt-controller@c000000 {
 			#interrupt-cells = <1>;
 			compatible = "riscv,plic0";

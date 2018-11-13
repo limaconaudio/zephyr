@@ -18,6 +18,9 @@
 
 #define PLIC_MAX_PRIORITY      PLIC_RISCV_MAX_PRIORITY
 
+/* MAX GPIO */
+#define KENDRYTE_MAX_GPIO	32
+
 /* Clock controller. */
 #define SYSCTL_BASE_ADDR	0x50440000
 

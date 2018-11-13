@@ -65,4 +65,6 @@ source "drivers/gpio/Kconfig.imx"
 
 source "drivers/gpio/Kconfig.intel"
 
+source "drivers/gpio/Kconfig.kendryte"
+
 endif # GPIO
