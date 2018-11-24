@@ -66,5 +66,15 @@
 			reg-names = "control";
 			status = "disabled";
 		};
+		wdt0: watchdog@50400000 {
+			compatible = "kendryte,wdt";
+			reg = <0x50400000 0x10000>;
+			label = "wdt_0";
+		};
+		wdt1: watchdog@50410000 {
+			compatible = "kendryte,wdt";
+			reg = <0x50410000 0x10000>;
+			label = "wdt_1";
+		};
 	};
 };

@@ -1,0 +1,23 @@
+# Kconfig - Kendryte WDT support
+#
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig WDT_KENDRYTE
+	bool "Kendryte WDT driver"
+	default y
+	depends on SOC_RISCV64_K210
+	select HAS_DTS_WDT
+	help
+	  Enable support for WDT timer in Kendryte SoCs.
+
+menuconfig WDT_KENDRYTE_0
+	bool "Enable Kendryte WDT 0"
+	depends on WDT_KENDRYTE
+	help
+	  This tells the driver to enable WDT 0.
+
+menuconfig WDT_KENDRYTE_1
+	bool "Enable Kendryte WDT 1"
+	depends on WDT_KENDRYTE
+	help
+	  This tells the driver to enable WDT 1.
