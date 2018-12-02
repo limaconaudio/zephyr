@@ -9,10 +9,10 @@
 #include <device.h>
 #include <system_timer.h>
 #include <board.h>
+#include <soc.h>
 
 typedef struct {
-	u32_t val_low;
-	u32_t val_high;
+	u64_t val;
 } riscv_machine_timer_t;
 
 static volatile riscv_machine_timer_t *mtime =
@@ -46,19 +46,22 @@ static ALWAYS_INLINE void riscv_machine_rearm_timer(void)
 	 * timer value register. Hence, always read timer->val_low first.
 	 * This also works for other implementations.
 	 */
-	rtc = mtime->val_low;
-	rtc |= ((u64_t)mtime->val_high << 32);
+	rtc = mtime->val;
 
 	/*
 	 * Rearm timer to generate an interrupt after
 	 * sys_clock_hw_cycles_per_tick
 	 */
 	rtc += sys_clock_hw_cycles_per_tick;
-	mtimecmp->val_low = (u32_t)(rtc & 0xffffffff);
-	mtimecmp->val_high = (u32_t)((rtc >> 32) & 0xffffffff);
+	mtimecmp->val = rtc;
+
+	/* Enable interrupts in general */
+	set_csr(mstatus, MSTATUS_MIE);
+	/* Enable the Machine-Timer bit in MIE */
+	set_csr(mie, MIP_MTIP);
 
 	/* Enable timer interrupt */
-	irq_enable(RISCV_MACHINE_TIMER_IRQ);
+	//irq_enable(RISCV_MACHINE_TIMER_IRQ);
 }
 
 static void riscv_machine_timer_irq_handler(void *unused)
@@ -88,6 +91,9 @@ int _sys_clock_driver_init(struct device *device)
 {
 	ARG_UNUSED(device);
 
+	/* Clear the Machine-Timer bit in MIE */
+	clear_csr(mie, MIP_MTIP);
+	
 	IRQ_CONNECT(RISCV_MACHINE_TIMER_IRQ, 0,
 		    riscv_machine_timer_irq_handler, NULL, 0);
 
@@ -111,5 +117,5 @@ u32_t _timer_cycle_get_32(void)
 	/* We just want a cycle count so just post what's in the low 32
 	 * bits of the mtime real-time counter
 	 */
-	return mtime->val_low;
+	return (u32_t)(mtime->val & 0xffffffff);
 }

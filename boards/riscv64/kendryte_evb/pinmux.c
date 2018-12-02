@@ -18,7 +18,7 @@ static int kendryte_pinmux_init(struct device *dev)
 	pinmux_pin_set(p, 4, FUNC_UART3_RX);
 	/* UART3 TX */
 	pinmux_pin_set(p, 5, FUNC_UART3_TX);
-	pinmux_pin_set(p, 24, FUNC_GPIOHS3);
+	pinmux_pin_set(p, 24, FUNC_GPIO3);
 
 
 	return 0;

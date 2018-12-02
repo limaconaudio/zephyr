@@ -43,6 +43,11 @@
 			#gpio-cells = <2>;
 			status = "disabled";
 		};
+		pinmux: pinmux@502b0000 {
+			compatible = "kendryte,pinmux";
+			reg = <0x502b0000 0x10000>;
+			label = "pinmux";
+		};
 		plic: interrupt-controller@c000000 {
 			#interrupt-cells = <1>;
 			compatible = "riscv,plic0";
@@ -53,17 +58,31 @@
 			riscv,max-priority = <7>;
 			riscv,ndev = <52>;
 		};
-		uart0: serial@50210000 {
-			compatible = "kendryte,uart0";
+		sysctl: clock-controller@50440000 {
+			compatible = "kendryte,sysctl";
+			reg = <0x50440000 0x10000>;
+			label = "sysctl";
+			clock-controller;
+		};
+		uart1: serial@50210000 {
+			compatible = "kendryte,uart";
 			reg = <0x50210000 0x10000>;
 			reg-names = "control";
-			label = "uart_0";
+			label = "uart_1";
 			status = "disabled";
 		};
-		uart1: serial@50220000 {
-			compatible = "kendryte,uart0";
+		uart2: serial@50220000 {
+			compatible = "kendryte,uart";
 			reg = <0x50220000 0x10000>;
 			reg-names = "control";
+			label = "uart_2";
+			status = "disabled";
+		};
+		uart3: serial@50230000 {
+			compatible = "kendryte,uart";
+			reg = <0x50230000 0x10000>;
+			reg-names = "control";
+			label = "uart_3";
 			status = "disabled";
 		};
 		wdt0: watchdog@50400000 {
