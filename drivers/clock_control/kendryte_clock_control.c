@@ -18,13 +18,13 @@
 #include <clock_control/kendryte_clock.h>
 
 struct kendryte_clock_control_config {
-	u32_t *base;
+	u64_t base;
 };
 
-u32_t kendryte_clock_source_get_freq(kendryte_sysctl *sysctl,
+u32_t kendryte_clock_source_get_freq(volatile kendryte_sysctl *sysctl,
 				     kendryte_clock_source_t input);
-u32_t kendryte_pll_get_freq(kendryte_sysctl *sysctl, kendryte_pll_t pll);
-u32_t kendryte_clock_get_freq(kendryte_sysctl *sysctl,
+u32_t kendryte_pll_get_freq(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll);
+u32_t kendryte_clock_get_freq(volatile kendryte_sysctl *sysctl,
 			      kendryte_peripheral_clocks_t clock);
 
 const u8_t get_select_pll2[] = {
@@ -51,11 +51,11 @@ const u8_t get_source_aclk[] = {
 
 static int kendryte_clock_bus_enable(struct device *dev,
 				   clock_control_subsys_t sub_system,
-				   bool enable)
+				   u8_t enable)
 {
 	const struct kendryte_clock_control_config *info =
 					dev->config->config_info;
-	kendryte_sysctl *sysctl = (struct _kendryte_sysctl *)info->base;
+	volatile kendryte_sysctl *sysctl = (volatile kendryte_sysctl *)info->base;
 	u32_t subsys = POINTER_TO_UINT(sub_system);
 
         switch (subsys) {
@@ -114,11 +114,11 @@ static int kendryte_clock_bus_enable(struct device *dev,
 
 static int kendryte_device_bus_enable(struct device *dev,
 				    clock_control_subsys_t sub_system,
-				    bool enable)
+				    u8_t enable)
 {
 	const struct kendryte_clock_control_config *info =
 					dev->config->config_info;
-	kendryte_sysctl *sysctl = (struct _kendryte_sysctl *)info->base;
+	volatile kendryte_sysctl *sysctl = (volatile kendryte_sysctl *)info->base;
 	u32_t subsys = POINTER_TO_UINT(sub_system);
 
         switch (subsys) {
@@ -273,11 +273,11 @@ static int kendryte_clock_control_on(struct device *dev,
 {
 	int ret;
 
-	ret = kendryte_clock_bus_enable(dev, sub_system, true);
+	ret = kendryte_clock_bus_enable(dev, sub_system, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = kendryte_device_bus_enable(dev, sub_system, true);
+	ret = kendryte_device_bus_enable(dev, sub_system, 1);
 	if (ret < 0)
 		return ret;
 
@@ -289,11 +289,11 @@ static int kendryte_clock_control_off(struct device *dev,
 {
 	int ret;
 
-	ret = kendryte_clock_bus_enable(dev, sub_system, false);
+	ret = kendryte_clock_bus_enable(dev, sub_system, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = kendryte_device_bus_enable(dev, sub_system, false);
+	ret = kendryte_device_bus_enable(dev, sub_system, 0);
 	if (ret < 0)
 		return ret;
 
@@ -301,7 +301,7 @@ static int kendryte_clock_control_off(struct device *dev,
 }
 
 
-int kendryte_clock_get_clock_select(kendryte_sysctl *sysctl,
+int kendryte_clock_get_clock_select(volatile kendryte_sysctl *sysctl,
 				    kendryte_clock_select_t sel)
 {
     int clock_select = 0;
@@ -349,7 +349,7 @@ int kendryte_clock_get_clock_select(kendryte_sysctl *sysctl,
     return clock_select;
 }
 
-u32_t kendryte_pll_get_freq(kendryte_sysctl *sysctl, kendryte_pll_t pll)
+u32_t kendryte_pll_get_freq(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll)
 {
     u32_t freq_in = 0, freq_out = 0;
     u32_t nr = 0, nf = 0, od = 0;
@@ -397,11 +397,11 @@ u32_t kendryte_pll_get_freq(kendryte_sysctl *sysctl, kendryte_pll_t pll)
      * Get final PLL output freq
      * FOUT = FIN / NR * NF / OD
      */
-    freq_out = (double)freq_in / (double)nr * (double)nf / (double)od;
+    freq_out = freq_in /( nr * nf) / od;
     return freq_out;
 }
 
-u32_t kendryte_clock_source_get_freq(kendryte_sysctl *sysctl,
+u32_t kendryte_clock_source_get_freq(volatile kendryte_sysctl *sysctl,
 				     kendryte_clock_source_t input)
 {
     u32_t result;
@@ -430,7 +430,7 @@ u32_t kendryte_clock_source_get_freq(kendryte_sysctl *sysctl,
     return result;
 }
 
-int kendryte_clock_get_threshold(kendryte_sysctl *sysctl,
+int kendryte_clock_get_threshold(volatile kendryte_sysctl *sysctl,
 				 kendryte_threshold_t thres)
 {
     int threshold = 0;
@@ -529,7 +529,7 @@ int kendryte_clock_get_threshold(kendryte_sysctl *sysctl,
     return threshold;
 }
 
-u32_t kendryte_clock_get_freq(kendryte_sysctl *sysctl,
+u32_t kendryte_clock_get_freq(volatile kendryte_sysctl *sysctl,
 				 kendryte_peripheral_clocks_t clock)
 {
     u32_t source = 0;
@@ -871,13 +871,13 @@ u32_t kendryte_clock_get_freq(kendryte_sysctl *sysctl,
     return result;
 }
 
-static inline int kendryte_clock_control_get_rate(struct device *dev,
+static int kendryte_clock_control_get_rate(struct device *dev,
 					 clock_control_subsys_t sub_system,
 					 u32_t *rate)
 {
 	const struct kendryte_clock_control_config *info =
 					dev->config->config_info;
-	kendryte_sysctl *sysctl = (struct _kendryte_sysctl *)info->base;
+	volatile kendryte_sysctl *sysctl = (volatile kendryte_sysctl *)info->base;
 	u32_t subsys = POINTER_TO_UINT(sub_system);
 
 	*rate = kendryte_clock_get_freq(sysctl, subsys);
@@ -896,11 +896,11 @@ int kendryte_clock_control_init(struct device *dev)
 }
 
 static struct kendryte_clock_control_config clock_kendryte_config = {
-	.base = (u32_t *)SYSCTL_BASE_ADDR
+	.base = CONFIG_KENDRYTE_SYSCTL_BASE_ADDRESS,
 };
 
 DEVICE_AND_API_INIT(clock_kendryte,
-		    KENDRYTE_CLOCK_CONTROL_NAME,
+		    CONFIG_KENDRYTE_SYSCTL_NAME,
 		    &kendryte_clock_control_init,
 		    NULL, &clock_kendryte_config,
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,

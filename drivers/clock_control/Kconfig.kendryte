@@ -6,6 +6,6 @@
 
 menuconfig CLOCK_CONTROL_KENDRYTE
 	bool "Kendryte Clock controller support"
-	depends on SOC_FAMILY_RISCV_PRIVILEGE
+	depends on SOC_SERIES_RISCV64_K210
 	help
 	 Enable support for the Kendryte clock driver.
