@@ -174,7 +174,7 @@ static int gpio_kendryte_init(struct device *dev)
 {
 	volatile struct gpio_kendryte_t *gpio = DEV_GPIO(dev);
 	struct device *clk =
-		device_get_binding(KENDRYTE_CLOCK_CONTROL_NAME);
+		device_get_binding(CONFIG_KENDRYTE_SYSCTL_NAME);
 
 	/* enable clock */
 	clock_control_on(clk, (void *)KENDRYTE_CLOCK_GPIO);
