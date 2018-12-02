@@ -1,0 +1,9 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig PINMUX_KENDRYTE
+	bool "Kendryte pinmux driver"
+	depends on PINMUX && SOC_SERIES_RISCV64_K210
+	help
+	  Enable driver for the Kendryte pinmux driver
