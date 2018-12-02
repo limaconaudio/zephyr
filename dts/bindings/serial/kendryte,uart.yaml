@@ -5,7 +5,7 @@
 #
 ---
 title: KENDRYTE UART
-id: kendryte,uart0
+id: kendryte,uart1
 version: 0.1
 
 description: >
@@ -19,7 +19,7 @@ properties:
       type: string
       category: required
       description: compatible strings
-      constraint: "kendryte,uart0"
+      constraint: "kendryte,uart"
       generation: define
 
     reg:

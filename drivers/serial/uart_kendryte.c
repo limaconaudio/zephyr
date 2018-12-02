@@ -22,63 +22,63 @@ struct uart_kendryte_regs_t
 {
     union
     {
-        uint32_t RBR;
-        uint32_t DLL;
-        uint32_t THR;
+        volatile uint32_t RBR;
+        volatile uint32_t DLL;
+        volatile uint32_t THR;
     };
 
     union
     {
-        uint32_t DLH;
-        uint32_t IER;
+        volatile uint32_t DLH;
+        volatile uint32_t IER;
     };
 
     union
     {
-        uint32_t FCR;
-        uint32_t IIR;
+        volatile uint32_t FCR;
+        volatile uint32_t IIR;
     };
 
-    uint32_t LCR;
-    uint32_t MCR;
-    uint32_t LSR;
-    uint32_t MSR;
-    uint32_t SCR;
-    uint32_t LPDLL;
-    uint32_t LPDLH;
-    uint32_t reserve[18];
-    uint32_t FAR;
-    uint32_t TFR;
-    uint32_t RFW;
-    uint32_t USR;
-    uint32_t TFL;
-    uint32_t RFL;
-    uint32_t SRR;
-    uint32_t SRTS;
-    uint32_t SBCR;
-    uint32_t SDMAM;
-    uint32_t SFE;
-    uint32_t SRT;
-    uint32_t STET;
-    uint32_t HTX;
-    uint32_t DMASA;
-    uint32_t TCR;
-    uint32_t DE_EN;
-    uint32_t RE_EN;
-    uint32_t DET;
-    uint32_t TAT;
-    uint32_t DLF;
-    uint32_t RAR;
-    uint32_t TAR;
-    uint32_t LCR_EXT;
-    uint32_t R[5];
-    uint32_t CPR;
-    uint32_t UCV;
-    uint32_t CTR;
+    volatile uint32_t LCR;
+    volatile uint32_t MCR;
+    volatile uint32_t LSR;
+    volatile uint32_t MSR;
+    volatile uint32_t SCR;
+    volatile uint32_t LPDLL;
+    volatile uint32_t LPDLH;
+    volatile uint32_t reserve[18];
+    volatile uint32_t FAR;
+    volatile uint32_t TFR;
+    volatile uint32_t RFW;
+    volatile uint32_t USR;
+    volatile uint32_t TFL;
+    volatile uint32_t RFL;
+    volatile uint32_t SRR;
+    volatile uint32_t SRTS;
+    volatile uint32_t SBCR;
+    volatile uint32_t SDMAM;
+    volatile uint32_t SFE;
+    volatile uint32_t SRT;
+    volatile uint32_t STET;
+    volatile uint32_t HTX;
+    volatile uint32_t DMASA;
+    volatile uint32_t TCR;
+    volatile uint32_t DE_EN;
+    volatile uint32_t RE_EN;
+    volatile uint32_t DET;
+    volatile uint32_t TAT;
+    volatile uint32_t DLF;
+    volatile uint32_t RAR;
+    volatile uint32_t TAR;
+    volatile uint32_t LCR_EXT;
+    volatile uint32_t R[5];
+    volatile uint32_t CPR;
+    volatile uint32_t UCV;
+    volatile uint32_t CTR;
 };
 
 struct uart_kendryte_device_config {
-	u32_t	*port;
+	u64_t	port;
 	u32_t	sys_clk_freq;
 	u32_t	baud_rate;
 	u32_t	clock_id;
@@ -105,8 +105,9 @@ static unsigned char uart_kendryte_poll_out(struct device *dev,
 {
 	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
 
+    	while (uart->LSR & (1u << 5));
 	/* Wait while TX FIFO is full */
-	while (!(uart->LSR & TXDATA_FULL));
+//	while (!(uart->LSR & TXDATA_FULL));
 
 	uart->THR = (char)c;
 
@@ -136,10 +137,12 @@ static int uart_kendryte_init(struct device *dev)
 	const struct uart_kendryte_device_config * const cfg = DEV_CFG(dev);
 	volatile struct uart_kendryte_regs_t *uart = DEV_UART(dev);
 	struct device *clk =
-		device_get_binding(KENDRYTE_CLOCK_CONTROL_NAME);
-
+		device_get_binding(CONFIG_KENDRYTE_SYSCTL_NAME);
+	u32_t rate = 195000000;
 	uint8_t databits, stopbit_val, parity_val;
-	uint32_t u16_div = (cfg->sys_clk_freq + 16  * cfg->baud_rate / 2) /
+
+//	clock_control_get_rate(clk, (void *)KENDRYTE_CLOCK_APB0, &rate);
+	uint32_t u16_div = (rate + 16  * cfg->baud_rate / 2) /
 				(16 * cfg->baud_rate);
 
 	/* enable clock */
@@ -164,7 +167,8 @@ static int uart_kendryte_init(struct device *dev)
         uart->LCR = (databits - 5) | (stopbit_val << 2) | (parity_val << 3);
         uart->LCR &= ~(1u << 7);
         uart->MCR &= ~3;
-//        uart->IER = 1; Interrupt Enable?
+	uart->FCR = 0 << 6 | 3 << 4 | 0x1 << 3 | 0x1;
+	uart->IER = 0x80;
 
 	return 0;
 }
@@ -175,19 +179,53 @@ static const struct uart_driver_api uart_kendryte_driver_api = {
 	.err_check        = NULL,
 };
 
-#ifdef CONFIG_UART_KENDRYTE_PORT_0
+#ifdef CONFIG_UART_KENDRYTE_PORT_1
 
-static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_0 = {
-	.port		= (u32_t *)CONFIG_KENDRYTE_UART_0_BASE_ADDR,
-	.sys_clk_freq	= CONFIG_KENDRYTE_UART_0_CLK_FREQ,
-	.baud_rate	= CONFIG_KENDRYTE_UART_0_CURRENT_SPEED,
+static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_1 = {
+	.port		= CONFIG_KENDRYTE_UART_1_BASE_ADDR,
+	.sys_clk_freq	= CONFIG_KENDRYTE_UART_1_CLK_FREQ,
+	.baud_rate	= CONFIG_KENDRYTE_UART_1_CURRENT_SPEED,
 	.clock_id	= KENDRYTE_CLOCK_UART1,
 };
 
-DEVICE_AND_API_INIT(uart_kendryte_0, CONFIG_KENDRYTE_UART_0_LABEL,
+DEVICE_AND_API_INIT(uart_kendryte_1, CONFIG_KENDRYTE_UART_1_LABEL,
 		    uart_kendryte_init,
-		    NULL, &uart_kendryte_dev_cfg_0,
+		    NULL, &uart_kendryte_dev_cfg_1,
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		    (void *)&uart_kendryte_driver_api);
 
-#endif /* CONFIG_UART_KENDRYTE_PORT_0 */
+#endif /* CONFIG_UART_KENDRYTE_PORT_1 */
+
+#ifdef CONFIG_UART_KENDRYTE_PORT_2
+
+static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_2 = {
+	.port		= CONFIG_KENDRYTE_UART_2_BASE_ADDR,
+	.sys_clk_freq	= CONFIG_KENDRYTE_UART_2_CLK_FREQ,
+	.baud_rate	= CONFIG_KENDRYTE_UART_2_CURRENT_SPEED,
+	.clock_id	= KENDRYTE_CLOCK_UART2,
+};
+
+DEVICE_AND_API_INIT(uart_kendryte_2, CONFIG_KENDRYTE_UART_2_LABEL,
+		    uart_kendryte_init,
+		    NULL, &uart_kendryte_dev_cfg_2,
+		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    (void *)&uart_kendryte_driver_api);
+
+#endif /* CONFIG_UART_KENDRYTE_PORT_2 */
+
+#ifdef CONFIG_UART_KENDRYTE_PORT_3
+
+static const struct uart_kendryte_device_config uart_kendryte_dev_cfg_3 = {
+	.port		= CONFIG_KENDRYTE_UART_3_BASE_ADDR,
+	.sys_clk_freq	= CONFIG_KENDRYTE_UART_3_CLK_FREQ,
+	.baud_rate	= CONFIG_KENDRYTE_UART_3_CURRENT_SPEED,
+	.clock_id	= KENDRYTE_CLOCK_UART3,
+};
+
+DEVICE_AND_API_INIT(uart_kendryte_3, CONFIG_KENDRYTE_UART_3_LABEL,
+		    uart_kendryte_init,
+		    NULL, &uart_kendryte_dev_cfg_3,
+		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    (void *)&uart_kendryte_driver_api);
+
+#endif /* CONFIG_UART_KENDRYTE_PORT_3 */

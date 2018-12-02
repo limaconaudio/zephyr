@@ -9,11 +9,26 @@ menuconfig UART_KENDRYTE
 	help
 	  This option enables the Kendryte serial driver.
 
-# ---------- Port 0 ----------
+# ---------- Port 1 ----------
 
-menuconfig UART_KENDRYTE_PORT_0
-	bool "Enable KENDRYTE Port 0"
+menuconfig UART_KENDRYTE_PORT_1
+	bool "Enable KENDRYTE Port 1"
 	depends on UART_KENDRYTE
 	help
-	  This tells the driver to configure the UART port at boot, depending on
-	  the additional configure options below.
+	  This tells the driver to configure the UART1 port at boot,.
+
+# ---------- Port 2 ----------
+
+menuconfig UART_KENDRYTE_PORT_2
+	bool "Enable KENDRYTE Port 2"
+	depends on UART_KENDRYTE
+	help
+	  This tells the driver to configure the UART2 port at boot.
+
+# ---------- Port 3 ----------
+
+menuconfig UART_KENDRYTE_PORT_3
+	bool "Enable KENDRYTE Port 3"
+	depends on UART_KENDRYTE
+	help
+	  This tells the driver to configure the UART3 port at boot.

@@ -6,7 +6,7 @@
 	model = "Kendryte Kendryte EVB";
 	compatible = "kendryte,kendryte_evb";
 	chosen {
-		zephyr,console = &uart0;
+		zephyr,console = &uart3;
 	};
 };
 
@@ -14,13 +14,19 @@
 	status = "ok";
 };
 
-&uart0 {
-	status = "ok";
+&uart1 {
 	current-speed = <115200>;
 	clock-frequency = <16000000>;
 };
 
-&uart1 {
+&uart2 {
+	current-speed = <115200>;
+	clock-frequency = <16000000>;
+};
+
+&uart3 {
+	status = "ok";
+	current-speed = <115200>;
 	clock-frequency = <16000000>;
 };
 
