@@ -77,7 +77,7 @@ struct __attribute__((packed, aligned(4))) wdt_kendryte_regs_t
 
 /* Device constant configuration parameters */
 struct wdt_kendryte_dev_cfg {
-	u32_t *base;
+	u32_t base;
 	u32_t clock_id;
 };
 
@@ -116,11 +116,11 @@ static uint8_t wdt_get_top(struct device *dev, u64_t timeout_ms)
 {
 	const struct wdt_kendryte_dev_cfg * const dev_cfg = DEV_CFG(dev);
 	struct wdt_kendryte_data *dev_data = DEV_DATA(dev);
-	u32_t *rate = NULL;
+	u32_t rate;
 	u64_t val;
 
-	clock_control_get_rate(dev_data->clk_dev, (void *)dev_cfg->clock_id, rate);
-	val = (timeout_ms * (*rate) / 1000) >> 16;
+	clock_control_get_rate(dev_data->clk_dev, (void *)dev_cfg->clock_id, &rate);
+	val = (timeout_ms * (rate) / 1000) >> 16;
 
 	if (val)
 		val = (uint32_t)(31 - __builtin_clz(val));
@@ -164,7 +164,7 @@ static int wdt_kendryte_init(struct device *dev)
 	const struct wdt_kendryte_dev_cfg * const dev_cfg = DEV_CFG(dev);
 	struct wdt_kendryte_data *dev_data = DEV_DATA(dev);
 	struct device *clk =
-		device_get_binding(KENDRYTE_CLOCK_CONTROL_NAME);
+		device_get_binding(CONFIG_KENDRYTE_SYSCTL_NAME);
 
 	dev_data->clk_dev = clk;
 	/* enable clock */
@@ -187,7 +187,7 @@ static const struct wdt_driver_api wdt_kendryte_api = {
 struct wdt_kendryte_data wdt_kendryte_data0;
 
 static const struct wdt_kendryte_dev_cfg wdt_kendryte_config_0 = {
-	.base = (u32_t *) CONFIG_KENDRYTE_WDT_0_BASE_ADDR,
+	.base = CONFIG_KENDRYTE_WDT_0_BASE_ADDR,
 	.clock_id = KENDRYTE_CLOCK_WDT0,
 };
 
@@ -202,7 +202,7 @@ DEVICE_AND_API_INIT(wdt_kendryte_0, CONFIG_KENDRYTE_WDT_0_LABEL, wdt_kendryte_in
 struct wdt_kendryte_data wdt_kendryte_data1;
 
 static const struct wdt_kendryte_dev_cfg wdt_kendryte_config_1 = {
-	.base = (u32_t *) CONFIG_KENDRYTE_WDT_1_BASE_ADDR,
+	.base = CONFIG_KENDRYTE_WDT_1_BASE_ADDR,
 	.clock_id = KENDRYTE_CLOCK_WDT1,
 };
 
