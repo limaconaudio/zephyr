@@ -69,7 +69,7 @@ def read_intlist(intlist_path):
     prefix = endian_prefix()
 
     intlist_header_fmt = prefix + "II"
-    intlist_entry_fmt = prefix + "qqqq"
+    intlist_entry_fmt = prefix + "iiqq"
 
     with open(intlist_path, "rb") as fp:
         intdata = fp.read()

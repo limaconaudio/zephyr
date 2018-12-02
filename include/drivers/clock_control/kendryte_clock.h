@@ -128,7 +128,7 @@ typedef enum _kendryte_threshold_t
  */
 typedef struct git_id
 {
-    u32_t git_id : 32;
+    volatile u32_t git_id : 32;
 } __attribute__((packed, aligned(4))) sysctl_git_id_t;
 
 /**
@@ -138,7 +138,7 @@ typedef struct git_id
  */
 typedef struct clk_freq
 {
-    u32_t clk_freq : 32;
+    volatile u32_t clk_freq : 32;
 } __attribute__((packed, aligned(4))) sysctl_clk_freq_t;
 
 /**
@@ -148,18 +148,18 @@ typedef struct clk_freq
  */
 typedef struct pll0
 {
-    u32_t clkr0 : 4;
-    u32_t clkf0 : 6;
-    u32_t clkod0 : 4;
-    u32_t bwadj0 : 6;
-    u32_t pll_reset0 : 1;
-    u32_t pll_pwrd0 : 1;
-    u32_t pll_intfb0 : 1;
-    u32_t pll_bypass0 : 1;
-    u32_t pll_test0 : 1;
-    u32_t pll_out_en0 : 1;
-    u32_t pll_test_en : 1;
-    u32_t reserved : 5;
+    volatile u32_t clkr0 : 4;
+    volatile u32_t clkf0 : 6;
+    volatile u32_t clkod0 : 4;
+    volatile u32_t bwadj0 : 6;
+    volatile u32_t pll_reset0 : 1;
+    volatile u32_t pll_pwrd0 : 1;
+    volatile u32_t pll_intfb0 : 1;
+    volatile u32_t pll_bypass0 : 1;
+    volatile u32_t pll_test0 : 1;
+    volatile u32_t pll_out_en0 : 1;
+    volatile u32_t pll_test_en : 1;
+    volatile u32_t reserved : 5;
 } __attribute__((packed, aligned(4))) sysctl_pll0_t;
 
 /**
@@ -169,17 +169,17 @@ typedef struct pll0
  */
 typedef struct pll1
 {
-    u32_t clkr1 : 4;
-    u32_t clkf1 : 6;
-    u32_t clkod1 : 4;
-    u32_t bwadj1 : 6;
-    u32_t pll_reset1 : 1;
-    u32_t pll_pwrd1 : 1;
-    u32_t pll_intfb1 : 1;
-    u32_t pll_bypass1 : 1;
-    u32_t pll_test1 : 1;
-    u32_t pll_out_en1 : 1;
-    u32_t reserved : 6;
+    volatile u32_t clkr1 : 4;
+    volatile u32_t clkf1 : 6;
+    volatile u32_t clkod1 : 4;
+    volatile u32_t bwadj1 : 6;
+    volatile u32_t pll_reset1 : 1;
+    volatile u32_t pll_pwrd1 : 1;
+    volatile u32_t pll_intfb1 : 1;
+    volatile u32_t pll_bypass1 : 1;
+    volatile u32_t pll_test1 : 1;
+    volatile u32_t pll_out_en1 : 1;
+    volatile u32_t reserved : 6;
 } __attribute__((packed, aligned(4))) sysctl_pll1_t;
 
 /**
@@ -189,18 +189,18 @@ typedef struct pll1
  */
 typedef struct pll2
 {
-    u32_t clkr2 : 4;
-    u32_t clkf2 : 6;
-    u32_t clkod2 : 4;
-    u32_t bwadj2 : 6;
-    u32_t pll_reset2 : 1;
-    u32_t pll_pwrd2 : 1;
-    u32_t pll_intfb2 : 1;
-    u32_t pll_bypass2 : 1;
-    u32_t pll_test2 : 1;
-    u32_t pll_out_en2 : 1;
-    u32_t pll_ckin_sel2 : 2;
-    u32_t reserved : 4;
+    volatile u32_t clkr2 : 4;
+    volatile u32_t clkf2 : 6;
+    volatile u32_t clkod2 : 4;
+    volatile u32_t bwadj2 : 6;
+    volatile u32_t pll_reset2 : 1;
+    volatile u32_t pll_pwrd2 : 1;
+    volatile u32_t pll_intfb2 : 1;
+    volatile u32_t pll_bypass2 : 1;
+    volatile u32_t pll_test2 : 1;
+    volatile u32_t pll_out_en2 : 1;
+    volatile u32_t pll_ckin_sel2 : 2;
+    volatile u32_t reserved : 4;
 } __attribute__((packed, aligned(4))) sysctl_pll2_t;
 
 /**
@@ -210,18 +210,18 @@ typedef struct pll2
  */
 typedef struct pll_lock
 {
-    u32_t pll_lock0 : 2;
-    u32_t pll_slip_clear0 : 1;
-    u32_t test_clk_out0 : 1;
-    u32_t reserved0 : 4;
-    u32_t pll_lock1 : 2;
-    u32_t pll_slip_clear1 : 1;
-    u32_t test_clk_out1 : 1;
-    u32_t reserved1 : 4;
-    u32_t pll_lock2 : 2;
-    u32_t pll_slip_clear2 : 1;
-    u32_t test_clk_out2 : 1;
-    u32_t reserved2 : 12;
+    volatile u32_t pll_lock0 : 2;
+    volatile u32_t pll_slip_clear0 : 1;
+    volatile u32_t test_clk_out0 : 1;
+    volatile u32_t reserved0 : 4;
+    volatile u32_t pll_lock1 : 2;
+    volatile u32_t pll_slip_clear1 : 1;
+    volatile u32_t test_clk_out1 : 1;
+    volatile u32_t reserved1 : 4;
+    volatile u32_t pll_lock2 : 2;
+    volatile u32_t pll_slip_clear2 : 1;
+    volatile u32_t test_clk_out2 : 1;
+    volatile u32_t reserved2 : 12;
 } __attribute__((packed, aligned(4))) sysctl_pll_lock_t;
 
 /**
@@ -231,9 +231,9 @@ typedef struct pll_lock
  */
 typedef struct rom_error
 {
-    u32_t rom_mul_error : 1;
-    u32_t rom_one_error : 1;
-    u32_t reserved : 30;
+    volatile u32_t rom_mul_error : 1;
+    volatile u32_t rom_one_error : 1;
+    volatile u32_t reserved : 30;
 } __attribute__((packed, aligned(4))) sysctl_rom_error_t;
 
 /**
@@ -243,16 +243,16 @@ typedef struct rom_error
  */
 typedef struct clk_sel0
 {
-    u32_t aclk_sel : 1;
-    u32_t aclk_divider_sel : 2;
-    u32_t apb0_clk_sel : 3;
-    u32_t apb1_clk_sel : 3;
-    u32_t apb2_clk_sel : 3;
-    u32_t spi3_clk_sel : 1;
-    u32_t timer0_clk_sel : 1;
-    u32_t timer1_clk_sel : 1;
-    u32_t timer2_clk_sel : 1;
-    u32_t reserved : 16;
+    volatile u32_t aclk_sel : 1;
+    volatile u32_t aclk_divider_sel : 2;
+    volatile u32_t apb0_clk_sel : 3;
+    volatile u32_t apb1_clk_sel : 3;
+    volatile u32_t apb2_clk_sel : 3;
+    volatile u32_t spi3_clk_sel : 1;
+    volatile u32_t timer0_clk_sel : 1;
+    volatile u32_t timer1_clk_sel : 1;
+    volatile u32_t timer2_clk_sel : 1;
+    volatile u32_t reserved : 16;
 } __attribute__((packed, aligned(4))) sysctl_clk_sel0_t;
 
 /**
@@ -262,9 +262,9 @@ typedef struct clk_sel0
  */
 typedef struct clk_sel1
 {
-    u32_t spi3_sample_clk_sel : 1;
-    u32_t reserved0 : 30;
-    u32_t reserved1 : 1;
+    volatile u32_t spi3_sample_clk_sel : 1;
+    volatile u32_t reserved0 : 30;
+    volatile u32_t reserved1 : 1;
 } __attribute__((packed, aligned(4))) sysctl_clk_sel1_t;
 
 /**
@@ -274,13 +274,13 @@ typedef struct clk_sel1
  */
 typedef struct clk_en_cent
 {
-    u32_t cpu_clk_en : 1;
-    u32_t sram0_clk_en : 1;
-    u32_t sram1_clk_en : 1;
-    u32_t apb0_clk_en : 1;
-    u32_t apb1_clk_en : 1;
-    u32_t apb2_clk_en : 1;
-    u32_t reserved : 26;
+    volatile u32_t cpu_clk_en : 1;
+    volatile u32_t sram0_clk_en : 1;
+    volatile u32_t sram1_clk_en : 1;
+    volatile u32_t apb0_clk_en : 1;
+    volatile u32_t apb1_clk_en : 1;
+    volatile u32_t apb2_clk_en : 1;
+    volatile u32_t reserved : 26;
 } __attribute__((packed, aligned(4))) sysctl_clk_en_cent_t;
 
 /**
@@ -290,37 +290,37 @@ typedef struct clk_en_cent
  */
 typedef struct clk_en_peri
 {
-    u32_t rom_clk_en : 1;
-    u32_t dma_clk_en : 1;
-    u32_t ai_clk_en : 1;
-    u32_t dvp_clk_en : 1;
-    u32_t fft_clk_en : 1;
-    u32_t gpio_clk_en : 1;
-    u32_t spi0_clk_en : 1;
-    u32_t spi1_clk_en : 1;
-    u32_t spi2_clk_en : 1;
-    u32_t spi3_clk_en : 1;
-    u32_t i2s0_clk_en : 1;
-    u32_t i2s1_clk_en : 1;
-    u32_t i2s2_clk_en : 1;
-    u32_t i2c0_clk_en : 1;
-    u32_t i2c1_clk_en : 1;
-    u32_t i2c2_clk_en : 1;
-    u32_t uart1_clk_en : 1;
-    u32_t uart2_clk_en : 1;
-    u32_t uart3_clk_en : 1;
-    u32_t aes_clk_en : 1;
-    u32_t fpioa_clk_en : 1;
-    u32_t timer0_clk_en : 1;
-    u32_t timer1_clk_en : 1;
-    u32_t timer2_clk_en : 1;
-    u32_t wdt0_clk_en : 1;
-    u32_t wdt1_clk_en : 1;
-    u32_t sha_clk_en : 1;
-    u32_t otp_clk_en : 1;
-    u32_t reserved : 1;
-    u32_t rtc_clk_en : 1;
-    u32_t reserved0 : 2;
+    volatile u32_t rom_clk_en : 1;
+    volatile u32_t dma_clk_en : 1;
+    volatile u32_t ai_clk_en : 1;
+    volatile u32_t dvp_clk_en : 1;
+    volatile u32_t fft_clk_en : 1;
+    volatile u32_t gpio_clk_en : 1;
+    volatile u32_t spi0_clk_en : 1;
+    volatile u32_t spi1_clk_en : 1;
+    volatile u32_t spi2_clk_en : 1;
+    volatile u32_t spi3_clk_en : 1;
+    volatile u32_t i2s0_clk_en : 1;
+    volatile u32_t i2s1_clk_en : 1;
+    volatile u32_t i2s2_clk_en : 1;
+    volatile u32_t i2c0_clk_en : 1;
+    volatile u32_t i2c1_clk_en : 1;
+    volatile u32_t i2c2_clk_en : 1;
+    volatile u32_t uart1_clk_en : 1;
+    volatile u32_t uart2_clk_en : 1;
+    volatile u32_t uart3_clk_en : 1;
+    volatile u32_t aes_clk_en : 1;
+    volatile u32_t fpioa_clk_en : 1;
+    volatile u32_t timer0_clk_en : 1;
+    volatile u32_t timer1_clk_en : 1;
+    volatile u32_t timer2_clk_en : 1;
+    volatile u32_t wdt0_clk_en : 1;
+    volatile u32_t wdt1_clk_en : 1;
+    volatile u32_t sha_clk_en : 1;
+    volatile u32_t otp_clk_en : 1;
+    volatile u32_t reserved : 1;
+    volatile u32_t rtc_clk_en : 1;
+    volatile u32_t reserved0 : 2;
 } __attribute__((packed, aligned(4))) sysctl_clk_en_peri_t;
 
 /**
@@ -330,8 +330,8 @@ typedef struct clk_en_peri
  */
 typedef struct soft_reset
 {
-    u32_t soft_reset : 1;
-    u32_t reserved : 31;
+    volatile u32_t soft_reset : 1;
+    volatile u32_t reserved : 31;
 } __attribute__((packed, aligned(4))) sysctl_soft_reset_t;
 
 /**
@@ -341,36 +341,36 @@ typedef struct soft_reset
  */
 typedef struct peri_reset
 {
-    u32_t rom_reset : 1;
-    u32_t dma_reset : 1;
-    u32_t ai_reset : 1;
-    u32_t dvp_reset : 1;
-    u32_t fft_reset : 1;
-    u32_t gpio_reset : 1;
-    u32_t spi0_reset : 1;
-    u32_t spi1_reset : 1;
-    u32_t spi2_reset : 1;
-    u32_t spi3_reset : 1;
-    u32_t i2s0_reset : 1;
-    u32_t i2s1_reset : 1;
-    u32_t i2s2_reset : 1;
-    u32_t i2c0_reset : 1;
-    u32_t i2c1_reset : 1;
-    u32_t i2c2_reset : 1;
-    u32_t uart1_reset : 1;
-    u32_t uart2_reset : 1;
-    u32_t uart3_reset : 1;
-    u32_t aes_reset : 1;
-    u32_t fpioa_reset : 1;
-    u32_t timer0_reset : 1;
-    u32_t timer1_reset : 1;
-    u32_t timer2_reset : 1;
-    u32_t wdt0_reset : 1;
-    u32_t wdt1_reset : 1;
-    u32_t sha_reset : 1;
-    u32_t reserved : 2;
-    u32_t rtc_reset : 1;
-    u32_t reserved0 : 2;
+    volatile u32_t rom_reset : 1;
+    volatile u32_t dma_reset : 1;
+    volatile u32_t ai_reset : 1;
+    volatile u32_t dvp_reset : 1;
+    volatile u32_t fft_reset : 1;
+    volatile u32_t gpio_reset : 1;
+    volatile u32_t spi0_reset : 1;
+    volatile u32_t spi1_reset : 1;
+    volatile u32_t spi2_reset : 1;
+    volatile u32_t spi3_reset : 1;
+    volatile u32_t i2s0_reset : 1;
+    volatile u32_t i2s1_reset : 1;
+    volatile u32_t i2s2_reset : 1;
+    volatile u32_t i2c0_reset : 1;
+    volatile u32_t i2c1_reset : 1;
+    volatile u32_t i2c2_reset : 1;
+    volatile u32_t uart1_reset : 1;
+    volatile u32_t uart2_reset : 1;
+    volatile u32_t uart3_reset : 1;
+    volatile u32_t aes_reset : 1;
+    volatile u32_t fpioa_reset : 1;
+    volatile u32_t timer0_reset : 1;
+    volatile u32_t timer1_reset : 1;
+    volatile u32_t timer2_reset : 1;
+    volatile u32_t wdt0_reset : 1;
+    volatile u32_t wdt1_reset : 1;
+    volatile u32_t sha_reset : 1;
+    volatile u32_t reserved : 2;
+    volatile u32_t rtc_reset : 1;
+    volatile u32_t reserved0 : 2;
 } __attribute__((packed, aligned(4))) sysctl_peri_reset_t;
 
 /**
@@ -380,12 +380,12 @@ typedef struct peri_reset
  */
 typedef struct clk_th0
 {
-    u32_t sram0_gclk_threshold : 4;
-    u32_t sram1_gclk_threshold : 4;
-    u32_t ai_gclk_threshold : 4;
-    u32_t dvp_gclk_threshold : 4;
-    u32_t rom_gclk_threshold : 4;
-    u32_t reserved : 12;
+    volatile u32_t sram0_gclk_threshold : 4;
+    volatile u32_t sram1_gclk_threshold : 4;
+    volatile u32_t ai_gclk_threshold : 4;
+    volatile u32_t dvp_gclk_threshold : 4;
+    volatile u32_t rom_gclk_threshold : 4;
+    volatile u32_t reserved : 12;
 } __attribute__((packed, aligned(4))) sysctl_clk_th0_t;
 
 /**
@@ -395,10 +395,10 @@ typedef struct clk_th0
  */
 typedef struct clk_th1
 {
-    u32_t spi0_clk_threshold : 8;
-    u32_t spi1_clk_threshold : 8;
-    u32_t spi2_clk_threshold : 8;
-    u32_t spi3_clk_threshold : 8;
+    volatile u32_t spi0_clk_threshold : 8;
+    volatile u32_t spi1_clk_threshold : 8;
+    volatile u32_t spi2_clk_threshold : 8;
+    volatile u32_t spi3_clk_threshold : 8;
 } __attribute__((packed, aligned(4))) sysctl_clk_th1_t;
 
 /**
@@ -408,10 +408,10 @@ typedef struct clk_th1
  */
 typedef struct clk_th2
 {
-    u32_t timer0_clk_threshold : 8;
-    u32_t timer1_clk_threshold : 8;
-    u32_t timer2_clk_threshold : 8;
-    u32_t reserved : 8;
+    volatile u32_t timer0_clk_threshold : 8;
+    volatile u32_t timer1_clk_threshold : 8;
+    volatile u32_t timer2_clk_threshold : 8;
+    volatile u32_t reserved : 8;
 } __attribute__((packed, aligned(4))) sysctl_clk_th2_t;
 
 /**
@@ -421,8 +421,8 @@ typedef struct clk_th2
  */
 typedef struct clk_th3
 {
-    u32_t i2s0_clk_threshold : 16;
-    u32_t i2s1_clk_threshold : 16;
+    volatile u32_t i2s0_clk_threshold : 16;
+    volatile u32_t i2s1_clk_threshold : 16;
 } __attribute__((packed, aligned(4))) sysctl_clk_th3_t;
 
 /**
@@ -432,9 +432,9 @@ typedef struct clk_th3
  */
 typedef struct clk_th4
 {
-    u32_t i2s2_clk_threshold : 16;
-    u32_t i2s0_mclk_threshold : 8;
-    u32_t i2s1_mclk_threshold : 8;
+    volatile u32_t i2s2_clk_threshold : 16;
+    volatile u32_t i2s0_mclk_threshold : 8;
+    volatile u32_t i2s1_mclk_threshold : 8;
 } __attribute__((packed, aligned(4))) sysctl_clk_th4_t;
 
 /**
@@ -444,10 +444,10 @@ typedef struct clk_th4
  */
 typedef struct clk_th5
 {
-    u32_t i2s2_mclk_threshold : 8;
-    u32_t i2c0_clk_threshold : 8;
-    u32_t i2c1_clk_threshold : 8;
-    u32_t i2c2_clk_threshold : 8;
+    volatile u32_t i2s2_mclk_threshold : 8;
+    volatile u32_t i2c0_clk_threshold : 8;
+    volatile u32_t i2c1_clk_threshold : 8;
+    volatile u32_t i2c2_clk_threshold : 8;
 } __attribute__((packed, aligned(4))) sysctl_clk_th5_t;
 
 /**
@@ -457,10 +457,10 @@ typedef struct clk_th5
  */
 typedef struct clk_th6
 {
-    u32_t wdt0_clk_threshold : 8;
-    u32_t wdt1_clk_threshold : 8;
-    u32_t reserved0 : 8;
-    u32_t reserved1 : 8;
+    volatile u32_t wdt0_clk_threshold : 8;
+    volatile u32_t wdt1_clk_threshold : 8;
+    volatile u32_t reserved0 : 8;
+    volatile u32_t reserved1 : 8;
 } __attribute__((packed, aligned(4))) sysctl_clk_th6_t;
 
 /**
@@ -470,10 +470,10 @@ typedef struct clk_th6
  */
 typedef struct misc
 {
-    u32_t debug_sel : 6;
-    u32_t reserved0 : 4;
-    u32_t spi_dvp_data_enable: 1;
-    u32_t reserved1 : 21;
+    volatile u32_t debug_sel : 6;
+    volatile u32_t reserved0 : 4;
+    volatile u32_t spi_dvp_data_enable: 1;
+    volatile u32_t reserved1 : 21;
 } __attribute__((packed, aligned(4))) sysctl_misc_t;
 
 /**
@@ -483,33 +483,33 @@ typedef struct misc
  */
 typedef struct peri
 {
-    u32_t timer0_pause : 1;
-    u32_t timer1_pause : 1;
-    u32_t timer2_pause : 1;
-    u32_t timer3_pause : 1;
-    u32_t timer4_pause : 1;
-    u32_t timer5_pause : 1;
-    u32_t timer6_pause : 1;
-    u32_t timer7_pause : 1;
-    u32_t timer8_pause : 1;
-    u32_t timer9_pause : 1;
-    u32_t timer10_pause : 1;
-    u32_t timer11_pause : 1;
-    u32_t spi0_xip_en : 1;
-    u32_t spi1_xip_en : 1;
-    u32_t spi2_xip_en : 1;
-    u32_t spi3_xip_en : 1;
-    u32_t spi0_clk_bypass : 1;
-    u32_t spi1_clk_bypass : 1;
-    u32_t spi2_clk_bypass : 1;
-    u32_t i2s0_clk_bypass : 1;
-    u32_t i2s1_clk_bypass : 1;
-    u32_t i2s2_clk_bypass : 1;
-    u32_t jtag_clk_bypass : 1;
-    u32_t dvp_clk_bypass : 1;
-    u32_t debug_clk_bypass : 1;
-    u32_t reserved0 : 1;
-    u32_t reserved1 : 6;
+    volatile u32_t timer0_pause : 1;
+    volatile u32_t timer1_pause : 1;
+    volatile u32_t timer2_pause : 1;
+    volatile u32_t timer3_pause : 1;
+    volatile u32_t timer4_pause : 1;
+    volatile u32_t timer5_pause : 1;
+    volatile u32_t timer6_pause : 1;
+    volatile u32_t timer7_pause : 1;
+    volatile u32_t timer8_pause : 1;
+    volatile u32_t timer9_pause : 1;
+    volatile u32_t timer10_pause : 1;
+    volatile u32_t timer11_pause : 1;
+    volatile u32_t spi0_xip_en : 1;
+    volatile u32_t spi1_xip_en : 1;
+    volatile u32_t spi2_xip_en : 1;
+    volatile u32_t spi3_xip_en : 1;
+    volatile u32_t spi0_clk_bypass : 1;
+    volatile u32_t spi1_clk_bypass : 1;
+    volatile u32_t spi2_clk_bypass : 1;
+    volatile u32_t i2s0_clk_bypass : 1;
+    volatile u32_t i2s1_clk_bypass : 1;
+    volatile u32_t i2s2_clk_bypass : 1;
+    volatile u32_t jtag_clk_bypass : 1;
+    volatile u32_t dvp_clk_bypass : 1;
+    volatile u32_t debug_clk_bypass : 1;
+    volatile u32_t reserved0 : 1;
+    volatile u32_t reserved1 : 6;
 } __attribute__((packed, aligned(4))) sysctl_peri_t;
 
 /**
@@ -519,11 +519,11 @@ typedef struct peri
  */
 typedef struct spi_sleep
 {
-    u32_t ssi0_sleep : 1;
-    u32_t ssi1_sleep : 1;
-    u32_t ssi2_sleep : 1;
-    u32_t ssi3_sleep : 1;
-    u32_t reserved : 28;
+    volatile u32_t ssi0_sleep : 1;
+    volatile u32_t ssi1_sleep : 1;
+    volatile u32_t ssi2_sleep : 1;
+    volatile u32_t ssi3_sleep : 1;
+    volatile u32_t reserved : 28;
 } __attribute__((packed, aligned(4))) sysctl_spi_sleep_t;
 
 /**
@@ -533,12 +533,12 @@ typedef struct spi_sleep
  */
 typedef struct reset_status
 {
-    u32_t reset_sts_clr : 1;
-    u32_t pin_reset_sts : 1;
-    u32_t wdt0_reset_sts : 1;
-    u32_t wdt1_reset_sts : 1;
-    u32_t soft_reset_sts : 1;
-    u32_t reserved : 27;
+    volatile u32_t reset_sts_clr : 1;
+    volatile u32_t pin_reset_sts : 1;
+    volatile u32_t wdt0_reset_sts : 1;
+    volatile u32_t wdt1_reset_sts : 1;
+    volatile u32_t soft_reset_sts : 1;
+    volatile u32_t reserved : 27;
 } __attribute__((packed, aligned(4))) sysctl_reset_status_t;
 
 /**
@@ -548,12 +548,12 @@ typedef struct reset_status
  */
 typedef struct dma_sel0
 {
-    u32_t dma_sel0 : 6;
-    u32_t dma_sel1 : 6;
-    u32_t dma_sel2 : 6;
-    u32_t dma_sel3 : 6;
-    u32_t dma_sel4 : 6;
-    u32_t reserved : 2;
+    volatile u32_t dma_sel0 : 6;
+    volatile u32_t dma_sel1 : 6;
+    volatile u32_t dma_sel2 : 6;
+    volatile u32_t dma_sel3 : 6;
+    volatile u32_t dma_sel4 : 6;
+    volatile u32_t reserved : 2;
 } __attribute__((packed, aligned(4))) sysctl_dma_sel0_t;
 
 /**
@@ -563,8 +563,8 @@ typedef struct dma_sel0
  */
 typedef struct dma_sel1
 {
-    u32_t dma_sel5 : 6;
-    u32_t reserved : 26;
+    volatile u32_t dma_sel5 : 6;
+    volatile u32_t reserved : 26;
 } __attribute__((packed, aligned(4))) sysctl_dma_sel1_t;
 
 /**
@@ -574,15 +574,15 @@ typedef struct dma_sel1
  */
 typedef struct power_sel
 {
-    u32_t power_mode_sel0 : 1;
-    u32_t power_mode_sel1 : 1;
-    u32_t power_mode_sel2 : 1;
-    u32_t power_mode_sel3 : 1;
-    u32_t power_mode_sel4 : 1;
-    u32_t power_mode_sel5 : 1;
-    u32_t power_mode_sel6 : 1;
-    u32_t power_mode_sel7 : 1;
-    u32_t reserved : 24;
+    volatile u32_t power_mode_sel0 : 1;
+    volatile u32_t power_mode_sel1 : 1;
+    volatile u32_t power_mode_sel2 : 1;
+    volatile u32_t power_mode_sel3 : 1;
+    volatile u32_t power_mode_sel4 : 1;
+    volatile u32_t power_mode_sel5 : 1;
+    volatile u32_t power_mode_sel6 : 1;
+    volatile u32_t power_mode_sel7 : 1;
+    volatile u32_t reserved : 24;
 } __attribute__((packed, aligned(4))) sysctl_power_sel_t;
 
 /**
@@ -609,7 +609,7 @@ typedef struct _kendryte_sysctl
     /* No. 4 (0x10): PLL2 controller */
     sysctl_pll2_t pll2;
     /* No. 5 (0x14): Reserved */
-    u32_t resv5;
+    volatile u32_t resv5;
     /* No. 6 (0x18): PLL lock tester */
     sysctl_pll_lock_t pll_lock;
     /* No. 7 (0x1c): AXI ROM detector */
@@ -655,13 +655,13 @@ typedef struct _kendryte_sysctl
     /* No. 27 (0x6c): IO Power Mode Select controller */
     sysctl_power_sel_t power_sel;
     /* No. 28 (0x70): Reserved */
-    u32_t resv28;
+    volatile u32_t resv28;
     /* No. 29 (0x74): Reserved */
-    u32_t resv29;
+    volatile u32_t resv29;
     /* No. 30 (0x78): Reserved */
-    u32_t resv30;
+    volatile u32_t resv30;
     /* No. 31 (0x7c): Reserved */
-    u32_t resv31;
+    volatile u32_t resv31;
 } __attribute__((packed, aligned(4))) kendryte_sysctl;
 
 /**
@@ -669,18 +669,18 @@ typedef struct _kendryte_sysctl
  */
 typedef struct general_pll
 {
-    u32_t clkr : 4;
-    u32_t clkf : 6;
-    u32_t clkod : 4;
-    u32_t bwadj : 6;
-    u32_t pll_reset : 1;
-    u32_t pll_pwrd : 1;
-    u32_t pll_intfb : 1;
-    u32_t pll_bypass : 1;
-    u32_t pll_test : 1;
-    u32_t pll_out_en : 1;
-    u32_t pll_ckin_sel : 2;
-    u32_t reserved : 4;
+    volatile u32_t clkr : 4;
+    volatile u32_t clkf : 6;
+    volatile u32_t clkod : 4;
+    volatile u32_t bwadj : 6;
+    volatile u32_t pll_reset : 1;
+    volatile u32_t pll_pwrd : 1;
+    volatile u32_t pll_intfb : 1;
+    volatile u32_t pll_bypass : 1;
+    volatile u32_t pll_test : 1;
+    volatile u32_t pll_out_en : 1;
+    volatile u32_t pll_ckin_sel : 2;
+    volatile u32_t reserved : 4;
 } __attribute__((packed, aligned(4))) sysctl_general_pll_t;
 
 #endif /* ZEPHYR_INCLUDE_DRIVERS_CLOCK_CONTROL_KENDRYTE_CLOCK_H_ */

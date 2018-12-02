@@ -143,13 +143,8 @@ extern void idle(void *unused1, void *unused2, void *unused3);
  */
 void _bss_zero(void)
 {
-#ifdef CONFIG_RISCV64
-	(void)memset(&__bss_start, 0,
-		     ((u64_t) &__bss_end - (u64_t) &__bss_start));
-#elif
 	(void)memset(&__bss_start, 0,
 		     ((u32_t) &__bss_end - (u32_t) &__bss_start));
-#endif
 #ifdef CONFIG_CCM_BASE_ADDRESS
 	(void)memset(&__ccm_bss_start, 0,
 		     ((u32_t) &__ccm_bss_end - (u32_t) &__ccm_bss_start));
@@ -172,13 +167,8 @@ void _bss_zero(void)
  */
 void _data_copy(void)
 {
-#ifdef CONFIG_RISCV64
-	(void)memcpy(&__data_ram_start, &__data_rom_start,
-		 ((u64_t) &__data_ram_end - (u64_t) &__data_ram_start));
-#elif
 	(void)memcpy(&__data_ram_start, &__data_rom_start,
 		 ((u32_t) &__data_ram_end - (u32_t) &__data_ram_start));
-#endif
 #ifdef CONFIG_CCM_BASE_ADDRESS
 	(void)memcpy(&__ccm_data_start, &__ccm_data_rom_start,
 		 ((u32_t) &__ccm_data_end - (u32_t) &__ccm_data_start));

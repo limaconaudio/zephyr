@@ -47,24 +47,24 @@ SECTION_FUNC(exception.other, __swap)
 
 	call read_timer_start_of_swap
 
-	lw ra, __NANO_ESF_ra_OFFSET(sp)
-	lw gp, __NANO_ESF_gp_OFFSET(sp)
-	lw tp, __NANO_ESF_tp_OFFSET(sp)
-	lw t0, __NANO_ESF_t0_OFFSET(sp)
-	lw t1, __NANO_ESF_t1_OFFSET(sp)
-	lw t2, __NANO_ESF_t2_OFFSET(sp)
-	lw t3, __NANO_ESF_t3_OFFSET(sp)
-	lw t4, __NANO_ESF_t4_OFFSET(sp)
-	lw t5, __NANO_ESF_t5_OFFSET(sp)
-	lw t6, __NANO_ESF_t6_OFFSET(sp)
-	lw a0, __NANO_ESF_a0_OFFSET(sp)
-	lw a1, __NANO_ESF_a1_OFFSET(sp)
-	lw a2, __NANO_ESF_a2_OFFSET(sp)
-	lw a3, __NANO_ESF_a3_OFFSET(sp)
-	lw a4, __NANO_ESF_a4_OFFSET(sp)
-	lw a5, __NANO_ESF_a5_OFFSET(sp)
-	lw a6, __NANO_ESF_a6_OFFSET(sp)
-	lw a7, __NANO_ESF_a7_OFFSET(sp)
+	lwu ra, __NANO_ESF_ra_OFFSET(sp)
+	lwu gp, __NANO_ESF_gp_OFFSET(sp)
+	lwu tp, __NANO_ESF_tp_OFFSET(sp)
+	lwu t0, __NANO_ESF_t0_OFFSET(sp)
+	lwu t1, __NANO_ESF_t1_OFFSET(sp)
+	lwu t2, __NANO_ESF_t2_OFFSET(sp)
+	lwu t3, __NANO_ESF_t3_OFFSET(sp)
+	lwu t4, __NANO_ESF_t4_OFFSET(sp)
+	lwu t5, __NANO_ESF_t5_OFFSET(sp)
+	lwu t6, __NANO_ESF_t6_OFFSET(sp)
+	lwu a0, __NANO_ESF_a0_OFFSET(sp)
+	lwu a1, __NANO_ESF_a1_OFFSET(sp)
+	lwu a2, __NANO_ESF_a2_OFFSET(sp)
+	lwu a3, __NANO_ESF_a3_OFFSET(sp)
+	lwu a4, __NANO_ESF_a4_OFFSET(sp)
+	lwu a5, __NANO_ESF_a5_OFFSET(sp)
+	lwu a6, __NANO_ESF_a6_OFFSET(sp)
+	lwu a7, __NANO_ESF_a7_OFFSET(sp)
 
 	/* Release stack space */
 	addi sp, sp, __NANO_ESF_SIZEOF
@@ -83,10 +83,10 @@ SECTION_FUNC(exception.other, __swap)
 	la t0, _kernel
 
 	/* Get pointer to _kernel.current */
-	lw t1, _kernel_offset_to_current(t0)
+	lwu t1, _kernel_offset_to_current(t0)
 
 	/* Load return value of __swap function in temp register t2 */
-	lw t2, _thread_offset_to_swap_return_value(t1)
+	lwu t2, _thread_offset_to_swap_return_value(t1)
 
 	/*
 	 * Unlock irq, following IRQ lock state in a0 register.

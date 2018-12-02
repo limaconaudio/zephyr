@@ -13,7 +13,7 @@ GTEXT(__reset)
 
 /* imports */
 GTEXT(_PrepC)
-GDATA(__global_pointer$)
+GDATA(__global_pointer)
 
 #if CONFIG_INCLUDE_RESET_VECTOR
 SECTION_FUNC(reset, __reset)
@@ -32,6 +32,11 @@ SECTION_FUNC(reset, __reset)
  * the C domain
  */
 SECTION_FUNC(TEXT, __initialize)
+	csrw mideleg, 0
+	csrw medeleg, 0
+	csrw mie, 0
+	csrw mip, 0
+
 	li x1, 0
 	li x2, 0
 	li x3, 0
@@ -66,7 +71,7 @@ SECTION_FUNC(TEXT, __initialize)
 	csrw mscratch, x0
 
 	/* Reload the global pointer */
-	la gp, __global_pointer$
+	la gp, __global_pointer
 	/*
 	 * Use HART with ID zero to execute the init code and put rest
 	 * of the HART's to spin until we handle SMP
