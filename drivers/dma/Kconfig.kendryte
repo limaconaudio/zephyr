@@ -1,0 +1,10 @@
+# Kconfig - DMA configuration options
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig DMA_KENDRYTE
+	bool "Enable KENDRYTE DMA driver"
+	depends on SOC_RISCV64_K210
+	help
+	  DMA driver for KENDRYTE SoCs.

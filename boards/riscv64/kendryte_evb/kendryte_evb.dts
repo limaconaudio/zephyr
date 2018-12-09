@@ -10,6 +10,10 @@
 	};
 };
 
+&dma {
+	status = "ok";
+};
+
 &gpio {
 	status = "ok";
 };
