@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_test
-#define NET_LOG_LEVEL CONFIG_NET_UTILS_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_test, CONFIG_NET_UTILS_LOG_LEVEL);
 
 #include <zephyr/types.h>
 #include <stddef.h>
@@ -318,7 +318,7 @@ void test_utils(void)
 	frag->data[hdr_len + 2] = 0;
 	frag->data[hdr_len + 3] = 0;
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMPV6));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMPV6));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt1, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -352,7 +352,7 @@ void test_utils(void)
 	memcpy(net_buf_add(frag, sizeof(pkt2) - sizeof(pkt2) / 2),
 	       pkt2 + sizeof(pkt2) / 2, sizeof(pkt2) - sizeof(pkt2) / 2);
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMPV6));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMPV6));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt2, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -389,7 +389,7 @@ void test_utils(void)
 	printk("Second fragment will have %zd bytes\n",
 	       sizeof(pkt3) - sizeof(pkt3) / 2);
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMPV6));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMPV6));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt3, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -461,7 +461,7 @@ void test_utils(void)
 		zassert_true(0, "exiting");
 	}
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMPV6));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMPV6));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt3, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -496,7 +496,7 @@ void test_utils(void)
 	frag->data[hdr_len + 2] = 0;
 	frag->data[hdr_len + 3] = 0;
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMP));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMP));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt4, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -529,7 +529,7 @@ void test_utils(void)
 	frag->data[hdr_len + 2] = 0;
 	frag->data[hdr_len + 3] = 0;
 
-	chksum = ntohs(~net_calc_chksum(pkt, IPPROTO_ICMP));
+	chksum = ntohs(net_calc_chksum(pkt, IPPROTO_ICMP));
 	if (chksum != orig_chksum) {
 		printk("Invalid chksum 0x%x in pkt5, should be 0x%x\n",
 		       chksum, orig_chksum);
@@ -1347,12 +1347,14 @@ void test_net_pkt_addr_parse(void)
 	static struct ipv6_test_data {
 		const unsigned char *payload;
 		int payload_len;
+		u8_t proto;
 		struct sockaddr_in6 src;
 		struct sockaddr_in6 dst;
 	} ipv6_test_data_set[] = {
 		{
 			.payload = v6_udp_pkt1,
 			.payload_len = sizeof(v6_udp_pkt1),
+			.proto = IPPROTO_UDP,
 			.src = {
 				.sin6_family = AF_INET6,
 				.sin6_port = htons(5353),
@@ -1386,6 +1388,7 @@ void test_net_pkt_addr_parse(void)
 		{
 			.payload = v6_tcp_pkt1,
 			.payload_len = sizeof(v6_tcp_pkt1),
+			.proto = IPPROTO_TCP,
 			.src = {
 				.sin6_family = AF_INET6,
 				.sin6_port = htons(62032),
@@ -1423,12 +1426,14 @@ void test_net_pkt_addr_parse(void)
 	static struct ipv4_test_data {
 		const unsigned char *payload;
 		int payload_len;
+		u8_t proto;
 		struct sockaddr_in src;
 		struct sockaddr_in dst;
 	} ipv4_test_data_set[] = {
 		{
 			.payload = v4_tcp_pkt1,
 			.payload_len = sizeof(v4_tcp_pkt1),
+			.proto = IPPROTO_TCP,
 			.src = {
 				.sin_family = AF_INET,
 				.sin_port = htons(22),
@@ -1454,6 +1459,7 @@ void test_net_pkt_addr_parse(void)
 		{
 			.payload = v4_udp_pkt1,
 			.payload_len = sizeof(v4_udp_pkt1),
+			.proto = IPPROTO_UDP,
 			.src = {
 				.sin_family = AF_INET,
 				.sin_port = htons(64426),
@@ -1508,6 +1514,7 @@ void test_net_pkt_addr_parse(void)
 
 		net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv6_hdr));
 		net_pkt_set_family(pkt, AF_INET6);
+		net_pkt_set_transport_proto(pkt, data->proto);
 
 		zassert_equal(net_pkt_get_src_addr(pkt,
 						   (struct sockaddr *)&addr,
@@ -1564,6 +1571,7 @@ void test_net_pkt_addr_parse(void)
 
 		net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv4_hdr));
 		net_pkt_set_family(pkt, AF_INET);
+		net_pkt_set_transport_proto(pkt, data->proto);
 
 		zassert_equal(net_pkt_get_src_addr(pkt,
 						   (struct sockaddr *)&addr,

@@ -14,6 +14,10 @@
 
 extern struct apds9960_data apds9960_driver;
 
+#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(APDS9960);
+
 void apds9960_work_cb(struct k_work *work)
 {
 	struct apds9960_data *data = CONTAINER_OF(work,
@@ -25,7 +29,7 @@ void apds9960_work_cb(struct k_work *work)
 		data->p_th_handler(dev, &data->p_th_trigger);
 	}
 
-	gpio_pin_enable_callback(data->gpio, CONFIG_APDS9960_GPIO_PIN_NUM);
+	gpio_pin_enable_callback(data->gpio, DT_APDS9960_GPIO_PIN_NUM);
 }
 
 int apds9960_attr_set(struct device *dev,
@@ -67,7 +71,7 @@ int apds9960_trigger_set(struct device *dev,
 {
 	struct apds9960_data *data = dev->driver_data;
 
-	gpio_pin_disable_callback(data->gpio, CONFIG_APDS9960_GPIO_PIN_NUM);
+	gpio_pin_disable_callback(data->gpio, DT_APDS9960_GPIO_PIN_NUM);
 
 	switch (trig->type) {
 	case SENSOR_TRIG_THRESHOLD:
@@ -85,11 +89,11 @@ int apds9960_trigger_set(struct device *dev,
 		}
 		break;
 	default:
-		SYS_LOG_ERR("Unsupported sensor trigger");
+		LOG_ERR("Unsupported sensor trigger");
 		return -ENOTSUP;
 	}
 
-	gpio_pin_enable_callback(data->gpio, CONFIG_APDS9960_GPIO_PIN_NUM);
+	gpio_pin_enable_callback(data->gpio, DT_APDS9960_GPIO_PIN_NUM);
 
 	return 0;
 }

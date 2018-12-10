@@ -100,7 +100,18 @@ void _irq_spurious(void *unused)
 {
 	ARG_UNUSED(unused);
 	printk("_irq_spurious(). Spinning...\n");
-	for (;;)
+	for (;;) {
 		;
+	}
 }
 
+#ifdef CONFIG_DYNAMIC_INTERRUPTS
+int _arch_irq_connect_dynamic(unsigned int irq, unsigned int priority,
+			      void (*routine)(void *parameter), void *parameter,
+			      u32_t flags)
+{
+	z_isr_install(irq, routine, parameter);
+	_irq_priority_set(irq, priority, flags);
+	return irq;
+}
+#endif /* CONFIG_DYNAMIC_INTERRUPTS */

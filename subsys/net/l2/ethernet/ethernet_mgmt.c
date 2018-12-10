@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ethernet_mgmt
-#define NET_LOG_LEVEL CONFIG_NET_L2_ETHERNET_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ethernet_mgmt, CONFIG_NET_L2_ETHERNET_LOG_LEVEL);
 
 #include <errno.h>
 
@@ -86,6 +86,22 @@ static int ethernet_set_config(u32_t mgmt_request,
 	} else if (mgmt_request == NET_REQUEST_ETHERNET_SET_MAC_ADDRESS) {
 		if (net_if_is_up(iface)) {
 			return -EACCES;
+		}
+
+		/* We need to remove the old IPv6 link layer address, that is
+		 * generated from old MAC address, from network interface if
+		 * needed.
+		 */
+		if (IS_ENABLED(CONFIG_NET_IPV6)) {
+			struct in6_addr iid;
+
+			net_ipv6_addr_create_iid(&iid,
+						 net_if_get_link_addr(iface));
+
+			/* No need to check the return value in this case. It
+			 * is not an error if the address is not found atm.
+			 */
+			(void)net_if_ipv6_addr_rm(iface, &iid);
 		}
 
 		memcpy(&config.mac_address, &params->mac_address,

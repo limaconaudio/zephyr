@@ -44,7 +44,7 @@ zephyr_library_sources_ifdef(
   )
 
 zephyr_library_sources_ifdef(
-  CONFIG_SOC_FAMILY_NRF
+  CONFIG_SOC_COMPATIBLE_NRF
   hal/nrf5/cntr.c
   hal/nrf5/ecb.c
   hal/nrf5/radio/radio.c
@@ -62,7 +62,7 @@ zephyr_library_include_directories(
 
 zephyr_library_compile_options_ifdef(
   CONFIG_BT_CTLR_FAST_ENC
-  -Ofast
+  ${OPTIMIZE_FOR_SPEED_FLAG}
   )
 
 zephyr_library_link_libraries(subsys__bluetooth)

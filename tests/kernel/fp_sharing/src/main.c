@@ -97,7 +97,6 @@ int fpu_sharing_error;
 static volatile unsigned int load_store_low_count;
 static volatile unsigned int load_store_high_count;
 
-extern u32_t _tick_get_32(void);
 extern void calculate_pi_low(void);
 extern void calculate_pi_high(void);
 
@@ -142,13 +141,13 @@ void load_store_low(void)
 	 */
 
 	init_byte = MAIN_FLOAT_REG_CHECK_BYTE;
-	for (i = 0; i < SIZEOF_FP_REGISTER_SET; i++) {
+	for (i = 0U; i < SIZEOF_FP_REGISTER_SET; i++) {
 		load_ptr[i] = init_byte++;
 	}
 
 	/* Keep cranking forever, or until an error is detected. */
 
-	for (load_store_low_count = 0;; load_store_low_count++) {
+	for (load_store_low_count = 0U;; load_store_low_count++) {
 
 		/*
 		 * Clear store buffer to erase all traces of any previous
@@ -169,11 +168,11 @@ void load_store_low(void)
 		 * thread an opportunity to run when the low priority thread is
 		 * using the floating point registers.
 		 *
-		 * IMPORTANT: This logic requires that sys_tick_get_32() not
+		 * IMPORTANT: This logic requires that z_tick_get_32() not
 		 * perform any floating point operations!
 		 */
 
-		while ((_tick_get_32() % 5) != 0) {
+		while ((z_tick_get_32() % 5) != 0) {
 			/*
 			 * Use a volatile variable to prevent compiler
 			 * optimizing out the spin loop.
@@ -199,7 +198,7 @@ void load_store_low(void)
 
 		init_byte = MAIN_FLOAT_REG_CHECK_BYTE;
 
-		for (i = 0; i < SIZEOF_FP_REGISTER_SET; i++) {
+		for (i = 0U; i < SIZEOF_FP_REGISTER_SET; i++) {
 			if (store_ptr[i] != init_byte) {
 				TC_ERROR("load_store_low found 0x%x instead "
 					 "of 0x%x @ offset 0x%x\n",
@@ -286,7 +285,7 @@ void load_store_high(void)
 
 		init_byte = FIBER_FLOAT_REG_CHECK_BYTE;
 
-		for (i = 0; i < SIZEOF_FP_REGISTER_SET; i++) {
+		for (i = 0U; i < SIZEOF_FP_REGISTER_SET; i++) {
 			reg_set_ptr[i] = init_byte++;
 		}
 

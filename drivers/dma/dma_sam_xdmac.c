@@ -19,13 +19,14 @@
 
 #define LOG_LEVEL CONFIG_DMA_LOG_LEVEL
 #include <logging/log.h>
-LOG_MODULE_REGISTER(dma_sam_xdmac)
+LOG_MODULE_REGISTER(dma_sam_xdmac);
 
 #define XDMAC_INT_ERR (XDMAC_CIE_RBIE | XDMAC_CIE_WBIE | XDMAC_CIE_ROIE)
 #define DMA_CHANNELS_NO  XDMACCHID_NUMBER
 
 /* DMA channel configuration */
 struct sam_xdmac_channel_cfg {
+	void *callback_arg;
 	dma_callback callback;
 };
 
@@ -73,7 +74,8 @@ static void sam_xdmac_isr(void *arg)
 
 		/* Execute callback */
 		if (channel_cfg->callback) {
-			channel_cfg->callback(dev, channel, err);
+			channel_cfg->callback(channel_cfg->callback_arg,
+					channel, err);
 		}
 	}
 }
@@ -241,9 +243,9 @@ static int sam_xdmac_config(struct device *dev, u32_t channel,
 		| XDMAC_CC_SIF_AHB_IF1
 		| XDMAC_CC_DIF_AHB_IF1
 		| XDMAC_CC_PERID(cfg->dma_slot);
-	channel_cfg.ds_msp = 0;
-	channel_cfg.sus = 0;
-	channel_cfg.dus = 0;
+	channel_cfg.ds_msp = 0U;
+	channel_cfg.sus = 0U;
+	channel_cfg.dus = 0U;
 	channel_cfg.cie =
 		  (cfg->complete_callback_en ? XDMAC_CIE_BIE : XDMAC_CIE_LIE)
 		| (cfg->error_callback_en ? XDMAC_INT_ERR : 0);
@@ -254,6 +256,7 @@ static int sam_xdmac_config(struct device *dev, u32_t channel,
 	}
 
 	dev_data->dma_channels[channel].callback = cfg->dma_callback;
+	dev_data->dma_channels[channel].callback_arg = cfg->callback_arg;
 
 	(void)memset(&transfer_cfg, 0, sizeof(transfer_cfg));
 	transfer_cfg.sa = cfg->head_block->source_address;

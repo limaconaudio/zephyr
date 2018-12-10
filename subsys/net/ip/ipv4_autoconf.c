@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ipv4_autoconf
-#define NET_LOG_LEVEL CONFIG_NET_IPV4_AUTOCONF_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ipv4_autoconf, CONFIG_NET_IPV4_AUTO_LOG_LEVEL);
 
 #include "net_private.h"
 #include <errno.h>
@@ -35,7 +35,7 @@ static struct net_pkt *ipv4_autoconf_prepare_arp(struct net_if *iface)
 	struct net_pkt *pkt;
 	struct net_buf *frag;
 
-	pkt = net_pkt_get_reserve_tx(sizeof(struct net_eth_hdr),
+	pkt = net_pkt_get_reserve_tx(net_if_get_ll_reserve(iface, NULL),
 				     BUF_ALLOC_TIMEOUT);
 	if (!pkt) {
 		goto fail;

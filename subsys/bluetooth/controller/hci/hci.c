@@ -34,6 +34,7 @@
 #endif /* CONFIG_BT_CTLR_DTM_HCI */
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_hci
 #include "common/log.h"
 #include "hal/debug.h"
 
@@ -219,13 +220,13 @@ static void reset(struct net_buf *buf, struct net_buf **evt)
 	}
 #if defined(CONFIG_BT_HCI_ACL_FLOW_CONTROL)
 	hci_hbuf_total = 0;
-	hci_hbuf_sent = 0;
-	hci_hbuf_acked = 0;
+	hci_hbuf_sent = 0U;
+	hci_hbuf_acked = 0U;
 	(void)memset(hci_hbuf_pend, 0, sizeof(hci_hbuf_pend));
-	conn_count = 0;
+	conn_count = 0U;
 	if (buf) {
 		atomic_set_bit(&hci_state_mask, HCI_STATE_BIT_RESET);
-		k_poll_signal(hbuf_signal, 0x0);
+		k_poll_signal_raise(hbuf_signal, 0x0);
 	}
 #endif
 }
@@ -267,8 +268,8 @@ static void set_ctl_to_host_flow(struct net_buf *buf, struct net_buf **evt)
 		return;
 	}
 
-	hci_hbuf_sent = 0;
-	hci_hbuf_acked = 0;
+	hci_hbuf_sent = 0U;
+	hci_hbuf_acked = 0U;
 	(void)memset(hci_hbuf_pend, 0, sizeof(hci_hbuf_pend));
 	hci_hbuf_total = -hci_hbuf_total;
 }
@@ -303,7 +304,7 @@ static void host_num_completed_packets(struct net_buf *buf,
 {
 	struct bt_hci_cp_host_num_completed_packets *cmd = (void *)buf->data;
 	struct bt_hci_evt_cc_status *ccst;
-	u32_t count = 0;
+	u32_t count = 0U;
 	int i;
 
 	/* special case, no event returned except for error conditions */
@@ -335,7 +336,7 @@ static void host_num_completed_packets(struct net_buf *buf,
 
 	BT_DBG("FC: acked: %d", count);
 	hci_hbuf_acked += count;
-	k_poll_signal(hbuf_signal, 0x0);
+	k_poll_signal_raise(hbuf_signal, 0x0);
 }
 #endif
 
@@ -812,7 +813,7 @@ static void le_rand(struct net_buf *buf, struct net_buf **evt)
 static void le_read_supp_states(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_rp_le_read_supp_states *rp;
-	u64_t states = 0;
+	u64_t states = 0U;
 
 	rp = cmd_complete(evt, sizeof(*rp));
 	rp->status = 0x00;
@@ -968,7 +969,7 @@ static void le_set_scan_enable(struct net_buf *buf, struct net_buf **evt)
 	/* initialize duplicate filtering */
 	if (cmd->enable && cmd->filter_dup) {
 		dup_count = 0;
-		dup_curr = 0;
+		dup_curr = 0U;
 	} else {
 		dup_count = -1;
 	}
@@ -1116,18 +1117,21 @@ static void le_conn_update(struct net_buf *buf, struct net_buf **evt)
 {
 	struct hci_cp_le_conn_update *cmd = (void *)buf->data;
 	u16_t supervision_timeout;
+	u16_t conn_interval_min;
 	u16_t conn_interval_max;
 	u16_t conn_latency;
 	u32_t status;
 	u16_t handle;
 
 	handle = sys_le16_to_cpu(cmd->handle);
+	conn_interval_min = sys_le16_to_cpu(cmd->conn_interval_min);
 	conn_interval_max = sys_le16_to_cpu(cmd->conn_interval_max);
 	conn_latency = sys_le16_to_cpu(cmd->conn_latency);
 	supervision_timeout = sys_le16_to_cpu(cmd->supervision_timeout);
 
-	status = ll_conn_update(handle, 0, 0, conn_interval_max,
-				conn_latency, supervision_timeout);
+	status = ll_conn_update(handle, 0, 0, conn_interval_min,
+				conn_interval_max, conn_latency,
+				supervision_timeout);
 
 	*evt = cmd_status(status);
 }
@@ -1137,6 +1141,7 @@ static void le_conn_param_req_reply(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_conn_param_req_reply *cmd = (void *)buf->data;
 	struct bt_hci_rp_le_conn_param_req_reply *rp;
+	u16_t interval_min;
 	u16_t interval_max;
 	u16_t latency;
 	u16_t timeout;
@@ -1144,12 +1149,13 @@ static void le_conn_param_req_reply(struct net_buf *buf, struct net_buf **evt)
 	u16_t handle;
 
 	handle = sys_le16_to_cpu(cmd->handle);
+	interval_min = sys_le16_to_cpu(cmd->interval_min);
 	interval_max = sys_le16_to_cpu(cmd->interval_max);
 	latency = sys_le16_to_cpu(cmd->latency);
 	timeout = sys_le16_to_cpu(cmd->timeout);
 
-	status = ll_conn_update(handle, 2, 0, interval_max, latency,
-				timeout);
+	status = ll_conn_update(handle, 2, 0, interval_min, interval_max,
+				latency, timeout);
 
 	rp = cmd_complete(evt, sizeof(*rp));
 	rp->status = status;
@@ -1165,7 +1171,7 @@ static void le_conn_param_req_neg_reply(struct net_buf *buf,
 	u16_t handle;
 
 	handle = sys_le16_to_cpu(cmd->handle);
-	status = ll_conn_update(handle, 2, cmd->reason, 0, 0, 0);
+	status = ll_conn_update(handle, 2, cmd->reason, 0, 0, 0, 0);
 
 	rp = cmd_complete(evt, sizeof(*rp));
 	rp->status = status;
@@ -1310,7 +1316,7 @@ static void le_set_phy(struct net_buf *buf, struct net_buf **evt)
 		phy_opts -= 1;
 		phy_opts &= 1;
 	} else {
-		phy_opts = 0;
+		phy_opts = 0U;
 	}
 
 	status = ll_phy_req_send(handle, cmd->tx_phys, phy_opts,
@@ -1810,7 +1816,7 @@ static void vs_read_static_addrs(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_rp_vs_read_static_addrs *rp;
 
-#if defined(CONFIG_SOC_FAMILY_NRF)
+#if defined(CONFIG_SOC_COMPATIBLE_NRF)
 	/* Read address from nRF5-specific storage
 	 * Non-initialized FICR values default to 0xFF, skip if no address
 	 * present. Also if a public address lives in FICR, do not use in this
@@ -1854,7 +1860,7 @@ static void vs_read_key_hierarchy_roots(struct net_buf *buf,
 	rp = cmd_complete(evt, sizeof(*rp));
 	rp->status = 0x00;
 
-#if defined(CONFIG_SOC_FAMILY_NRF)
+#if defined(CONFIG_SOC_COMPATIBLE_NRF)
 	/* Fill in IR if present */
 	if ((NRF_FICR->IR[0] != UINT32_MAX) &&
 	    (NRF_FICR->IR[1] != UINT32_MAX) &&
@@ -2127,7 +2133,7 @@ static inline bool dup_found(struct pdu_adv *adv)
 		}
 
 		if (dup_curr == CONFIG_BT_CTLR_DUP_FILTER_LEN) {
-			dup_curr = 0;
+			dup_curr = 0U;
 		}
 	}
 
@@ -2503,7 +2509,7 @@ static void disconn_complete(struct pdu_data *pdu_data, u16_t handle,
 	/* Note: This requires linear handle values starting from 0 */
 	LL_ASSERT(handle < ARRAY_SIZE(hci_hbuf_pend));
 	hci_hbuf_acked += hci_hbuf_pend[handle];
-	hci_hbuf_pend[handle] = 0;
+	hci_hbuf_pend[handle] = 0U;
 #endif /* CONFIG_BT_HCI_ACL_FLOW_CONTROL */
 	conn_count--;
 }
@@ -2817,7 +2823,7 @@ static void le_conn_param_req(struct pdu_data *pdu_data, u16_t handle,
 	if (!(event_mask & BT_EVT_MASK_LE_META_EVENT) ||
 	    !(le_event_mask & BT_EVT_MASK_LE_CONN_PARAM_REQ)) {
 		/* event masked, reject the conn param req */
-		ll_conn_update(handle, 2, BT_HCI_ERR_UNSUPP_REMOTE_FEATURE,
+		ll_conn_update(handle, 2, BT_HCI_ERR_UNSUPP_REMOTE_FEATURE, 0,
 			       0, 0, 0);
 
 		return;
@@ -2976,7 +2982,7 @@ void hci_num_cmplt_encode(struct net_buf *buf, u16_t handle, u8_t num)
 	u8_t num_handles;
 	u8_t len;
 
-	num_handles = 1;
+	num_handles = 1U;
 
 	len = (sizeof(*ep) + (sizeof(*hc) * num_handles));
 	evt_create(buf, BT_HCI_EVT_NUM_COMPLETED_PACKETS, len);

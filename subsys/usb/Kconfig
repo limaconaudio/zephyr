@@ -44,6 +44,7 @@ config USB_DEVICE_PRODUCT
 
 config USB_DEVICE_SN
 	string "USB serial number"
+	default "ABCDEF012345" if USB_MASS_STORAGE
 	default "0.01"
 	help
 	  USB device SerialNumber string. MUST be configured by vendor.
@@ -60,11 +61,38 @@ config USB_COMPOSITE_BUFFER_SIZE
 	default 256 if USB_DEVICE_NETWORK_RNDIS
 	default 64
 
+config USB_DEVICE_SOF
+	bool "Enable Start of Frame processing in events"
+
 config USB_DEVICE_BOS
 	bool "Enable USB Binary Device Object Store (BOS)"
 
 config USB_DEVICE_OS_DESC
 	bool "Enable MS OS Descriptors support"
+
+menuconfig USB_VBUS_GPIO
+	bool "Control VBUS via GPIO pin"
+	depends on GPIO
+	help
+	  The USB VBUS signal is connected via a GPIO pin.
+
+if USB_VBUS_GPIO
+
+config USB_VBUS_GPIO_DEV_NAME
+	string "GPIO Device"
+	default "GPIO_0"
+	help
+	  The device name of the GPIO device to which the USB_VBUS_EN signal is
+	  connected.
+
+config USB_VBUS_GPIO_PIN_NUM
+	int "GPIO pin number"
+	default 0
+	help
+	  The number of the GPIO pin to which the USB_VBUS_EN signal is
+	  connected.
+
+endif # USB_VBUS_GPIO
 
 source "subsys/usb/class/Kconfig"
 

@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_app
-#define NET_LOG_LEVEL CONFIG_NET_APP_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_app, CONFIG_NET_APP_LOG_LEVEL);
 
 #if defined(CONFIG_STDOUT_CONSOLE)
 #include <stdio.h>
@@ -42,17 +42,21 @@
 
 #if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG
 static sys_slist_t _net_app_instances;
+#endif
 
 void _net_app_register(struct net_app_ctx *ctx)
 {
+#if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG
 	sys_slist_prepend(&_net_app_instances, &ctx->node);
+#endif
 }
 
 void _net_app_unregister(struct net_app_ctx *ctx)
 {
+#if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG
 	sys_slist_find_and_remove(&_net_app_instances, &ctx->node);
-}
 #endif
+}
 
 static void net_app_foreach(net_app_ctx_cb_t cb, enum net_app_type type,
 			    void *user_data)
@@ -105,7 +109,7 @@ char *_net_app_sprint_ipaddr(char *buf, int buflen,
 		net_addr_ntop(addr->sa_family,
 			      &net_sin6(addr)->sin6_addr,
 			      ipaddr, sizeof(ipaddr));
-		snprintk(buf, buflen, "[%s]:%u", log_strdup(ipaddr),
+		snprintk(buf, buflen, "[%s]:%u", ipaddr,
 			 ntohs(net_sin6(addr)->sin6_port));
 #endif
 	} else if (addr->sa_family == AF_INET) {
@@ -115,7 +119,7 @@ char *_net_app_sprint_ipaddr(char *buf, int buflen,
 		net_addr_ntop(addr->sa_family,
 			      &net_sin(addr)->sin_addr,
 			      ipaddr, sizeof(ipaddr));
-		snprintk(buf, buflen, "%s:%u", log_strdup(ipaddr),
+		snprintk(buf, buflen, "%s:%u", ipaddr,
 			 ntohs(net_sin(addr)->sin_port));
 #endif
 	} else {
@@ -721,7 +725,7 @@ struct net_context *select_server_ctx(struct net_app_ctx *ctx,
 #define select_server_ctx(...) NULL
 #endif /* CONFIG_NET_APP_SERVER */
 
-#if NET_LOG_LEVEL >= LOG_LEVEL_ERR
+#if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_ERR
 struct net_context *_net_app_select_net_ctx_debug(struct net_app_ctx *ctx,
 						  const struct sockaddr *dst,
 						  const char *caller,
@@ -739,7 +743,7 @@ struct net_context *_net_app_select_net_ctx(struct net_app_ctx *ctx,
 		net_ctx = select_server_ctx(ctx, dst);
 	}
 
-#if NET_LOG_LEVEL >= LOG_LEVEL_ERR
+#if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_ERR
 	NET_DBG("Selecting %p net_ctx (%s():%d)", net_ctx, caller, line);
 #endif
 
@@ -1156,7 +1160,7 @@ int net_app_close2(struct net_app_ctx *ctx, struct net_context *net_ctx)
 }
 
 #if defined(CONFIG_NET_APP_TLS) || defined(CONFIG_NET_APP_DTLS)
-#if defined(MBEDTLS_DEBUG_C) && (NET_LOG_LEVEL >= LOG_LEVEL_DBG)
+#if defined(MBEDTLS_DEBUG_C) && (CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG)
 static void my_debug(void *ctx, int level,
 		     const char *file, int line, const char *str)
 {
@@ -1182,7 +1186,7 @@ static void my_debug(void *ctx, int level,
 	NET_DBG("%s:%04d: |%d| %s", basename, line, level,
 		log_strdup(str));
 }
-#endif /* MBEDTLS_DEBUG_C && NET_LOG_LEVEL >= LOG_LEVEL_DBG */
+#endif /* MBEDTLS_DEBUG_C && CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG */
 
 static void ssl_sent(struct net_context *context,
 		     int status, void *token, void *user_data)
@@ -2217,7 +2221,7 @@ int _net_app_tls_init(struct net_app_ctx *ctx, int client_or_server)
 	mbedtls_entropy_init(&ctx->tls.mbedtls.entropy);
 	mbedtls_ctr_drbg_init(&ctx->tls.mbedtls.ctr_drbg);
 
-#if defined(MBEDTLS_DEBUG_C) && NET_LOG_LEVEL >= LOG_LEVEL_DBG
+#if defined(MBEDTLS_DEBUG_C) && CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_DBG
 	mbedtls_debug_set_threshold(CONFIG_MBEDTLS_DEBUG_LEVEL);
 	mbedtls_ssl_conf_dbg(&ctx->tls.mbedtls.conf, my_debug, NULL);
 #endif

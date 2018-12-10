@@ -83,74 +83,94 @@ Follow these steps to create a new application directory. (Refer to
    Zephyr base directory.  Usually you'll want to create it somewhere under
    your user's home directory.
 
-   For example, in a Unix shell, navigate to a location where you want your
-   application to reside, then enter:
+   For example, in a Unix shell or Windows ``cmd.exe`` prompt, navigate to
+   where you want to create your application, then enter:
 
    .. code-block:: console
 
       mkdir app
 
+   .. warning::
+
+      Building Zephyr or creating an application in a directory with spaces
+      anywhere on the path is not supported. So the Windows path
+      :file:`C:\\Users\\YourName\\app` will work, but :file:`C:\\Users\\Your
+      Name\\app` will not.
+
 #. It's recommended to place all application source code in a subdirectory
    named :file:`src`.  This makes it easier to distinguish between project
    files and sources.
 
-   Continuing the Unix shell example from the previous step, enter:
+   Continuing the previous example, enter:
 
    .. code-block:: console
 
       cd app
       mkdir src
 
-#. Create an empty :file:`CMakeLists.txt` file in your application directory.
-
-#. Add boilerplate code that sets the minimum CMake version and pulls
-   in the Zephyr build system:
-
-   .. code-block:: cmake
-
-      cmake_minimum_required(VERSION 3.8.2)
-      include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-      project(NONE)
-
-   .. note:: cmake_minimum_required is also invoked from
-             :file:`boilerplate.cmake`. The most recent of the two
-             versions will be enforced by CMake.
-
-
 #. Place your application source code in the :file:`src` sub-directory. For
    this example, we'll assume you created a file named :file:`src/main.c`.
 
-#. Add your source code files to the ``app`` target in your application
-   directory's :file:`CMakeLists.txt`. For example, to add :file:`src/main.c`,
-   add the following line to your :file:`CMakeLists.txt`:
+#. Create a file named :file:`CMakeLists.txt` in the ``app`` directory with the
+   following contents:
 
    .. code-block:: cmake
 
+      # Boilerplate code, which pulls in the Zephyr build system.
+      cmake_minimum_required(VERSION 3.8.2)
+      include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
+      project(my_zephyr_app)
+
+      # Add your source file to the "app" target. This must come after
+      # the boilerplate code, which defines the target.
       target_sources(app PRIVATE src/main.c)
 
-#. Configure features used by your application. Zephyr's configuration uses
-   the same Kconfig and Device Tree systems used by the Linux kernel, but with
-   its own configuration trees. Usually, you just create a file named
-   :file:`prj.conf` in your application directory, where you enable or disable
-   features provided by Zephyr's Kconfig configuration system. Optionally you
-   can also configure any Device Tree overlays needed by your application
-   (this is usually not necessary; see :ref:`application_dt` below for more
-   details). You can use existing samples to get started. For more information,
-   see :ref:`application_configuration` below.
+   The boilerplate code sets the minimum CMake version and pulls in the Zephyr
+   build system, which creates a CMake target named ``app``. Adding sources
+   to this target is how you include them in the build.
 
-Applications integrate with the Zephyr build system using the boilerplate code
-shown above in :file:`CMakeLists.txt`. The following important variables
-configure the Zephyr build system:
+   .. note:: ``cmake_minimum_required()`` is also invoked from
+             :file:`boilerplate.cmake`. The most recent of the two
+             versions will be enforced by CMake.
 
-* :makevar:`ZEPHYR_BASE`: Sets the path to the Zephyr base directory.  This is
-  usually an environment variable set by the :file:`zephyr-env.sh` script on
-  Linux/macOS or manually on Windows, as you learned when getting started
+#. Set any Kconfig values needed by your application. Zephyr uses the same
+   Kconfig system as the Linux kernel, but with its own database of
+   configuration options.
+
+   For example, create a file named :file:`prj.conf` in the :file:`app`
+   directory, and enable or disable Kconfig features as needed. You can use
+   existing :ref:`samples-and-demos` to get started with Kconfig variables you
+   are interested in.  See :ref:`application_kconfig` for more details, and
+   :ref:`configuration` for a complete list of available options.
+
+#. Optionally, you can also configure any Device Tree overlays needed by your
+   application. Zephyr uses the same Device Tree system as the Linux kernel,
+   but with its own definitions.
+
+   This is usually not necessary; see :ref:`application_dt` below for details.
+
+.. _important-build-vars:
+
+Important Build System Variables
+********************************
+
+You can control the Zephyr build system using many variables. This
+section describes the most important ones that every Zephyr developer
+should know about.
+
+* :makevar:`ZEPHYR_BASE`: Sets the path to the directory containing Zephyr,
+  which is needed by the build system's boilerplate file.  This is an
+  environment variable set by the :file:`zephyr-env.sh` script on Linux/macOS
+  or :file:`zephyr-env.cmd` on Windows, as you learned when getting started
   with Zephyr in :ref:`getting_started_run_sample`. You can also set
-  :makevar:`ZEPHYR_BASE`: explicitly on Linux and macOS if you want to.
+  :makevar:`ZEPHYR_BASE` explicitly, but then you won't get the other features
+  provided by those scripts.
 
 * :makevar:`BOARD`: Selects the board that the application's build will use for
   the default configuration. This can be defined in the environment, in your
   application's :file:`CMakeLists.txt` file, or in the ``cmake`` command line.
+  See :ref:`boards` for built-in boards, and :ref:`board_porting_guide` for
+  information on adding board support.
 
 * :makevar:`CONF_FILE`: Indicates the name of one or more configuration
   fragment files.  Multiple filenames can either be separated by a single space
@@ -247,6 +267,12 @@ described above.)
 
 * :file:`.config`, which contains the configuration settings
   used to build the application.
+
+  .. note::
+
+     The previous version of :file:`.config` is saved to :file:`.config.old`
+     whenever the configuration is updated. This is for convenience, as
+     comparing the old and new versions can be handy.
 
 * Various object files (:file:`.o` files and :file:`.a` files) containing
   compiled kernel and application code.
@@ -493,7 +519,7 @@ In the ``soc`` directory you will need a top-level Kconfig file pointing to the
 custom SOC definitions:
 
 
-.. code-block: console
+.. code-block:: console
 
 	choice
 		prompt "SoC/CPU/Configuration Selection"
@@ -713,7 +739,7 @@ Create a Debugger Configuration
 
    - In the Main tab:
 
-     - Project: NONE@build
+     - Project: my_zephyr_app@build
      - C/C++ Application: :file:`zephyr/zephyr.elf`
 
    - In the Debugger tab:
@@ -890,7 +916,7 @@ Make sure to follow these steps in order.
    .. code-block:: cmake
 
       include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-      project(NONE)
+      project(my_zephyr_app)
 
 #. Now add any application source files to the 'app' target
    library, each on their own line, like so:
@@ -906,9 +932,22 @@ Below is a simple example :file:`CMakeList.txt`:
    set(BOARD qemu_x86)
 
    include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-   project(NONE)
+   project(my_zephyr_app)
 
    target_sources(app PRIVATE src/main.c)
+
+The Cmake property ``HEX_FILES_TO_MERGE``
+leverages the application configuration provided by
+Kconfig and CMake to let you merge externally built hex files
+with the hex file generated when building the Zephyr application.
+For example:
+
+.. code-block:: cmake
+
+  set_property(GLOBAL APPEND PROPERTY HEX_FILES_TO_MERGE
+      ${app_bootloader_hex}
+      ${PROJECT_BINARY_DIR}/${KERNEL_HEX_NAME}
+      ${app_provision_hex})
 
 CMakeCache.txt
 ==============
@@ -977,6 +1016,8 @@ development, as described below in :ref:`override_kernel_conf`.
 
 For more information on Zephyr's Kconfig configuration scheme, see the
 :ref:`setting_configuration_values` section in the :ref:`board_porting_guide`.
+For some tips and general recommendations when writing Kconfig files, see the
+:ref:`kconfig_tips_and_tricks` page.
 
 For information on available kernel configuration options, including
 inter-dependencies between options, see the :ref:`configuration`.
@@ -1002,18 +1043,26 @@ This section describes how to edit Zephyr configuration
 
 - Add each configuration entry on a new line.
 
-- Enable a boolean option by setting its value to ``y``:
+- Enable or disable a boolean option by setting its value to ``y`` or ``n``:
 
   .. code-block:: none
 
      CONFIG_SOME_BOOL=y
+     CONFIG_SOME_OTHER_BOOL=n
 
-  To ensure that a boolean configuration option is not set, add a line
-  like this instead (including the leading ``#`` symbol):
+  .. note::
 
-  .. code-block:: none
+     Another way to set a boolean symbol to ``n`` is with a comment with the
+     following format:
 
-     # CONFIG_SOME_BOOL is not set
+     .. code-block:: none
+
+        # CONFIG_SOME_OTHER_BOOL is not set
+
+     This style is accepted for a technical reason: Kconfig configuration files
+     can be parsed as makefiles (though Zephyr doesn't use this). Having
+     ``n``-valued symbols correspond to unset variables simplifies tests in
+     Make.
 
 - You can set integer and string options as well, like this:
 
@@ -1165,7 +1214,11 @@ As described in :ref:`device-tree`, Zephyr uses Device Tree to
 describe the hardware it runs on. This section describes how you can
 modify an application build's device tree using overlay files. For additional
 information regarding the relationship between Device Tree and Kconfig see
-:ref:`dt_vs_kconfig`.
+:ref:`dt_vs_kconfig`. In some cases the information contained in Device Tree
+files is closely connected to the software and might need to be modified
+using the overlay file concept. This can be relevant for many of the different
+Device Tree nodes, but is particularly useful for :ref:`certain types
+of nodes <dt-alias-chosen>`.
 
 Overlay files, which customarily have the :file:`.overlay` extension,
 contain device tree fragments which add to or modify the device tree
@@ -1262,3 +1315,4 @@ project that demonstrates some of these features.
 .. _Eclipse IDE for C/C++ Developers: https://www.eclipse.org/downloads/packages/eclipse-ide-cc-developers/oxygen2
 .. _GNU MCU Eclipse plug-ins: https://gnu-mcu-eclipse.github.io/plugins/install/
 .. _pyOCD v0.11.0: https://github.com/mbedmicro/pyOCD/releases/tag/v0.11.0
+

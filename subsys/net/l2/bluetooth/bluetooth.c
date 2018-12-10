@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_bt
-#define NET_LOG_LEVEL CONFIG_NET_L2_BT_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_bt, CONFIG_NET_L2_BT_LOG_LEVEL);
 
 #include <kernel.h>
 #include <toolchain.h>
@@ -13,7 +13,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <board.h>
 #include <device.h>
 #include <init.h>
 
@@ -44,6 +43,12 @@
 static struct bt_conn *default_conn;
 #endif
 
+#if defined(CONFIG_NET_L2_BT_SHELL)
+extern int net_bt_shell_init(void);
+#else
+#define net_bt_shell_init(...)
+#endif
+
 struct bt_context {
 	struct net_if *iface;
 	struct bt_l2cap_le_chan ipsp_chan;
@@ -63,25 +68,39 @@ static enum net_verdict net_bt_recv(struct net_if *iface, struct net_pkt *pkt)
 	return NET_CONTINUE;
 }
 
-static enum net_verdict net_bt_send(struct net_if *iface, struct net_pkt *pkt)
+static int net_bt_send(struct net_if *iface, struct net_pkt *pkt)
 {
 	struct bt_context *ctxt = net_if_get_device(iface)->driver_data;
+	struct net_buf *frags;
+	int length;
+	int ret;
 
 	NET_DBG("iface %p pkt %p len %zu", iface, pkt, net_pkt_get_len(pkt));
 
 	/* Only accept IPv6 packets */
 	if (net_pkt_family(pkt) != AF_INET6) {
-		return NET_DROP;
+		return -EINVAL;
 	}
 
 	if (!net_6lo_compress(pkt, true, NULL)) {
 		NET_DBG("Packet compression failed");
-		return NET_DROP;
+		return -ENOBUFS;
 	}
 
-	net_if_queue_tx(ctxt->iface, pkt);
+	length = net_pkt_get_len(pkt);
 
-	return NET_OK;
+	/* Dettach data fragments for packet */
+	frags = pkt->frags;
+	pkt->frags = NULL;
+
+	ret = bt_l2cap_chan_send(&ctxt->ipsp_chan.chan, frags);
+	if (ret < 0) {
+		return ret;
+	}
+
+	net_pkt_unref(pkt);
+
+	return length;
 }
 
 static inline u16_t net_bt_reserve(struct net_if *iface, void *unused)
@@ -126,7 +145,7 @@ static void ipsp_connected(struct bt_l2cap_chan *chan)
 		return;
 	}
 
-	if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
+	if (CONFIG_NET_L2_BT_LOG_LEVEL >= LOG_LEVEL_DBG) {
 		char src[BT_ADDR_LE_STR_LEN];
 		char dst[BT_ADDR_LE_STR_LEN];
 
@@ -236,28 +255,6 @@ static struct bt_context bt_context_data = {
 	.ipsp_chan.rx.mtu	= L2CAP_IPSP_MTU,
 };
 
-static int bt_iface_send(struct net_if *iface, struct net_pkt *pkt)
-{
-	struct bt_context *ctxt = net_if_get_device(iface)->driver_data;
-	struct net_buf *frags;
-	int ret;
-
-	NET_DBG("iface %p pkt %p len %zu", iface, pkt, net_pkt_get_len(pkt));
-
-	/* Dettach data fragments for packet */
-	frags = pkt->frags;
-	pkt->frags = NULL;
-
-	net_pkt_unref(pkt);
-
-	ret = bt_l2cap_chan_send(&ctxt->ipsp_chan.chan, frags);
-	if (ret < 0) {
-		return ret;
-	}
-
-	return ret;
-}
-
 static void bt_iface_init(struct net_if *iface)
 {
 	struct bt_context *ctxt = net_if_get_device(iface)->driver_data;
@@ -276,7 +273,6 @@ static void bt_iface_init(struct net_if *iface)
 
 static struct net_if_api bt_if_api = {
 	.init = bt_iface_init,
-	.send = bt_iface_send,
 };
 
 static int ipsp_accept(struct bt_conn *conn, struct bt_l2cap_chan **chan)
@@ -380,7 +376,7 @@ static bool eir_found(u8_t type, const u8_t *data, u8_t data_len,
 			continue;
 		}
 
-		if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
+		if (CONFIG_NET_L2_BT_LOG_LEVEL >= LOG_LEVEL_DBG) {
 			bt_addr_le_t *addr = user_data;
 			char dev[BT_ADDR_LE_STR_LEN];
 
@@ -506,7 +502,7 @@ static int bt_disconnect(u32_t mgmt_request, struct net_if *iface,
 static void connected(struct bt_conn *conn, u8_t err)
 {
 	if (err) {
-		if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
+		if (CONFIG_NET_L2_BT_LOG_LEVEL >= LOG_LEVEL_DBG) {
 			char addr[BT_ADDR_LE_STR_LEN];
 
 			bt_addr_le_to_str(bt_conn_get_dst(conn), addr,
@@ -533,7 +529,7 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 		return;
 	}
 
-	if (NET_LOG_LEVEL >= LOG_LEVEL_DBG) {
+	if (CONFIG_NET_L2_BT_LOG_LEVEL >= LOG_LEVEL_DBG) {
 		char addr[BT_ADDR_LE_STR_LEN];
 
 		bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
@@ -560,6 +556,8 @@ static int net_bt_init(struct device *dev)
 	bt_conn_cb_register(&conn_callbacks);
 #endif
 	bt_l2cap_server_register(&server);
+
+	net_bt_shell_init();
 
 	return 0;
 }

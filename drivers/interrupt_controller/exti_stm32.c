@@ -29,6 +29,8 @@
 #define EXTI_LINES 19
 #elif CONFIG_SOC_SERIES_STM32F2X
 #define EXTI_LINES 23
+#elif CONFIG_SOC_STM32F302X8
+#define EXTI_LINES 36
 #elif CONFIG_SOC_STM32F303XC
 #define EXTI_LINES 36
 #elif CONFIG_SOC_STM32F334X8
@@ -442,16 +444,20 @@ DEVICE_INIT(exti_stm32, STM32_EXTI_NAME, stm32_exti_init,
 /**
  * @brief set & unset for the interrupt callbacks
  */
-void stm32_exti_set_callback(int line, stm32_exti_callback_t cb, void *arg)
+int stm32_exti_set_callback(int line, int port, stm32_exti_callback_t cb,
+				void *arg)
 {
 	struct device *dev = DEVICE_GET(exti_stm32);
 	struct stm32_exti_data *data = dev->driver_data;
 
-	__ASSERT(data->cb[line].cb == NULL,
-		"EXTI %d callback already registered", line);
+	if (data->cb[line].cb) {
+		return -EBUSY;
+	}
 
 	data->cb[line].cb = cb;
 	data->cb[line].data = arg;
+
+	return 0;
 }
 
 void stm32_exti_unset_callback(int line)

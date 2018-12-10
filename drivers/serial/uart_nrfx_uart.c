@@ -13,7 +13,30 @@
 #include <hal/nrf_gpio.h>
 
 
-static NRF_UART_Type *const uart0_addr = (NRF_UART_Type *)CONFIG_UART_0_BASE;
+static NRF_UART_Type *const uart0_addr =
+		(NRF_UART_Type *)DT_NORDIC_NRF_UART_UART_0_BASE_ADDRESS;
+
+/* Device data structure */
+struct uart_nrfx_data {
+	struct uart_config uart_config;
+};
+
+/**
+ * @brief Structure for UART configuration.
+ */
+struct uart_nrfx_config {
+	bool rts_cts_pins_set;
+};
+
+static inline struct uart_nrfx_data *get_dev_data(struct device *dev)
+{
+	return dev->driver_data;
+}
+
+static inline const struct uart_nrfx_config *get_dev_config(struct device *dev)
+{
+	return dev->config->config_info;
+}
 
 #ifdef CONFIG_UART_0_INTERRUPT_DRIVEN
 
@@ -43,7 +66,7 @@ static void event_txdrdy_clear(void)
 {
 	nrf_uart_event_clear(uart0_addr, NRF_UART_EVENT_TXDRDY);
 #ifdef CONFIG_UART_0_INTERRUPT_DRIVEN
-	uart_sw_event_txdrdy = 0;
+	uart_sw_event_txdrdy = 0U;
 #endif
 }
 
@@ -164,10 +187,8 @@ static int uart_nrfx_poll_in(struct device *dev, unsigned char *c)
  *
  * @param dev UART device struct
  * @param c Character to send
- *
- * @return Sent character
  */
-static unsigned char uart_nrfx_poll_out(struct device *dev,
+static void uart_nrfx_poll_out(struct device *dev,
 					unsigned char c)
 {
 	/* The UART API dictates that poll_out should wait for the transmitter
@@ -198,14 +219,12 @@ static unsigned char uart_nrfx_poll_out(struct device *dev,
 	 * power.
 	 */
 	nrf_uart_task_trigger(uart0_addr, NRF_UART_TASK_STOPTX);
-
-	return c;
 }
 
 /** Console I/O function */
 static int uart_nrfx_err_check(struct device *dev)
 {
-	u32_t error = 0;
+	u32_t error = 0U;
 
 	if (nrf_uart_event_check(uart0_addr, NRF_UART_EVENT_ERROR)) {
 		/* register bitfields maps to the defines in uart.h */
@@ -215,6 +234,62 @@ static int uart_nrfx_err_check(struct device *dev)
 	return error;
 }
 
+static int uart_nrfx_configure(struct device *dev,
+			       const struct uart_config *cfg)
+{
+	nrf_uart_parity_t parity;
+	nrf_uart_hwfc_t hwfc;
+
+	if (cfg->stop_bits != UART_CFG_STOP_BITS_1) {
+		return -ENOTSUP;
+	}
+
+	if (cfg->data_bits != UART_CFG_DATA_BITS_8) {
+		return -ENOTSUP;
+	}
+
+	switch (cfg->flow_ctrl) {
+	case UART_CFG_FLOW_CTRL_NONE:
+		hwfc = NRF_UART_HWFC_DISABLED;
+		break;
+	case UART_CFG_FLOW_CTRL_RTS_CTS:
+		if (get_dev_config(dev)->rts_cts_pins_set) {
+			hwfc = NRF_UART_HWFC_ENABLED;
+		} else {
+			return -ENOTSUP;
+		}
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	switch (cfg->parity) {
+	case UART_CFG_PARITY_NONE:
+		parity = NRF_UART_PARITY_EXCLUDED;
+		break;
+	case UART_CFG_PARITY_EVEN:
+		parity = NRF_UART_PARITY_INCLUDED;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	if (baudrate_set(dev, cfg->baudrate) != 0) {
+		return -ENOTSUP;
+	}
+
+	nrf_uart_configure(uart0_addr, parity, hwfc);
+
+	get_dev_data(dev)->uart_config = *cfg;
+
+	return 0;
+}
+
+static int uart_nrfx_config_get(struct device *dev, struct uart_config *cfg)
+{
+	*cfg = get_dev_data(dev)->uart_config;
+	return 0;
+}
 
 #ifdef CONFIG_UART_0_INTERRUPT_DRIVEN
 
@@ -223,7 +298,7 @@ static int uart_nrfx_fifo_fill(struct device *dev,
 			       const u8_t *tx_data,
 			       int len)
 {
-	u8_t num_tx = 0;
+	u8_t num_tx = 0U;
 
 	while ((len - num_tx > 0) &&
 	       event_txdrdy_check()) {
@@ -243,7 +318,7 @@ static int uart_nrfx_fifo_read(struct device *dev,
 			       u8_t *rx_data,
 			       const int size)
 {
-	u8_t num_rx = 0;
+	u8_t num_rx = 0U;
 
 	while ((size - num_rx > 0) &&
 	       nrf_uart_event_check(uart0_addr, NRF_UART_EVENT_RXDRDY)) {
@@ -281,7 +356,7 @@ static void uart_nrfx_irq_tx_enable(struct device *dev)
 		/* Due to HW limitation first TXDRDY interrupt shall be
 		 * triggered by the software.
 		 */
-		NVIC_SetPendingIRQ(CONFIG_UART_0_IRQ_NUM);
+		NVIC_SetPendingIRQ(DT_NORDIC_NRF_UART_UART_0_IRQ);
 	}
 	irq_unlock(key);
 }
@@ -404,49 +479,33 @@ static int uart_nrfx_init(struct device *dev)
 	/* Setting default height state of the TX PIN to avoid glitches
 	 * on the line during peripheral activation/deactivation.
 	 */
-	nrf_gpio_pin_write(CONFIG_UART_0_TX_PIN, 1);
-	nrf_gpio_cfg_output(CONFIG_UART_0_TX_PIN);
+	nrf_gpio_pin_write(DT_NORDIC_NRF_UART_UART_0_TX_PIN, 1);
+	nrf_gpio_cfg_output(DT_NORDIC_NRF_UART_UART_0_TX_PIN);
 
-	nrf_gpio_cfg_input(CONFIG_UART_0_RX_PIN, NRF_GPIO_PIN_NOPULL);
+	nrf_gpio_cfg_input(DT_NORDIC_NRF_UART_UART_0_RX_PIN,
+			   NRF_GPIO_PIN_NOPULL);
 
 	nrf_uart_txrx_pins_set(uart0_addr,
-			       CONFIG_UART_0_TX_PIN,
-			       CONFIG_UART_0_RX_PIN);
-
-#ifdef CONFIG_UART_0_NRF_FLOW_CONTROL
-#ifndef CONFIG_UART_0_RTS_PIN
-#error Flow control for UART0 is enabled, but RTS pin is not defined.
-#endif
-#ifndef CONFIG_UART_0_CTS_PIN
-#error Flow control for UART0 is enabled, but CTS pin is not defined.
-#endif
+			       DT_NORDIC_NRF_UART_UART_0_TX_PIN,
+			       DT_NORDIC_NRF_UART_UART_0_RX_PIN);
+#if	defined(DT_NORDIC_NRF_UART_UART_0_RTS_PIN) && \
+	defined(DT_NORDIC_NRF_UART_UART_0_CTS_PIN)
 	/* Setting default height state of the RTS PIN to avoid glitches
 	 * on the line during peripheral activation/deactivation.
 	 */
-	nrf_gpio_pin_write(CONFIG_UART_0_RTS_PIN, 1);
-	nrf_gpio_cfg_output(CONFIG_UART_0_RTS_PIN);
+	nrf_gpio_pin_write(DT_NORDIC_NRF_UART_UART_0_RTS_PIN, 1);
+	nrf_gpio_cfg_output(DT_NORDIC_NRF_UART_UART_0_RTS_PIN);
 
-	nrf_gpio_cfg_input(CONFIG_UART_0_CTS_PIN, NRF_GPIO_PIN_NOPULL);
+	nrf_gpio_cfg_input(DT_NORDIC_NRF_UART_UART_0_CTS_PIN,
+			   NRF_GPIO_PIN_NOPULL);
 
 	nrf_uart_hwfc_pins_set(uart0_addr,
-			       CONFIG_UART_0_RTS_PIN,
-			       CONFIG_UART_0_CTS_PIN);
-#endif /* CONFIG_UART_0_NRF_FLOW_CONTROL */
+			       DT_NORDIC_NRF_UART_UART_0_RTS_PIN,
+			       DT_NORDIC_NRF_UART_UART_0_CTS_PIN);
+#endif
 
-	nrf_uart_configure(uart0_addr,
-#ifdef CONFIG_UART_0_NRF_PARITY_BIT
-			   NRF_UART_PARITY_INCLUDED,
-#else
-			   NRF_UART_PARITY_EXCLUDED,
-#endif /* CONFIG_UART_0_NRF_PARITY_BIT */
-#ifdef CONFIG_UART_0_NRF_FLOW_CONTROL
-			   NRF_UART_HWFC_ENABLED);
-#else
-			   NRF_UART_HWFC_DISABLED);
-#endif /* CONFIG_UART_0_NRF_PARITY_BIT */
-
-	/* Set baud rate */
-	err = baudrate_set(dev, CONFIG_UART_0_BAUD_RATE);
+	/* Set initial configuration */
+	err = uart_nrfx_configure(dev, &get_dev_data(dev)->uart_config);
 	if (err) {
 		return err;
 	}
@@ -465,14 +524,14 @@ static int uart_nrfx_init(struct device *dev)
 	/* Simulate that the TXDRDY event is set, so that the transmitter status
 	 * is indicated correctly.
 	 */
-	uart_sw_event_txdrdy = 1;
+	uart_sw_event_txdrdy = 1U;
 
-	IRQ_CONNECT(CONFIG_UART_0_IRQ_NUM,
-		    CONFIG_UART_0_IRQ_PRI,
+	IRQ_CONNECT(DT_NORDIC_NRF_UART_UART_0_IRQ,
+		    DT_NORDIC_NRF_UART_UART_0_IRQ_PRIORITY,
 		    uart_nrfx_isr,
 		    DEVICE_GET(uart_nrfx_uart0),
 		    0);
-	irq_enable(CONFIG_UART_0_IRQ_NUM);
+	irq_enable(DT_NORDIC_NRF_UART_UART_0_IRQ);
 #endif
 
 	return 0;
@@ -485,6 +544,8 @@ static const struct uart_driver_api uart_nrfx_uart_driver_api = {
 	.poll_in          = uart_nrfx_poll_in,
 	.poll_out         = uart_nrfx_poll_out,
 	.err_check        = uart_nrfx_err_check,
+	.configure        = uart_nrfx_configure,
+	.config_get       = uart_nrfx_config_get,
 #ifdef CONFIG_UART_0_INTERRUPT_DRIVEN
 	.fifo_fill        = uart_nrfx_fifo_fill,
 	.fifo_read        = uart_nrfx_fifo_read,
@@ -539,12 +600,39 @@ static int uart_nrfx_pm_control(struct device *dev,
 }
 #endif /* CONFIG_DEVICE_POWER_MANAGEMENT */
 
+static struct uart_nrfx_data uart_nrfx_uart0_data = {
+	.uart_config = {
+		.stop_bits = UART_CFG_STOP_BITS_1,
+		.data_bits = UART_CFG_DATA_BITS_8,
+		.baudrate  = DT_NORDIC_NRF_UART_UART_0_CURRENT_SPEED,
+#ifdef CONFIG_UART_0_NRF_PARITY_BIT
+		.parity    = UART_CFG_PARITY_EVEN,
+#else
+		.parity    = UART_CFG_PARITY_NONE,
+#endif /* CONFIG_UART_0_NRF_PARITY_BIT */
+#ifdef CONFIG_UART_0_NRF_FLOW_CONTROL
+		.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS,
+#else
+		.flow_ctrl = UART_CFG_FLOW_CTRL_NONE,
+#endif /* CONFIG_UART_0_NRF_FLOW_CONTROL */
+	}
+};
+
+static const struct uart_nrfx_config uart_nrfx_uart0_config = {
+#if	defined(DT_NORDIC_NRF_UART_UART_0_RTS_PIN) && \
+	defined(DT_NORDIC_NRF_UART_UART_0_CTS_PIN)
+	.rts_cts_pins_set = true,
+#else
+	.rts_cts_pins_set = false,
+#endif
+};
+
 DEVICE_DEFINE(uart_nrfx_uart0,
-	      CONFIG_UART_0_NAME,
+	      DT_NORDIC_NRF_UART_UART_0_LABEL,
 	      uart_nrfx_init,
 	      uart_nrfx_pm_control,
-	      NULL,
-	      NULL,
+	      &uart_nrfx_uart0_data,
+	      &uart_nrfx_uart0_config,
 	      /* Initialize UART device before UART console. */
 	      PRE_KERNEL_1,
 	      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,

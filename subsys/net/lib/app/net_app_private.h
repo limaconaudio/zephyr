@@ -58,7 +58,7 @@ int _net_app_config_local_ctx(struct net_app_ctx *ctx,
 			      enum net_ip_protocol proto,
 			      struct sockaddr *addr);
 
-#if NET_LOG_LEVEL > 0
+#if CONFIG_NET_APP_LOG_LEVEL >= LOG_LEVEL_ERR
 struct net_context *_net_app_select_net_ctx_debug(struct net_app_ctx *ctx,
 						  const struct sockaddr *dst,
 						  const char *caller,
@@ -112,12 +112,7 @@ enum net_verdict _net_app_dtls_established(struct net_conn *conn,
 					   void *user_data);
 #endif /* CONFIG_NET_APP_DTLS */
 
-#if defined(CONFIG_NET_APP_LOG_LEVEL_DBG)
 void _net_app_register(struct net_app_ctx *ctx);
 void _net_app_unregister(struct net_app_ctx *ctx);
-#else
-#define _net_app_register(...)
-#define _net_app_unregister(...)
-#endif
 
 #endif /* CONFIG_NET_APP_SERVER || CONFIG_NET_APP_CLIENT */

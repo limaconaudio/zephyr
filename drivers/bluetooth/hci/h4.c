@@ -23,6 +23,7 @@
 #include <bluetooth/hci_driver.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_driver
 #include "common/log.h"
 
 #include "../util.h"
@@ -37,7 +38,7 @@
 #define H4_SCO  0x03
 #define H4_EVT  0x04
 
-static BT_STACK_NOINIT(rx_thread_stack, CONFIG_BT_RX_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(rx_thread_stack, CONFIG_BT_RX_STACK_SIZE);
 static struct k_thread rx_thread_data;
 
 static struct {
@@ -154,9 +155,9 @@ static inline void copy_hdr(struct net_buf *buf)
 static void reset_rx(void)
 {
 	rx.type = H4_NONE;
-	rx.remaining = 0;
+	rx.remaining = 0U;
 	rx.have_hdr = false;
-	rx.hdr_len = 0;
+	rx.hdr_len = 0U;
 	rx.discardable = false;
 }
 

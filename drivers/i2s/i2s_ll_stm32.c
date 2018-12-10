@@ -12,7 +12,8 @@
 #include <clock_control.h>
 
 #include "i2s_ll_stm32.h"
-#include <logging/sys_log.h>
+#include <logging/log.h>
+LOG_MODULE_REGISTER(i2s_ll_stm32);
 
 /* FIXME change to
  * #if __DCACHE_PRESENT == 1
@@ -98,6 +99,7 @@ static int i2s_stm32_enable_clock(struct device *dev)
 
 	ret = clock_control_on(clk, (clock_control_subsys_t *) &cfg->pclken);
 	if (ret != 0) {
+		LOG_ERR("Could not enable I2S clock");
 		return -EIO;
 	}
 
@@ -137,7 +139,7 @@ static int i2s_stm32_set_clock(struct device *dev, u32_t bit_clk_freq)
 		/* wait 1 ms */
 		k_sleep(1);
 	}
-	SYS_LOG_DBG("PLLI2S is locked");
+	LOG_DBG("PLLI2S is locked");
 
 	/* Adjust freq_in according to PLLM, PLLN, PLLR */
 	float freq_tmp;
@@ -161,7 +163,7 @@ static int i2s_stm32_set_clock(struct device *dev, u32_t bit_clk_freq)
 	i2s_odd = (i2s_div & 0x1) ? 1 : 0;
 	i2s_div >>= 1;
 
-	SYS_LOG_DBG("i2s_div: %d - i2s_odd: %d", i2s_div, i2s_odd);
+	LOG_DBG("i2s_div: %d - i2s_odd: %d", i2s_div, i2s_odd);
 
 	LL_I2S_SetPrescalerLinear(cfg->i2s, i2s_div);
 	LL_I2S_SetPrescalerParity(cfg->i2s, i2s_odd);
@@ -183,13 +185,13 @@ static int i2s_stm32_configure(struct device *dev, enum i2s_dir dir,
 	} else if (dir == I2S_DIR_TX) {
 		stream = &dev_data->tx;
 	} else {
-		SYS_LOG_ERR("Either RX or TX direction must be selected");
+		LOG_ERR("Either RX or TX direction must be selected");
 		return -EINVAL;
 	}
 
 	if (stream->state != I2S_STATE_NOT_READY &&
 	    stream->state != I2S_STATE_READY) {
-		SYS_LOG_ERR("invalid state");
+		LOG_ERR("invalid state");
 		return -EINVAL;
 	}
 
@@ -225,7 +227,7 @@ static int i2s_stm32_configure(struct device *dev, enum i2s_dir dir,
 	} else if (i2s_cfg->word_size == 32) {
 		LL_I2S_SetDataFormat(cfg->i2s, LL_I2S_DATAFORMAT_32B);
 	} else {
-		SYS_LOG_ERR("invalid word size");
+		LOG_ERR("invalid word size");
 		return -EINVAL;
 	}
 
@@ -252,7 +254,7 @@ static int i2s_stm32_configure(struct device *dev, enum i2s_dir dir,
 		break;
 
 	default:
-		SYS_LOG_ERR("Unsupported I2S data format");
+		LOG_ERR("Unsupported I2S data format");
 		return -EINVAL;
 	}
 
@@ -279,14 +281,14 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 	} else if (dir == I2S_DIR_TX) {
 		stream = &dev_data->tx;
 	} else {
-		SYS_LOG_ERR("Either RX or TX direction must be selected");
+		LOG_ERR("Either RX or TX direction must be selected");
 		return -EINVAL;
 	}
 
 	switch (cmd) {
 	case I2S_TRIGGER_START:
 		if (stream->state != I2S_STATE_READY) {
-			SYS_LOG_ERR("START trigger: invalid state %d",
+			LOG_ERR("START trigger: invalid state %d",
 				    stream->state);
 			return -EIO;
 		}
@@ -295,7 +297,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 
 		ret = stream->stream_start(stream, dev);
 		if (ret < 0) {
-			SYS_LOG_ERR("START trigger failed %d", ret);
+			LOG_ERR("START trigger failed %d", ret);
 			return ret;
 		}
 
@@ -307,7 +309,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 		key = irq_lock();
 		if (stream->state != I2S_STATE_RUNNING) {
 			irq_unlock(key);
-			SYS_LOG_ERR("STOP trigger: invalid state");
+			LOG_ERR("STOP trigger: invalid state");
 			return -EIO;
 		}
 		irq_unlock(key);
@@ -321,7 +323,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 		key = irq_lock();
 		if (stream->state != I2S_STATE_RUNNING) {
 			irq_unlock(key);
-			SYS_LOG_ERR("DRAIN trigger: invalid state");
+			LOG_ERR("DRAIN trigger: invalid state");
 			return -EIO;
 		}
 		stream->stream_disable(stream, dev);
@@ -332,7 +334,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 
 	case I2S_TRIGGER_DROP:
 		if (stream->state == I2S_STATE_NOT_READY) {
-			SYS_LOG_ERR("DROP trigger: invalid state");
+			LOG_ERR("DROP trigger: invalid state");
 			return -EIO;
 		}
 		stream->stream_disable(stream, dev);
@@ -342,7 +344,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 
 	case I2S_TRIGGER_PREPARE:
 		if (stream->state != I2S_STATE_ERROR) {
-			SYS_LOG_ERR("PREPARE trigger: invalid state");
+			LOG_ERR("PREPARE trigger: invalid state");
 			return -EIO;
 		}
 		stream->state = I2S_STATE_READY;
@@ -350,7 +352,7 @@ static int i2s_stm32_trigger(struct device *dev, enum i2s_dir dir,
 		break;
 
 	default:
-		SYS_LOG_ERR("Unsupported trigger command");
+		LOG_ERR("Unsupported trigger command");
 		return -EINVAL;
 	}
 
@@ -363,7 +365,7 @@ static int i2s_stm32_read(struct device *dev, void **mem_block, size_t *size)
 	int ret;
 
 	if (dev_data->rx.state == I2S_STATE_NOT_READY) {
-		SYS_LOG_DBG("invalid state");
+		LOG_DBG("invalid state");
 		return -EIO;
 	}
 
@@ -390,7 +392,7 @@ static int i2s_stm32_write(struct device *dev, void *mem_block, size_t size)
 
 	if (dev_data->tx.state != I2S_STATE_RUNNING &&
 	    dev_data->tx.state != I2S_STATE_READY) {
-		SYS_LOG_DBG("invalid state");
+		LOG_DBG("invalid state");
 		return -EIO;
 	}
 
@@ -446,7 +448,7 @@ static void rx_stream_disable(struct stream *stream, struct device *dev);
 static void tx_stream_disable(struct stream *stream, struct device *dev);
 
 /* This function is executed in the interrupt context */
-static void dma_rx_callback(struct device *dev_dma, u32_t channel, int status)
+static void dma_rx_callback(void *arg, u32_t channel, int status)
 {
 	struct device *dev = get_dev_from_rx_dma_channel(channel);
 	const struct i2s_stm32_cfg *cfg = DEV_CFG(dev);
@@ -484,7 +486,7 @@ static void dma_rx_callback(struct device *dev_dma, u32_t channel, int status)
 			stream->mem_block,
 			stream->cfg.block_size);
 	if (ret < 0) {
-		SYS_LOG_DBG("Failed to start RX DMA transfer: %d", ret);
+		LOG_DBG("Failed to start RX DMA transfer: %d", ret);
 		goto rx_disable;
 	}
 
@@ -512,7 +514,7 @@ rx_disable:
 	rx_stream_disable(stream, dev);
 }
 
-static void dma_tx_callback(struct device *dev_dma, u32_t channel, int status)
+static void dma_tx_callback(void *arg, u32_t channel, int status)
 {
 	struct device *dev = get_dev_from_tx_dma_channel(channel);
 	const struct i2s_stm32_cfg *cfg = DEV_CFG(dev);
@@ -535,7 +537,7 @@ static void dma_tx_callback(struct device *dev_dma, u32_t channel, int status)
 
 	/* Stop transmission if there was an error */
 	if (stream->state == I2S_STATE_ERROR) {
-		SYS_LOG_ERR("TX error detected");
+		LOG_ERR("TX error detected");
 		goto tx_disable;
 	}
 
@@ -567,7 +569,7 @@ static void dma_tx_callback(struct device *dev_dma, u32_t channel, int status)
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
 			stream->cfg.block_size);
 	if (ret < 0) {
-		SYS_LOG_DBG("Failed to start TX DMA transfer: %d", ret);
+		LOG_DBG("Failed to start TX DMA transfer: %d", ret);
 		goto tx_disable;
 	}
 
@@ -587,7 +589,7 @@ static void i2s_stm32_isr(void *arg)
 	struct i2s_stm32_data *const dev_data = DEV_DATA(dev);
 	struct stream *stream = &dev_data->rx;
 
-	SYS_LOG_ERR("%s: err=%d", __func__, LL_I2S_ReadReg(cfg->i2s, SR));
+	LOG_ERR("%s: err=%d", __func__, LL_I2S_ReadReg(cfg->i2s, SR));
 	stream->state = I2S_STATE_ERROR;
 
 	/* OVR error must be explicitly cleared */
@@ -608,7 +610,7 @@ static int i2s_stm32_initialize(struct device *dev)
 	/* Enable I2S clock propagation */
 	ret = i2s_stm32_enable_clock(dev);
 	if (ret < 0) {
-		SYS_LOG_ERR("%s: clock enabling failed: %d",  __func__, ret);
+		LOG_ERR("%s: clock enabling failed: %d",  __func__, ret);
 		return -EIO;
 	}
 
@@ -626,11 +628,11 @@ static int i2s_stm32_initialize(struct device *dev)
 	/* Get the binding to the DMA device */
 	dev_data->dev_dma = device_get_binding(dev_data->dma_name);
 	if (!dev_data->dev_dma) {
-		SYS_LOG_ERR("%s device not found", dev_data->dma_name);
+		LOG_ERR("%s device not found", dev_data->dma_name);
 		return -ENODEV;
 	}
 
-	SYS_LOG_INF("%s inited", dev->config->name);
+	LOG_INF("%s inited", dev->config->name);
 
 	return 0;
 }
@@ -662,7 +664,7 @@ static int rx_stream_start(struct stream *stream, struct device *dev)
 			stream->mem_block,
 			stream->cfg.block_size);
 	if (ret < 0) {
-		SYS_LOG_ERR("Failed to start RX DMA transfer: %d", ret);
+		LOG_ERR("Failed to start RX DMA transfer: %d", ret);
 		return ret;
 	}
 
@@ -706,7 +708,7 @@ static int tx_stream_start(struct stream *stream, struct device *dev)
 			(void *)LL_SPI_DMA_GetRegAddr(cfg->i2s),
 			stream->cfg.block_size);
 	if (ret < 0) {
-		SYS_LOG_ERR("Failed to start TX DMA transfer: %d", ret);
+		LOG_ERR("Failed to start TX DMA transfer: %d", ret);
 		return ret;
 	}
 
@@ -774,7 +776,7 @@ static void tx_queue_drop(struct stream *stream)
 {
 	size_t size;
 	void *mem_block;
-	unsigned int n = 0;
+	unsigned int n = 0U;
 
 	while (queue_get(&stream->mem_block_queue, &mem_block, &size) == 0) {
 		k_mem_slab_free(stream->cfg.mem_slab, &mem_block);
@@ -802,10 +804,10 @@ static struct device DEVICE_NAME_GET(i2s_stm32_1);
 static void i2s_stm32_irq_config_func_1(struct device *dev);
 
 static const struct i2s_stm32_cfg i2s_stm32_config_1 = {
-	.i2s = (SPI_TypeDef *) CONFIG_I2S_1_BASE_ADDRESS,
+	.i2s = (SPI_TypeDef *) DT_I2S_1_BASE_ADDRESS,
 	.pclken = {
-		.enr = CONFIG_I2S_1_CLOCK_BITS,
-		.bus = CONFIG_I2S_1_CLOCK_BUS,
+		.enr = DT_I2S_1_CLOCK_BITS,
+		.bus = DT_I2S_1_CLOCK_BUS,
 	},
 	.i2s_clk_sel = CLK_SEL_2,
 	.irq_config = i2s_stm32_irq_config_func_1,
@@ -853,15 +855,15 @@ static struct i2s_stm32_data i2s_stm32_data_1 = {
 		.mem_block_queue.len = ARRAY_SIZE(tx_1_ring_buf),
 	},
 };
-DEVICE_AND_API_INIT(i2s_stm32_1, CONFIG_I2S_1_NAME, &i2s_stm32_initialize,
+DEVICE_AND_API_INIT(i2s_stm32_1, DT_I2S_1_NAME, &i2s_stm32_initialize,
 		    &i2s_stm32_data_1, &i2s_stm32_config_1, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_stm32_driver_api);
 
 static void i2s_stm32_irq_config_func_1(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_I2S_1_IRQ, CONFIG_I2S_1_IRQ_PRI, i2s_stm32_isr,
+	IRQ_CONNECT(DT_I2S_1_IRQ, DT_I2S_1_IRQ_PRI, i2s_stm32_isr,
 		    DEVICE_GET(i2s_stm32_1), 0);
-	irq_enable(CONFIG_I2S_1_IRQ);
+	irq_enable(DT_I2S_1_IRQ);
 }
 
 #endif /* CONFIG_I2S_1 */
@@ -872,10 +874,10 @@ static struct device DEVICE_NAME_GET(i2s_stm32_2);
 static void i2s_stm32_irq_config_func_2(struct device *dev);
 
 static const struct i2s_stm32_cfg i2s_stm32_config_2 = {
-	.i2s = (SPI_TypeDef *) CONFIG_I2S_2_BASE_ADDRESS,
+	.i2s = (SPI_TypeDef *) DT_I2S_2_BASE_ADDRESS,
 	.pclken = {
-		.enr = CONFIG_I2S_2_CLOCK_BITS,
-		.bus = CONFIG_I2S_2_CLOCK_BUS,
+		.enr = DT_I2S_2_CLOCK_BITS,
+		.bus = DT_I2S_2_CLOCK_BUS,
 	},
 	.i2s_clk_sel = CLK_SEL_1,
 	.irq_config = i2s_stm32_irq_config_func_2,
@@ -923,15 +925,15 @@ static struct i2s_stm32_data i2s_stm32_data_2 = {
 		.mem_block_queue.len = ARRAY_SIZE(tx_2_ring_buf),
 	},
 };
-DEVICE_AND_API_INIT(i2s_stm32_2, CONFIG_I2S_2_NAME, &i2s_stm32_initialize,
+DEVICE_AND_API_INIT(i2s_stm32_2, DT_I2S_2_NAME, &i2s_stm32_initialize,
 		    &i2s_stm32_data_2, &i2s_stm32_config_2, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_stm32_driver_api);
 
 static void i2s_stm32_irq_config_func_2(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_I2S_2_IRQ, CONFIG_I2S_2_IRQ_PRI, i2s_stm32_isr,
+	IRQ_CONNECT(DT_I2S_2_IRQ, DT_I2S_2_IRQ_PRI, i2s_stm32_isr,
 		    DEVICE_GET(i2s_stm32_2), 0);
-	irq_enable(CONFIG_I2S_2_IRQ);
+	irq_enable(DT_I2S_2_IRQ);
 }
 
 #endif /* CONFIG_I2S_2 */
@@ -942,10 +944,10 @@ static struct device DEVICE_NAME_GET(i2s_stm32_3);
 static void i2s_stm32_irq_config_func_3(struct device *dev);
 
 static const struct i2s_stm32_cfg i2s_stm32_config_3 = {
-	.i2s = (SPI_TypeDef *) CONFIG_I2S_3_BASE_ADDRESS,
+	.i2s = (SPI_TypeDef *) DT_I2S_3_BASE_ADDRESS,
 	.pclken = {
-		.enr = CONFIG_I2S_3_CLOCK_BITS,
-		.bus = CONFIG_I2S_3_CLOCK_BUS,
+		.enr = DT_I2S_3_CLOCK_BITS,
+		.bus = DT_I2S_3_CLOCK_BUS,
 	},
 	.i2s_clk_sel = CLK_SEL_1,
 	.irq_config = i2s_stm32_irq_config_func_3,
@@ -993,15 +995,15 @@ static struct i2s_stm32_data i2s_stm32_data_3 = {
 		.mem_block_queue.len = ARRAY_SIZE(tx_3_ring_buf),
 	},
 };
-DEVICE_AND_API_INIT(i2s_stm32_3, CONFIG_I2S_3_NAME, &i2s_stm32_initialize,
+DEVICE_AND_API_INIT(i2s_stm32_3, DT_I2S_3_NAME, &i2s_stm32_initialize,
 		    &i2s_stm32_data_3, &i2s_stm32_config_3, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_stm32_driver_api);
 
 static void i2s_stm32_irq_config_func_3(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_I2S_3_IRQ, CONFIG_I2S_3_IRQ_PRI, i2s_stm32_isr,
+	IRQ_CONNECT(DT_I2S_3_IRQ, DT_I2S_3_IRQ_PRI, i2s_stm32_isr,
 		    DEVICE_GET(i2s_stm32_3), 0);
-	irq_enable(CONFIG_I2S_3_IRQ);
+	irq_enable(DT_I2S_3_IRQ);
 }
 
 #endif /* CONFIG_I2S_3 */
@@ -1012,10 +1014,10 @@ static struct device DEVICE_NAME_GET(i2s_stm32_4);
 static void i2s_stm32_irq_config_func_4(struct device *dev);
 
 static const struct i2s_stm32_cfg i2s_stm32_config_4 = {
-	.i2s = (SPI_TypeDef *) CONFIG_I2S_4_BASE_ADDRESS,
+	.i2s = (SPI_TypeDef *) DT_I2S_4_BASE_ADDRESS,
 	.pclken = {
-		.enr = CONFIG_I2S_4_CLOCK_BITS,
-		.bus = CONFIG_I2S_4_CLOCK_BUS,
+		.enr = DT_I2S_4_CLOCK_BITS,
+		.bus = DT_I2S_4_CLOCK_BUS,
 	},
 	.i2s_clk_sel = CLK_SEL_2,
 	.irq_config = i2s_stm32_irq_config_func_4,
@@ -1063,15 +1065,15 @@ static struct i2s_stm32_data i2s_stm32_data_4 = {
 		.mem_block_queue.len = ARRAY_SIZE(tx_4_ring_buf),
 	},
 };
-DEVICE_AND_API_INIT(i2s_stm32_4, CONFIG_I2S_4_NAME, &i2s_stm32_initialize,
+DEVICE_AND_API_INIT(i2s_stm32_4, DT_I2S_4_NAME, &i2s_stm32_initialize,
 		    &i2s_stm32_data_4, &i2s_stm32_config_4, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_stm32_driver_api);
 
 static void i2s_stm32_irq_config_func_4(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_I2S_4_IRQ, CONFIG_I2S_4_IRQ_PRI, i2s_stm32_isr,
+	IRQ_CONNECT(DT_I2S_4_IRQ, DT_I2S_4_IRQ_PRI, i2s_stm32_isr,
 		    DEVICE_GET(i2s_stm32_4), 0);
-	irq_enable(CONFIG_I2S_4_IRQ);
+	irq_enable(DT_I2S_4_IRQ);
 }
 
 #endif /* CONFIG_I2S_4 */
@@ -1082,10 +1084,10 @@ static struct device DEVICE_NAME_GET(i2s_stm32_5);
 static void i2s_stm32_irq_config_func_5(struct device *dev);
 
 static const struct i2s_stm32_cfg i2s_stm32_config_5 = {
-	.i2s = (SPI_TypeDef *) CONFIG_I2S_5_BASE_ADDRESS,
+	.i2s = (SPI_TypeDef *) DT_I2S_5_BASE_ADDRESS,
 	.pclken = {
-		.enr = CONFIG_I2S_5_CLOCK_BITS,
-		.bus = CONFIG_I2S_5_CLOCK_BUS,
+		.enr = DT_I2S_5_CLOCK_BITS,
+		.bus = DT_I2S_5_CLOCK_BUS,
 	},
 	.i2s_clk_sel = CLK_SEL_2,
 	.irq_config = i2s_stm32_irq_config_func_5,
@@ -1133,15 +1135,15 @@ static struct i2s_stm32_data i2s_stm32_data_5 = {
 		.mem_block_queue.len = ARRAY_SIZE(tx_5_ring_buf),
 	},
 };
-DEVICE_AND_API_INIT(i2s_stm32_5, CONFIG_I2S_5_NAME, &i2s_stm32_initialize,
+DEVICE_AND_API_INIT(i2s_stm32_5, DT_I2S_5_NAME, &i2s_stm32_initialize,
 		    &i2s_stm32_data_5, &i2s_stm32_config_5, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_stm32_driver_api);
 
 static void i2s_stm32_irq_config_func_5(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_I2S_5_IRQ, CONFIG_I2S_5_IRQ_PRI, i2s_stm32_isr,
+	IRQ_CONNECT(DT_I2S_5_IRQ, DT_I2S_5_IRQ_PRI, i2s_stm32_isr,
 		    DEVICE_GET(i2s_stm32_5), 0);
-	irq_enable(CONFIG_I2S_5_IRQ);
+	irq_enable(DT_I2S_5_IRQ);
 }
 
 #endif /* CONFIG_I2S_5 */

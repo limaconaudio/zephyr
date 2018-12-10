@@ -173,12 +173,12 @@ static int start_read(struct device *dev, const struct adc_sequence *sequence)
 		return -EINVAL;
 	}
 
-	active_channels = 0;
+	active_channels = 0U;
 	nrfx_adc_all_channels_disable();
 
 	/* Enable the channels selected for the pointed sequence.
 	 */
-	channel_id = 0;
+	channel_id = 0U;
 	while (selected_channels) {
 		if (selected_channels & BIT(0)) {
 			/* The nrfx driver requires setting the resolution
@@ -253,7 +253,8 @@ static int init_adc(struct device *dev)
 		return -EBUSY;
 	}
 
-	IRQ_CONNECT(CONFIG_ADC_0_IRQ, CONFIG_ADC_0_IRQ_PRI,
+	IRQ_CONNECT(DT_NORDIC_NRF_ADC_ADC_0_IRQ,
+		    DT_NORDIC_NRF_ADC_ADC_0_IRQ_PRIORITY,
 		    nrfx_isr, nrfx_adc_irq_handler, 0);
 
 	adc_context_unlock_unconditionally(&m_data.ctx);
@@ -270,7 +271,7 @@ static const struct adc_driver_api adc_nrfx_driver_api = {
 };
 
 #ifdef CONFIG_ADC_0
-DEVICE_AND_API_INIT(adc_0, CONFIG_ADC_0_NAME,
+DEVICE_AND_API_INIT(adc_0, DT_NORDIC_NRF_ADC_ADC_0_LABEL,
 		    init_adc, NULL, NULL,
 		    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		    &adc_nrfx_driver_api);

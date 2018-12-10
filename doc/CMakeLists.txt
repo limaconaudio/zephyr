@@ -74,22 +74,23 @@ set(CONTENT_OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/extracted-content.txt)
 
 configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
-# This command is used to copy all documentation source files into the
-# build directory. Sphinx requires a single documentation root, but
-# Zephyr's documentation is scattered around the tree in samples/,
-# boards/, and doc/, so we need to copy those files into a single
-# place in the build directory.
+# This command is used to copy all documentation source files into the build
+# directory,
+#
+# We need to make copies because Sphinx requires a single
+# documentation root directory, but Zephyr's documentation is
+# scattered around the tree in samples/, boards/, and doc/. Putting
+# them into a single rooted tree in the build directory is a
+# workaround for this limitation.
 set(EXTRACT_CONTENT_COMMAND
   ${CMAKE_COMMAND} -E env
   ${PYTHON_EXECUTABLE} scripts/extract_content.py
-  # Save the outputs for processing by this list file.
-  --outputs ${CONTENT_OUTPUTS}
   # Ignore any files in the output directory.
   --ignore ${CMAKE_CURRENT_BINARY_DIR}
   # Copy all files in doc to the rst folder.
   "*:doc:${RST_OUT}"
-  # Copy the .rst files in samples/ and boards/ to the rst folder, and
-  # also the doc folder inside rst.
+  # We want to copy the .rst files in samples/ and boards/ to the rst
+  # folder, and also the doc folder inside rst.
   #
   # Some files refer to items in samples/ and boards/ relative to
   # their actual position in the Zephyr tree. For example, in
@@ -97,48 +98,16 @@ set(EXTRACT_CONTENT_COMMAND
   #
   # .. literalinclude:: ../../samples/sensor/mcp9808/src/main.c
   #
-  # We make an additional copy as a hackaround so these references
-  # work.
+  # The additional copy is a hackaround so these references work.
   "*.rst:samples:${RST_OUT}" "*.rst:boards:${RST_OUT}"
   "*.rst:samples:${RST_OUT}/doc" "*.rst:boards:${RST_OUT}/doc")
 
-# Run the content extraction command at configure time in order to
-# produce lists of input and output files, which are respectively its
-# dependencies and outputs. This also causes the content files
-# to be copied for the first time.
-execute_process(
+add_custom_target(
+  content
+  # Copy all files in doc/ to the rst folder
   COMMAND ${EXTRACT_CONTENT_COMMAND}
   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-  RESULT_VARIABLE RET)
-
-if (NOT RET EQUAL 0)
-  message(FATAL_ERROR "Cannot prepare documentation content extraction")
-endif()
-
-# Load the outputs listing from extract_content.py. This is a file
-# where each pair of lines is a source file in the Zephyr tree and a
-# destination file in the build directory.
-file(STRINGS ${CONTENT_OUTPUTS} EXTRACT_CONTENT_RAW)
-
-# Build up a list of output files for later use in target/command
-# DEPENDS. Make sure each output file gets updated if the
-# corresponding input file changes.
-set(EXTRACT_CONTENT_OUTPUTS)
-while(EXTRACT_CONTENT_RAW)
-  list(GET EXTRACT_CONTENT_RAW 0 SRC)
-  list(GET EXTRACT_CONTENT_RAW 1 DST)
-
-  add_custom_command(
-    COMMAND ${CMAKE_COMMAND} -E copy ${SRC} ${DST}
-    DEPENDS ${SRC}
-    OUTPUT ${DST}
-    )
-
-  list(REMOVE_AT EXTRACT_CONTENT_RAW 0 1)
-  list(APPEND EXTRACT_CONTENT_OUTPUTS ${DST})
-endwhile()
-
-add_custom_target(content DEPENDS ${EXTRACT_CONTENT_OUTPUTS})
+)
 
 set(ARGS ${DOXYFILE_OUT})
 

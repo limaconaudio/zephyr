@@ -3,8 +3,8 @@
 #include <kernel_structs.h>
 #include <init.h>
 
-#include <systemview/SEGGER_SYSVIEW.h>
-#include <systemview/Global.h>
+#include <SEGGER_SYSVIEW.h>
+#include <Global.h>
 #include "SEGGER_SYSVIEW_Zephyr.h"
 
 static u32_t interrupt;
@@ -29,6 +29,11 @@ void z_sys_trace_isr_enter(void)
 	sys_trace_isr_enter();
 }
 
+void z_sys_trace_isr_exit(void)
+{
+	sys_trace_isr_exit();
+}
+
 void z_sys_trace_isr_exit_to_scheduler(void)
 {
 	sys_trace_isr_exit_to_scheduler();
@@ -37,6 +42,11 @@ void z_sys_trace_isr_exit_to_scheduler(void)
 void z_sys_trace_thread_switched_in(void)
 {
 	sys_trace_thread_switched_in();
+}
+
+void z_sys_trace_thread_switched_out(void)
+{
+	sys_trace_thread_switched_out();
 }
 
 static void send_task_list_cb(void)

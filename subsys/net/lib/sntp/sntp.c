@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_sntp
-#define NET_LOG_LEVEL CONFIG_SNTP_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_sntp, CONFIG_SNTP_LOG_LEVEL);
 
 #include <net/sntp.h>
 #include "sntp_pkt.h"
@@ -110,9 +110,9 @@ static void sntp_recv_cb(struct net_app_ctx *ctx, struct net_pkt *pkt,
 {
 	struct sntp_ctx *sntp = (struct sntp_ctx *)user_data;
 	struct sntp_pkt buf = { 0 };
-	u64_t epoch_time = 0;
-	u64_t tmp = 0;
-	u16_t offset = 0;
+	u64_t epoch_time = 0U;
+	u64_t tmp = 0U;
+	u16_t offset = 0U;
 
 	if (status < 0) {
 		goto error_exit;
@@ -149,9 +149,7 @@ static u32_t get_uptime_in_sec(void)
 {
 	u64_t time;
 
-	k_enable_sys_clock_always_on();
 	time = k_uptime_get_32();
-	k_disable_sys_clock_always_on();
 
 	return time / MSEC_PER_SEC;
 }

@@ -66,6 +66,9 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 /* SECTIONS definitions */
 SECTIONS
 	{
+
+#include <linker/rel-sections.ld>
+
 	GROUP_START(ROMABLE_REGION)
 #ifdef CONFIG_REALMODE
 	/* 16-bit sections */
@@ -114,13 +117,15 @@ SECTIONS
 	*(.rodata)
 	*(".rodata.*")
 	*(.gnu.linkonce.r.*)
+
+#ifndef CONFIG_DYNAMIC_INTERRUPTS
 	. = ALIGN(8);
 	_idt_base_address = .;
 #ifdef LINKER_PASS2
 	KEEP(*(staticIdt))
 #else
 	. += CONFIG_IDT_NUM_VECTORS * 8;
-#endif
+#endif /* LINKER_PASS2 */
 
 #ifndef CONFIG_X86_FIXED_IRQ_MAPPING
 	. = ALIGN(4);
@@ -130,6 +135,11 @@ SECTIONS
 #else
 	. += CONFIG_MAX_IRQ_LINES;
 #endif
+#endif /* CONFIG_X86_FIXED_IRQ_MAPPING */
+#endif /* CONFIG_DYNAMIC_INTERRUPTS */
+
+#ifdef CONFIG_SOC_RODATA_LD
+#include <soc-rodata.ld>
 #endif
 
 #ifdef CONFIG_CUSTOM_RODATA_LD
@@ -146,7 +156,7 @@ SECTIONS
 	/* Kernel ROM extends to the end of flash. Need to do this to program
 	 * the MMU
 	 */
-	_image_rom_end = _image_rom_start + KB(CONFIG_ROM_SIZE);
+	_image_rom_end = _image_rom_start + KB(DT_ROM_SIZE);
 #else
 	/* ROM ends here, position counter will now be in RAM areas */
 	_image_rom_end = .;
@@ -244,6 +254,10 @@ SECTIONS
 	KERNEL_INPUT_SECTION(".noinit.*")
 	*(".kernel_noinit.*")
 
+#ifdef CONFIG_SOC_NOINIT_LD
+#include <soc-noinit.ld>
+#endif
+
 	MMU_PAGE_ALIGN
 
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
@@ -256,6 +270,38 @@ SECTIONS
 	KERNEL_INPUT_SECTION(.data)
 	KERNEL_INPUT_SECTION(".data.*")
 	*(".kernel.*")
+
+#ifdef CONFIG_DYNAMIC_INTERRUPTS
+	. = ALIGN(8);
+	_idt_base_address = .;
+#ifdef LINKER_PASS2
+	KEEP(*(staticIdt))
+#else
+	. += CONFIG_IDT_NUM_VECTORS * 8;
+#endif /* LINKER_PASS2 */
+
+#ifndef CONFIG_X86_FIXED_IRQ_MAPPING
+	. = ALIGN(4);
+	_irq_to_interrupt_vector = .;
+#ifdef LINKER_PASS2
+	KEEP(*(irq_int_vector_map))
+#else
+	. += CONFIG_MAX_IRQ_LINES;
+#endif /* LINKER_PASS2 */
+#endif /* CONFIG_X86_FIXED_IRQ_MAPPING */
+
+	z_interrupt_vectors_allocated = .;
+#ifdef LINKER_PASS2
+	KEEP(*(irq_vectors_alloc_data))
+#else
+	. += (CONFIG_IDT_NUM_VECTORS + 7) / 8;
+#endif /* LINKER_PASS2 */
+#endif /* CONFIG_DYNAMIC_INTERRUPTS */
+
+
+#ifdef CONFIG_SOC_RWDATA_LD
+#include <soc-rwdata.ld>
+#endif
 
 #ifdef CONFIG_CUSTOM_RWDATA_LD
 /* Located in project source directory */
@@ -312,11 +358,11 @@ SECTIONS
 	__data_ram_end = .;
 
 	/* All unused memory also owned by the kernel for heaps */
-	__kernel_ram_end = PHYS_RAM_ADDR + KB(CONFIG_RAM_SIZE);
+	__kernel_ram_end = PHYS_RAM_ADDR + KB(DT_RAM_SIZE);
 	__kernel_ram_size = __kernel_ram_end - __kernel_ram_start;
 
 	_image_ram_end = .;
-	_image_ram_all = (PHYS_RAM_ADDR + KB(CONFIG_RAM_SIZE)) - _image_ram_start;
+	_image_ram_all = (PHYS_RAM_ADDR + KB(DT_RAM_SIZE)) - _image_ram_start;
 
 	_end = .; /* end of image */
 
@@ -365,6 +411,8 @@ SECTIONS
 /* Located in project source directory */
 #include <custom-sections.ld>
 #endif
+
+#include <linker/debug-sections.ld>
 
 	}
 

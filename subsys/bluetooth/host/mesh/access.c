@@ -16,6 +16,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_ACCESS)
+#define LOG_MODULE_NAME bt_mesh_access
 #include "common/log.h"
 
 #include "mesh.h"
@@ -430,7 +431,7 @@ static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
 {
 	u8_t i;
 
-	for (i = 0; i < model_count; i++) {
+	for (i = 0U; i < model_count; i++) {
 		const struct bt_mesh_model_op *op;
 
 		*model = &models[i];
@@ -717,7 +718,7 @@ struct bt_mesh_model *bt_mesh_model_find_vnd(struct bt_mesh_elem *elem,
 {
 	u8_t i;
 
-	for (i = 0; i < elem->vnd_model_count; i++) {
+	for (i = 0U; i < elem->vnd_model_count; i++) {
 		if (elem->vnd_models[i].vnd.company == company &&
 		    elem->vnd_models[i].vnd.id == id) {
 			return &elem->vnd_models[i];
@@ -732,7 +733,7 @@ struct bt_mesh_model *bt_mesh_model_find(struct bt_mesh_elem *elem,
 {
 	u8_t i;
 
-	for (i = 0; i < elem->model_count; i++) {
+	for (i = 0U; i < elem->model_count; i++) {
 		if (elem->models[i].id == id) {
 			return &elem->models[i];
 		}

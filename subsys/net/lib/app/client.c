@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_app_client
-#define NET_LOG_LEVEL CONFIG_NET_APP_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_app, CONFIG_NET_APP_LOG_LEVEL);
 
 #include <zephyr.h>
 #include <string.h>
@@ -196,7 +196,7 @@ static int get_port_number(const char *peer_addr_str,
 			   char *buf,
 			   size_t buf_len)
 {
-	u16_t port = 0;
+	u16_t port = 0U;
 	char *ptr;
 	int count, i;
 
@@ -378,7 +378,7 @@ int net_app_init_client(struct net_app_ctx *ctx,
 	}
 
 	if (client_addr) {
-		u16_t local_port = 0;
+		u16_t local_port = 0U;
 		bool empty_addr = false;
 
 		addr.sa_family = remote_addr.sa_family;
@@ -386,7 +386,7 @@ int net_app_init_client(struct net_app_ctx *ctx,
 		/* local_port is used if the IP address isn't specified */
 #if defined(CONFIG_NET_IPV4)
 		if (client_addr->sa_family == AF_INET) {
-			empty_addr = net_is_ipv4_addr_unspecified(
+			empty_addr = net_ipv4_is_addr_unspecified(
 					&net_sin(client_addr)->sin_addr);
 			local_port = net_sin(client_addr)->sin_port;
 		}
@@ -394,7 +394,7 @@ int net_app_init_client(struct net_app_ctx *ctx,
 
 #if defined(CONFIG_NET_IPV6)
 		if (client_addr->sa_family == AF_INET6) {
-			empty_addr = net_is_ipv6_addr_unspecified(
+			empty_addr = net_ipv6_is_addr_unspecified(
 					&net_sin6(client_addr)->sin6_addr);
 			local_port = net_sin6(client_addr)->sin6_port;
 		}
@@ -638,7 +638,7 @@ static void check_local_address(struct net_app_ctx *ctx,
 		struct in6_addr *raddr;
 
 		laddr = &net_sin6(&ctx->ipv6.local)->sin6_addr;
-		if (!net_is_ipv6_addr_unspecified(laddr)) {
+		if (!net_ipv6_is_addr_unspecified(laddr)) {
 			return;
 		}
 
@@ -660,7 +660,7 @@ static void check_local_address(struct net_app_ctx *ctx,
 		struct net_if *iface;
 
 		laddr = &net_sin(&ctx->ipv4.local)->sin_addr;
-		if (!net_is_ipv4_addr_unspecified(laddr)) {
+		if (!net_ipv4_is_addr_unspecified(laddr)) {
 			return;
 		}
 

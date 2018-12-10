@@ -32,14 +32,17 @@ echo-server directory:
 - :file:`prj.conf`
   Generic config file, normally you should use this.
 
-- :file:`overlay-frdm_k64f_cc2520.conf`
-  This overlay config enables support for IEEE 802.15.4 CC2520 and frdm_k64f
-
 - :file:`overlay-frdm_k64f_mcr20a.conf`
   This overlay config enables support for IEEE 802.15.4 mcr20a and frdm_k64f
 
 - :file:`overlay-ot.conf`
-  This overlay config enables support for OpenThread
+  This overlay config enables support for OpenThread.
+
+- :file:`overlay-802154.conf`
+  This overlay config enables support for native IEEE 802.15.4 connectivity.
+  Note, that by default IEEE 802.15.4 L2 uses unacknowledged communication. To
+  improve connection reliability, acknowledgments can be enabled with shell
+  command: ``ieee802154 ack set``.
 
 - :file:`overlay-enc28j60.conf`
   This overlay config enables support for enc28j60 ethernet board. This

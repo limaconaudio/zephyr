@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ipv6_mld
-#define NET_LOG_LEVEL CONFIG_NET_IPV6_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_ipv6, CONFIG_NET_IPV6_LOG_LEVEL);
 
 #include <errno.h>
 #include <net/net_core.h>
@@ -125,7 +125,6 @@ static int send_mldv2_raw(struct net_if *iface, struct net_buf *frags)
 
 #define ROUTER_ALERT_LEN 8
 
-	pkt->frags->len = NET_IPV6ICMPH_LEN + ROUTER_ALERT_LEN;
 	net_pkt_set_iface(pkt, iface);
 
 	/* Insert the actual multicast record(s) here */
@@ -141,7 +140,7 @@ static int send_mldv2_raw(struct net_if *iface, struct net_buf *frags)
 	if (!net_pkt_write_be16_timeout(pkt, pkt->frags,
 					NET_IPV6H_LEN + ROUTER_ALERT_LEN + 2,
 					&pos,
-					ntohs(~net_calc_chksum_icmpv6(pkt)),
+					ntohs(net_calc_chksum_icmpv6(pkt)),
 					NET_BUF_TIMEOUT)) {
 		ret = -ENOMEM;
 		goto drop;

@@ -16,6 +16,7 @@
 #include <bluetooth/hci_driver.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_driver
 #include "common/log.h"
 
 #define HCI_CMD			0x01
@@ -71,7 +72,7 @@ static K_SEM_DEFINE(sem_initialised, 0, 1);
 static K_SEM_DEFINE(sem_request, 0, 1);
 static K_SEM_DEFINE(sem_busy, 1, 1);
 
-static BT_STACK_NOINIT(rx_stack, 448);
+static K_THREAD_STACK_DEFINE(rx_stack, 448);
 static struct k_thread rx_thread_data;
 
 #if defined(CONFIG_BT_DEBUG_HCI_DRIVER)
@@ -82,7 +83,7 @@ static inline void spi_dump_message(const u8_t *pre, u8_t *buf,
 	u8_t i, c;
 
 	printk("%s (%d): ", pre, size);
-	for (i = 0; i < size; i++) {
+	for (i = 0U; i < size; i++) {
 		c = buf[i];
 		printk("%x ", c);
 		if (c >= 31 && c <= 126) {
@@ -161,7 +162,7 @@ static inline u16_t bt_spi_get_evt(u8_t *rxmsg)
 }
 
 static void bt_spi_isr(struct device *unused1, struct gpio_callback *unused2,
-		       unsigned int unused3)
+		       u32_t unused3)
 {
 	BT_DBG("");
 
@@ -282,7 +283,7 @@ static void bt_spi_rx_thread(void)
 	u8_t header_master[5] = { SPI_READ, 0x00, 0x00, 0x00, 0x00 };
 	u8_t header_slave[5];
 	struct bt_hci_acl_hdr acl_hdr;
-	u8_t size = 0;
+	u8_t size = 0U;
 	int ret;
 
 	(void)memset(&txmsg, 0xFF, SPI_MAX_MSG_LEN);

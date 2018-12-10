@@ -15,6 +15,10 @@ chosen = {}
 reduced = {}
 defs = {}
 structs = {}
+bindings = {}
+bus_bindings = {}
+bindings_compat = []
+old_alias_names = False
 
 regs_config = {
     'zephyr,flash' : 'CONFIG_FLASH',
@@ -24,6 +28,7 @@ regs_config = {
 
 name_config = {
     'zephyr,console'     : 'CONFIG_UART_CONSOLE_ON_DEV_NAME',
+    'zephyr,shell-uart'  : 'CONFIG_UART_SHELL_ON_DEV_NAME',
     'zephyr,bt-uart'     : 'CONFIG_BT_UART_ON_DEV_NAME',
     'zephyr,uart-pipe'   : 'CONFIG_UART_PIPE_ON_DEV_NAME',
     'zephyr,bt-mon-uart' : 'CONFIG_BT_MONITOR_ON_DEV_NAME',
@@ -75,6 +80,21 @@ def get_aliases(root):
         if reduced[k].get('alt_name', None) is not None:
             aliases[k].append(reduced[k]['alt_name'])
 
+def get_node_compats(node_address):
+    compat = None
+
+    try:
+        if 'props' in reduced[node_address].keys():
+            compat = reduced[node_address]['props'].get('compatible')
+
+        if not isinstance(compat, list):
+            compat = [compat, ]
+
+    except:
+        pass
+
+    return compat
+
 def get_compat(node_address):
     compat = None
 
@@ -124,8 +144,8 @@ def get_phandles(root, name, handles):
 def insert_defs(node_address, new_defs, new_aliases):
 
     for key in new_defs.keys():
-        if key.startswith('CONFIG_DT_COMPAT_'):
-            node_address = 'Compatibles'
+        if key.startswith('DT_COMPAT_'):
+            node_address = 'compatibles'
 
     if node_address in defs:
         if 'aliases' in defs[node_address]:
@@ -165,7 +185,8 @@ def get_reduced(nodes, path):
                 get_reduced(v, path + k)
 
 
-def get_node_label(node_compat, node_address):
+def get_node_label(node_address):
+    node_compat = get_compat(node_address)
     def_label = convert_string_to_label(node_compat)
     if '@' in node_address:
         # See if we have number we can convert
@@ -251,3 +272,42 @@ def translate_addr(addr, node_address, nr_addr_cells, nr_size_cells):
     range_offset += parent_range_offset
 
     return range_offset
+
+def enable_old_alias_names(enable):
+    global old_alias_names
+    old_alias_names = enable
+
+def add_prop_aliases(node_address,
+                     alias_label_function, prop_label, prop_aliases):
+    node_compat = get_compat(node_address)
+    new_alias_prefix = 'DT_' + convert_string_to_label(node_compat)
+
+    for alias in aliases[node_address]:
+        old_alias_label = alias_label_function(alias)
+        new_alias_label = new_alias_prefix + '_' + old_alias_label
+
+        if (new_alias_label != prop_label):
+            prop_aliases[new_alias_label] = prop_label
+        if (old_alias_names and old_alias_label != prop_label):
+            prop_aliases[old_alias_label] = prop_label
+
+def get_binding(node_address):
+    compat = get_compat(node_address)
+    parent_addr = get_parent_address(node_address)
+    parent_compat = get_compat(parent_addr)
+
+    if parent_compat in get_binding_compats():
+        parent_binding = bindings[parent_compat]
+
+        if 'child' in parent_binding:
+            bus = parent_binding['child']['bus']
+            binding = bus_bindings[bus][compat]
+        else:
+            binding = bindings[compat]
+    else:
+        binding = bindings[compat]
+
+    return binding
+
+def get_binding_compats():
+    return bindings_compat

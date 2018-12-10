@@ -154,6 +154,12 @@
 /* ADXL362 Reset settings */
 #define ADXL362_RESET_KEY               0x52
 
+struct adxl362_config {
+	char *spi_name;
+	u32_t spi_max_frequency;
+	u16_t spi_slave;
+};
+
 struct adxl362_data {
 	struct device *spi;
 	struct spi_config spi_cfg;
@@ -188,7 +194,4 @@ struct adxl362_data {
 #	define ADXL362_DEFAULT_ODR_ACC		ADXL362_ODR_400_HZ
 #endif
 
-#define SYS_LOG_DOMAIN "ADXL362"
-#define SYS_LOG_LEVEL CONFIG_SYS_LOG_SENSOR_LEVEL
-#include <logging/sys_log.h>
 #endif /* ZEPHYR_DRIVERS_SENSOR_ADXL362_ADXL362_H_ */

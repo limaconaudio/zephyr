@@ -13,7 +13,7 @@
 #include <kernel.h>
 #include <arch/cpu.h>
 #include <misc/__assert.h>
-#include <board.h>
+#include <soc.h>
 #include <init.h>
 #include <uart.h>
 #include <clock_control.h>
@@ -36,6 +36,11 @@ static int uart_stm32_poll_in(struct device *dev, unsigned char *c)
 {
 	USART_TypeDef *UartInstance = UART_STRUCT(dev);
 
+	/* Clear overrun error flag */
+	if (LL_USART_IsActiveFlag_ORE(UartInstance)) {
+		LL_USART_ClearFlag_ORE(UartInstance);
+	}
+
 	if (!LL_USART_IsActiveFlag_RXNE(UartInstance)) {
 		return -1;
 	}
@@ -45,7 +50,7 @@ static int uart_stm32_poll_in(struct device *dev, unsigned char *c)
 	return 0;
 }
 
-static unsigned char uart_stm32_poll_out(struct device *dev,
+static void uart_stm32_poll_out(struct device *dev,
 					unsigned char c)
 {
 	USART_TypeDef *UartInstance = UART_STRUCT(dev);
@@ -57,8 +62,6 @@ static unsigned char uart_stm32_poll_out(struct device *dev,
 	LL_USART_ClearFlag_TC(UartInstance);
 
 	LL_USART_TransmitData8(UartInstance, (u8_t)c);
-
-	return c;
 }
 
 static inline void __uart_stm32_get_clock(struct device *dev)
@@ -78,7 +81,7 @@ static int uart_stm32_fifo_fill(struct device *dev, const u8_t *tx_data,
 				  int size)
 {
 	USART_TypeDef *UartInstance = UART_STRUCT(dev);
-	u8_t num_tx = 0;
+	u8_t num_tx = 0U;
 
 	while ((size - num_tx > 0) &&
 	       LL_USART_IsActiveFlag_TXE(UartInstance)) {
@@ -95,7 +98,7 @@ static int uart_stm32_fifo_read(struct device *dev, u8_t *rx_data,
 				  const int size)
 {
 	USART_TypeDef *UartInstance = UART_STRUCT(dev);
-	u8_t num_rx = 0;
+	u8_t num_rx = 0U;
 
 	while ((size - num_rx > 0) &&
 	       LL_USART_IsActiveFlag_RXNE(UartInstance)) {
@@ -107,6 +110,12 @@ static int uart_stm32_fifo_read(struct device *dev, u8_t *rx_data,
 
 		/* Receive a character (8bit , parity none) */
 		rx_data[num_rx++] = LL_USART_ReceiveData8(UartInstance);
+
+		/* Clear overrun error flag */
+		if (LL_USART_IsActiveFlag_ORE(UartInstance)) {
+			LL_USART_ClearFlag_ORE(UartInstance);
+		}
+
 	}
 	return num_rx;
 }
@@ -302,8 +311,10 @@ static int uart_stm32_init(struct device *dev)
 
 	__uart_stm32_get_clock(dev);
 	/* enable clock */
-	clock_control_on(data->clock,
-			(clock_control_subsys_t *)&config->pclken);
+	if (clock_control_on(data->clock,
+			(clock_control_subsys_t *)&config->pclken) != 0) {
+		return -EIO;
+	}
 
 	LL_USART_Disable(UartInstance);
 
@@ -352,10 +363,6 @@ static int uart_stm32_init(struct device *dev)
 	return 0;
 }
 
-/* Define clocks */
-#define STM32_CLOCK_UART(clock_bus, clock_enr)	\
-	.pclken = { .bus = clock_bus,		\
-		    .enr = clock_enr }
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define STM32_UART_IRQ_HANDLER_DECL(name)				\
@@ -365,11 +372,11 @@ static int uart_stm32_init(struct device *dev)
 #define STM32_UART_IRQ_HANDLER(name)					\
 static void uart_stm32_irq_config_func_##name(struct device *dev)	\
 {									\
-	IRQ_CONNECT(name##_IRQ,					\
-		CONFIG_UART_STM32_##name##_IRQ_PRI,			\
+	IRQ_CONNECT(DT_##name##_IRQ,					\
+		DT_UART_STM32_##name##_IRQ_PRI,			\
 		uart_stm32_isr, DEVICE_GET(uart_stm32_##name),	\
 		0);							\
-	irq_enable(name##_IRQ);					\
+	irq_enable(DT_##name##_IRQ);					\
 }
 #else
 #define STM32_UART_IRQ_HANDLER_DECL(name)
@@ -377,22 +384,24 @@ static void uart_stm32_irq_config_func_##name(struct device *dev)	\
 #define STM32_UART_IRQ_HANDLER(name)
 #endif
 
-#define STM32_UART_INIT(name, clock_bus, clock_enr)			\
+#define STM32_UART_INIT(name)						\
 STM32_UART_IRQ_HANDLER_DECL(name);					\
 									\
 static const struct uart_stm32_config uart_stm32_cfg_##name = {		\
 	.uconf = {							\
-		.base = (u8_t *)CONFIG_UART_STM32_##name##_BASE_ADDRESS,\
+		.base = (u8_t *)DT_UART_STM32_##name##_BASE_ADDRESS,\
 		STM32_UART_IRQ_HANDLER_FUNC(name)			\
 	},								\
-	STM32_CLOCK_UART(clock_bus, clock_enr),				\
-	.baud_rate = CONFIG_UART_STM32_##name##_BAUD_RATE		\
+	.pclken = { .bus = DT_UART_STM32_##name##_CLOCK_BUS,	\
+		    .enr = DT_UART_STM32_##name##_CLOCK_BITS	\
+	},								\
+	.baud_rate = DT_UART_STM32_##name##_BAUD_RATE		\
 };									\
 									\
 static struct uart_stm32_data uart_stm32_data_##name = {		\
 };									\
 									\
-DEVICE_AND_API_INIT(uart_stm32_##name, CONFIG_UART_STM32_##name##_NAME,	\
+DEVICE_AND_API_INIT(uart_stm32_##name, DT_UART_STM32_##name##_NAME,	\
 		    &uart_stm32_init,					\
 		    &uart_stm32_data_##name, &uart_stm32_cfg_##name,	\
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,	\
@@ -400,113 +409,79 @@ DEVICE_AND_API_INIT(uart_stm32_##name, CONFIG_UART_STM32_##name##_NAME,	\
 									\
 STM32_UART_IRQ_HANDLER(name)
 
-/*
- * STM32F0 and STM32L0 series differ from other STM32 series by some
- * peripheral names (UART vs USART). Besides, STM32F0 doesn't have APB2 bus,
- * so APB1 GRP2 should be accessed instead.
- */
-#if defined(CONFIG_SOC_SERIES_STM32F0X)
 
 #ifdef CONFIG_UART_STM32_PORT_1
-STM32_UART_INIT(USART_1, STM32_CLOCK_BUS_APB1_2, LL_APB1_GRP2_PERIPH_USART1)
+STM32_UART_INIT(USART_1)
 #endif	/* CONFIG_UART_STM32_PORT_1 */
 
 #ifdef CONFIG_UART_STM32_PORT_2
-STM32_UART_INIT(USART_2, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART2)
+STM32_UART_INIT(USART_2)
 #endif	/* CONFIG_UART_STM32_PORT_2 */
 
 #ifdef CONFIG_UART_STM32_PORT_3
-STM32_UART_INIT(USART_3, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART3)
+STM32_UART_INIT(USART_3)
 #endif	/* CONFIG_UART_STM32_PORT_3 */
 
+#ifdef CONFIG_UART_STM32_PORT_6
+STM32_UART_INIT(USART_6)
+#endif /* CONFIG_UART_STM32_PORT_6 */
+
+/*
+ * STM32F0 and STM32L0 series differ from other STM32 series by some
+ * peripheral names (UART vs USART).
+ */
+#if defined(CONFIG_SOC_SERIES_STM32F0X) || defined(CONFIG_SOC_SERIES_STM32L0X)
+
 #ifdef CONFIG_UART_STM32_PORT_4
-STM32_UART_INIT(USART_4, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART4)
+STM32_UART_INIT(USART_4)
 #endif /* CONFIG_UART_STM32_PORT_4 */
 
 #ifdef CONFIG_UART_STM32_PORT_5
-STM32_UART_INIT(USART_5, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART5)
+STM32_UART_INIT(USART_5)
 #endif /* CONFIG_UART_STM32_PORT_5 */
 
-#ifdef CONFIG_UART_STM32_PORT_6
-STM32_UART_INIT(USART_6, STM32_CLOCK_BUS_APB1_2, LL_APB1_GRP2_PERIPH_USART6)
-#endif /* CONFIG_UART_STM32_PORT_6 */
+/* Following devices are not available in L0 series (for now)
+ * But keeping them simplifies ifdefery and won't harm
+ */
 
 #ifdef CONFIG_UART_STM32_PORT_7
-STM32_UART_INIT(USART_7, STM32_CLOCK_BUS_APB1_2, LL_APB1_GRP2_PERIPH_USART7)
+STM32_UART_INIT(USART_7)
 #endif /* CONFIG_UART_STM32_PORT_7 */
 
 #ifdef CONFIG_UART_STM32_PORT_8
-STM32_UART_INIT(USART_8, STM32_CLOCK_BUS_APB1_2, LL_APB1_GRP2_PERIPH_USART8)
+STM32_UART_INIT(USART_8)
 #endif /* CONFIG_UART_STM32_PORT_8 */
-
-#elif defined(CONFIG_SOC_SERIES_STM32L0X)
-
-#ifdef CONFIG_UART_STM32_PORT_1
-STM32_UART_INIT(USART_1, STM32_CLOCK_BUS_APB2, LL_APB2_GRP1_PERIPH_USART1)
-#endif	/* CONFIG_UART_STM32_PORT_1 */
-
-#ifdef CONFIG_UART_STM32_PORT_2
-STM32_UART_INIT(USART_2, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART2)
-#endif	/* CONFIG_UART_STM32_PORT_2 */
-
-#ifdef CONFIG_UART_STM32_PORT_4
-STM32_UART_INIT(USART_4, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART4)
-#endif /* CONFIG_UART_STM32_PORT_4 */
-
-#ifdef CONFIG_UART_STM32_PORT_5
-STM32_UART_INIT(USART_5, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART5)
-#endif /* CONFIG_UART_STM32_PORT_5 */
-
-#ifdef CONFIG_UART_STM32_LPUART_1
-STM32_UART_INIT(LPUART_1, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_LPUART1)
-#endif /* CONFIG_UART_STM32_LPUART_1 */
 
 #else
 
-#ifdef CONFIG_UART_STM32_PORT_1
-STM32_UART_INIT(USART_1, STM32_CLOCK_BUS_APB2, LL_APB2_GRP1_PERIPH_USART1)
-#endif	/* CONFIG_UART_STM32_PORT_1 */
-
-#ifdef CONFIG_UART_STM32_PORT_2
-STM32_UART_INIT(USART_2, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART2)
-#endif	/* CONFIG_UART_STM32_PORT_2 */
-
-#ifdef CONFIG_UART_STM32_PORT_3
-STM32_UART_INIT(USART_3, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_USART3)
-#endif	/* CONFIG_UART_STM32_PORT_3 */
-
 #ifdef CONFIG_UART_STM32_PORT_4
-STM32_UART_INIT(UART_4, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_UART4)
+STM32_UART_INIT(UART_4)
 #endif /* CONFIG_UART_STM32_PORT_4 */
 
 #ifdef CONFIG_UART_STM32_PORT_5
-STM32_UART_INIT(UART_5, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_UART5)
+STM32_UART_INIT(UART_5)
 #endif /* CONFIG_UART_STM32_PORT_5 */
 
-#ifdef CONFIG_UART_STM32_PORT_6
-STM32_UART_INIT(USART_6, STM32_CLOCK_BUS_APB2, LL_APB2_GRP1_PERIPH_USART6)
-#endif /* CONFIG_UART_STM32_PORT_6 */
-
 #ifdef CONFIG_UART_STM32_PORT_7
-STM32_UART_INIT(UART_7, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_UART7)
+STM32_UART_INIT(UART_7)
 #endif /* CONFIG_UART_STM32_PORT_7 */
 
 #ifdef CONFIG_UART_STM32_PORT_8
-STM32_UART_INIT(UART_8, STM32_CLOCK_BUS_APB1, LL_APB1_GRP1_PERIPH_UART8)
+STM32_UART_INIT(UART_8)
 #endif /* CONFIG_UART_STM32_PORT_8 */
 
 #ifdef CONFIG_UART_STM32_PORT_9
-STM32_UART_INIT(UART_9, STM32_CLOCK_BUS_APB2, LL_APB2_GRP1_PERIPH_UART9)
+STM32_UART_INIT(UART_9)
 #endif /* CONFIG_UART_STM32_PORT_9 */
 
 #ifdef CONFIG_UART_STM32_PORT_10
-STM32_UART_INIT(UART_10, STM32_CLOCK_BUS_APB2, LL_APB2_GRP1_PERIPH_UART10)
+STM32_UART_INIT(UART_10)
 #endif /* CONFIG_UART_STM32_PORT_10 */
 
-#ifdef CONFIG_SOC_SERIES_STM32L4X
-#ifdef CONFIG_UART_STM32_LPUART_1
-STM32_UART_INIT(LPUART_1, STM32_CLOCK_BUS_APB1_2, LL_APB1_GRP2_PERIPH_LPUART1)
-#endif /* CONFIG_UART_STM32_LPUART_1 */
-#endif /* CONFIG_SOC_SERIES_STM32L4X */
+#endif
 
+#if defined(CONFIG_SOC_SERIES_STM32L4X) || defined(CONFIG_SOC_SERIES_STM32L0X)
+#ifdef CONFIG_UART_STM32_LPUART_1
+STM32_UART_INIT(LPUART_1)
+#endif /* CONFIG_UART_STM32_LPUART_1 */
 #endif

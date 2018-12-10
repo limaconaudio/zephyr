@@ -16,10 +16,8 @@
  * rest should not be triggered until the kernel is ready to handle them.
  */
 
-#include <board.h>
 #include <toolchain.h>
 #include <linker/sections.h>
-#include <drivers/system_timer.h>
 #include "vector_table.h"
 
 _ASM_FILE_PROLOGUE

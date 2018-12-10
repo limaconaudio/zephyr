@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_promisc_sample
-#define NET_LOG_LEVEL LOG_LEVEL_DBG
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_promisc_sample, LOG_LEVEL_DBG);
 
 #include <zephyr.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <shell/shell.h>
 
 #include <net/net_core.h>
 #include <net/promiscuous.h>
@@ -20,12 +22,12 @@ static void iface_cb(struct net_if *iface, void *user_data)
 
 	ret = net_promisc_mode_on(iface);
 	if (ret < 0) {
-		NET_INFO("Cannot set promiscuous mode for interface %p (%d)",
-			 iface, ret);
+		LOG_INF("Cannot set promiscuous mode for interface %p (%d)",
+			iface, ret);
 		return;
 	}
 
-	NET_INFO("Promiscuous mode enabled for interface %p", iface);
+	LOG_INF("Promiscuous mode enabled for interface %p", iface);
 }
 
 static int get_ports(struct net_pkt *pkt, u16_t *src, u16_t *dst)
@@ -75,8 +77,8 @@ static void print_info(struct net_pkt *pkt)
 	}
 
 	if (family == AF_UNSPEC) {
-		NET_INFO("Recv %p len %d (unknown address family)",
-			 pkt, net_pkt_get_len(pkt));
+		LOG_INF("Recv %p len %d (unknown address family)",
+			pkt, net_pkt_get_len(pkt));
 		return;
 	}
 
@@ -101,7 +103,7 @@ static void print_info(struct net_pkt *pkt)
 	}
 
 	if (ret < 0) {
-		NET_ERR("Cannot get port numbers for pkt %p", pkt);
+		LOG_ERR("Cannot get port numbers for pkt %p", pkt);
 		return;
 	}
 
@@ -114,28 +116,106 @@ static void print_info(struct net_pkt *pkt)
 
 	if (family == AF_INET) {
 		if (next_hdr == IPPROTO_TCP || next_hdr == IPPROTO_UDP) {
-			NET_INFO("%s %s (%zd) %s:%u -> %s:%u",
-				 "IPv4", proto, len,
-				 log_strdup(src_addr), src_port,
-				 log_strdup(dst_addr), dst_port);
+			LOG_INF("%s %s (%zd) %s:%u -> %s:%u",
+				"IPv4", proto, len,
+				log_strdup(src_addr), src_port,
+				log_strdup(dst_addr), dst_port);
 		} else {
-			NET_INFO("%s %s (%zd) %s -> %s", "IPv4", proto,
-				 len, log_strdup(src_addr),
-				 log_strdup(dst_addr));
+			LOG_INF("%s %s (%zd) %s -> %s", "IPv4", proto,
+				len, log_strdup(src_addr),
+				log_strdup(dst_addr));
 		}
 	} else {
 		if (next_hdr == IPPROTO_TCP || next_hdr == IPPROTO_UDP) {
-			NET_INFO("%s %s (%zd) [%s]:%u -> [%s]:%u",
-				 "IPv6", proto, len,
-				 log_strdup(src_addr), src_port,
-				 log_strdup(dst_addr), dst_port);
+			LOG_INF("%s %s (%zd) [%s]:%u -> [%s]:%u",
+				"IPv6", proto, len,
+				log_strdup(src_addr), src_port,
+				log_strdup(dst_addr), dst_port);
 		} else {
-			NET_INFO("%s %s (%zd) %s -> %s", "IPv6", proto,
-				 len, log_strdup(src_addr),
-				 log_strdup(dst_addr));
+			LOG_INF("%s %s (%zd) %s -> %s", "IPv6", proto,
+				len, log_strdup(src_addr),
+				log_strdup(dst_addr));
 		}
 	}
 }
+
+static int set_promisc_mode(const struct shell *shell,
+			    size_t argc, char *argv[], bool enable)
+{
+	struct net_if *iface;
+	char *endptr;
+	int idx, ret;
+
+	if (argc < 2) {
+		shell_fprintf(shell, SHELL_ERROR, "Invalid arguments.\n");
+		return -ENOEXEC;
+	}
+
+	idx = strtol(argv[1], &endptr, 10);
+
+	iface = net_if_get_by_index(idx);
+	if (!iface) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Cannot find network interface for index %d\n",
+			      idx);
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "Promiscuous mode %s...\n",
+		      enable ? "ON" : "OFF");
+
+	if (enable) {
+		ret = net_promisc_mode_on(iface);
+	} else {
+		ret = net_promisc_mode_off(iface);
+	}
+
+	if (ret < 0) {
+		if (ret == -EALREADY) {
+			shell_fprintf(shell, SHELL_INFO,
+				      "Promiscuous mode already %s\n",
+				      enable ? "enabled" : "disabled");
+		} else {
+			shell_fprintf(shell, SHELL_ERROR,
+				      "Cannot %s promiscuous mode for "
+				      "interface %p (%d)\n",
+				      enable ? "set" : "unset", iface, ret);
+		}
+
+		return -ENOEXEC;
+	}
+
+	return 0;
+}
+
+static int cmd_promisc_on(const struct shell *shell,
+			  size_t argc, char *argv[])
+{
+	return set_promisc_mode(shell, argc, argv, true);
+}
+
+static int cmd_promisc_off(const struct shell *shell,
+			   size_t argc, char *argv[])
+{
+	return set_promisc_mode(shell, argc, argv, false);
+}
+
+SHELL_CREATE_STATIC_SUBCMD_SET(promisc_commands)
+{
+	SHELL_CMD(on, NULL,
+		  "Turn promiscuous mode on\n"
+		  "promisc on  <interface index>  "
+		      "Turn on promiscuous mode for the interface\n",
+		  cmd_promisc_on),
+	SHELL_CMD(off, NULL, "Turn promiscuous mode off\n"
+		  "promisc off <interface index>  "
+		      "Turn off promiscuous mode for the interface\n",
+		  cmd_promisc_off),
+	SHELL_SUBCMD_SET_END
+};
+
+SHELL_CMD_REGISTER(promisc, &promisc_commands,
+		   "Promiscuous mode commands", NULL);
 
 void main(void)
 {

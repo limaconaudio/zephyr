@@ -24,6 +24,7 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,console = &uart1;
+		zephyr,shell-uart = &uart1;
 	};
 
 	leds {
@@ -66,4 +67,13 @@
 
 &spi1 {
 	status = "ok";
+
+	bmi160@1 {
+		compatible = "bosch,bmi160";
+		reg = <0x1>;
+		label = "bmi160";
+		spi-max-frequency = <640000>;
+		int-gpios = <&gpio1 4 0>;
+		status = "ok";
+	};
 };

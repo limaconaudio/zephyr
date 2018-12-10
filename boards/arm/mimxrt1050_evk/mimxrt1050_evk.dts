@@ -23,6 +23,7 @@
 		led0 = &green_led;
 		sw0 = &user_button;
 		spi-3 = &spi3;
+		eth = &eth;
 	};
 
 	chosen {
@@ -35,9 +36,7 @@
 #endif
 		zephyr,sram = &dtcm0;
 		zephyr,console = &uart1;
-#ifdef CONFIG_BT
-		zephyr,bt-uart = &uart3;
-#endif
+		zephyr,shell-uart = &uart1;
 	};
 
 	sdram0: memory@80000000 {
@@ -62,6 +61,8 @@
 		};
 	};
 };
+
+arduino_serial: &uart3 {};
 
 &flexspi0 {
 	hyperflash0: hyperflash@0 {
@@ -90,13 +91,13 @@
 	current-speed = <115200>;
 };
 
-#ifdef CONFIG_BT
-&uart3 {
-	status = "ok";
-	current-speed = <115200>;
-};
-#endif
-
 &spi3 {
 	status = "ok";
+};
+
+&eth {
+	status = "ok";
+	ptp {
+		status = "ok";
+	};
 };

@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_core
-#define NET_LOG_LEVEL CONFIG_NET_CORE_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_core, CONFIG_NET_CORE_LOG_LEVEL);
 
 #include <init.h>
 #include <kernel.h>
@@ -51,6 +51,20 @@
 #include "ipv4_autoconf_internal.h"
 
 #include "net_stats.h"
+
+#if defined(CONFIG_INIT_STACKS)
+void net_analyze_stack(const char *name, const char *stack, size_t size)
+{
+	unsigned int pcnt, unused;
+
+	net_analyze_stack_get_values(stack, size, &pcnt, &unused);
+
+	NET_INFO("net (%p): %s stack real size %zu "
+		 "unused %u usage %zu/%zu (%u %%)",
+		 k_current_get(), name,
+		 size, unused, size - unused, size, pcnt);
+}
+#endif /* CONFIG_INIT_STACKS */
 
 static inline enum net_verdict process_data(struct net_pkt *pkt,
 					    bool is_loopback)
@@ -95,7 +109,7 @@ static inline enum net_verdict process_data(struct net_pkt *pkt,
 	case 0x60:
 		net_stats_update_ipv6_recv(net_pkt_iface(pkt));
 		net_pkt_set_family(pkt, PF_INET6);
-		return net_ipv6_process_pkt(pkt);
+		return net_ipv6_process_pkt(pkt, is_loopback);
 #endif
 #if defined(CONFIG_NET_IPV4)
 	case 0x40:
@@ -174,8 +188,8 @@ static inline int check_ip_addr(struct net_pkt *pkt)
 		/* If the destination address is our own, then route it
 		 * back to us.
 		 */
-		if (net_is_ipv6_addr_loopback(&NET_IPV6_HDR(pkt)->dst) ||
-		    net_is_my_ipv6_addr(&NET_IPV6_HDR(pkt)->dst)) {
+		if (net_ipv6_is_addr_loopback(&NET_IPV6_HDR(pkt)->dst) ||
+		    net_ipv6_is_my_addr(&NET_IPV6_HDR(pkt)->dst)) {
 			struct in6_addr addr;
 
 			/* Swap the addresses so that in receiving side
@@ -189,10 +203,21 @@ static inline int check_ip_addr(struct net_pkt *pkt)
 			return 1;
 		}
 
+		/* If the destination address is interface local scope
+		 * multicast address, then loop the data back to us.
+		 * The FF01:: multicast addresses are only meant to be used
+		 * in local host, so this is similar as how ::1 unicast
+		 * addresses are handled. See RFC 3513 ch 2.7 for details.
+		 */
+		if (net_ipv6_is_addr_mcast_iface(&NET_IPV6_HDR(pkt)->dst)) {
+			NET_DBG("IPv6 interface scope mcast dst address");
+			return 1;
+		}
+
 		/* The source check must be done after the destination check
 		 * as having src ::1 is perfectly ok if dst is ::1 too.
 		 */
-		if (net_is_ipv6_addr_loopback(&NET_IPV6_HDR(pkt)->src)) {
+		if (net_ipv6_is_addr_loopback(&NET_IPV6_HDR(pkt)->src)) {
 			NET_DBG("IPv6 loopback src address");
 			return -EADDRNOTAVAIL;
 		}
@@ -210,8 +235,10 @@ static inline int check_ip_addr(struct net_pkt *pkt)
 		/* If the destination address is our own, then route it
 		 * back to us.
 		 */
-		if (net_is_ipv4_addr_loopback(&NET_IPV4_HDR(pkt)->dst) ||
-		    net_is_my_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)) {
+		if (net_ipv4_is_addr_loopback(&NET_IPV4_HDR(pkt)->dst) ||
+		    (net_ipv4_is_addr_bcast(net_pkt_iface(pkt),
+				     &NET_IPV4_HDR(pkt)->dst) == false &&
+		     net_ipv4_is_my_addr(&NET_IPV4_HDR(pkt)->dst))) {
 			struct in_addr addr;
 
 			/* Swap the addresses so that in receiving side
@@ -229,7 +256,7 @@ static inline int check_ip_addr(struct net_pkt *pkt)
 		 * as having src 127.0.0.0/8 is perfectly ok if dst is in
 		 * localhost subnet too.
 		 */
-		if (net_is_ipv4_addr_loopback(&NET_IPV4_HDR(pkt)->src)) {
+		if (net_ipv4_is_addr_loopback(&NET_IPV4_HDR(pkt)->src)) {
 			NET_DBG("IPv4 loopback src address");
 			return -EADDRNOTAVAIL;
 		}
@@ -413,6 +440,8 @@ static int net_init(struct device *unused)
 		return status;
 	}
 #endif
+
+	net_shell_init();
 
 	return status;
 }

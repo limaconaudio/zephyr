@@ -10,8 +10,12 @@
 #include <string.h>
 #include <spi.h>
 #include "lsm6dsl.h"
+#include <logging/log.h>
 
 #define LSM6DSL_SPI_READ		(1 << 7)
+
+#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
+LOG_MODULE_DECLARE(LSM6DSL);
 
 #if defined(CONFIG_LSM6DSL_SPI_GPIO_CS)
 static struct spi_cs_control lsm6dsl_cs_ctrl;
@@ -20,10 +24,10 @@ static struct spi_cs_control lsm6dsl_cs_ctrl;
 #define SPI_CS NULL
 
 static struct spi_config lsm6dsl_spi_conf = {
-	.frequency = CONFIG_LSM6DSL_SPI_BUS_FREQ,
+	.frequency = DT_LSM6DSL_SPI_BUS_FREQ,
 	.operation = (SPI_OP_MODE_MASTER | SPI_MODE_CPOL |
 		      SPI_MODE_CPHA | SPI_WORD_SET(8) | SPI_LINES_SINGLE),
-	.slave     = CONFIG_LSM6DSL_SPI_SELECT_SLAVE,
+	.slave     = DT_LSM6DSL_SPI_SELECT_SLAVE,
 	.cs        = SPI_CS,
 };
 
@@ -147,7 +151,7 @@ int lsm6dsl_spi_init(struct device *dev)
 		lsm6dsl_cs_ctrl.gpio_dev = device_get_binding(
 			CONFIG_LSM6DSL_SPI_GPIO_CS_DRV_NAME);
 		if (!lsm6dsl_cs_ctrl.gpio_dev) {
-			SYS_LOG_ERR("Unable to get GPIO SPI CS device");
+			LOG_ERR("Unable to get GPIO SPI CS device");
 			return -ENODEV;
 		}
 
@@ -156,7 +160,7 @@ int lsm6dsl_spi_init(struct device *dev)
 
 		lsm6dsl_spi_conf.cs = &lsm6dsl_cs_ctrl;
 
-		SYS_LOG_DBG("SPI GPIO CS configured on %s:%u",
+		LOG_DBG("SPI GPIO CS configured on %s:%u",
 			    CONFIG_LSM6DSL_SPI_GPIO_CS_DRV_NAME,
 			    CONFIG_LSM6DSL_SPI_GPIO_CS_PIN);
 	}

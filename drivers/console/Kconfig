@@ -81,8 +81,7 @@ config UART_CONSOLE_MCUMGR
 
 config USB_UART_CONSOLE
 	bool "Use USB port for console outputs"
-	depends on SERIAL
-	select CONSOLE_HAS_DRIVER
+	select UART_CONSOLE
 	select USB_CDC_ACM
 	help
 	  Enable this option to use the USB UART for console output. The output
@@ -117,7 +116,7 @@ config RAM_CONSOLE_BUFFER_SIZE
 
 config RTT_CONSOLE
 	bool "Use RTT console"
-	depends on HAS_SEGGER_RTT
+	depends on USE_SEGGER_RTT
 	select CONSOLE_HAS_DRIVER
 	help
 	  Emit console messages to a RAM buffer that is then read by the

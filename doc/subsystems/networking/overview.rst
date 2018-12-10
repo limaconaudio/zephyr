@@ -51,6 +51,10 @@ can be disabled if not needed.
   compatible API is implemented. Both blocking and non-blocking DGRAM (UDP)
   and STREAM (TCP) sockets are supported.
 
+* **Secure Sockets API** Experimental support for TLS/DTLS secure protocols and
+  configuration options for sockets API. Secure functions for the implementation
+  are provided by mbedTLS library.
+
 * **HTTP** Hypertext Transfer Protocol (RFC 2116) is supported. A simple
   library is provided that applications can use. Sample applications are
   implemented for :ref:`http-client-sample` and :ref:`http-server-sample`.
@@ -66,6 +70,11 @@ can be disabled if not needed.
 * **CoAP** Constrained Application Protocol (RFC 7252) is supported.
   Both :ref:`coap-client-sample` and :ref:`coap-server-sample` sample
   applications are implemented.
+
+* **CoAP over Sockets** Constrained Application Protocol (RFC 7252) is supported
+  over socket based applications or higher layer protocols.
+  Both :ref:`coap-client-sock-sample` and :ref:`coap-server-sock-sample`
+  sample applications are implemented.
 
 * **LWM2M** OMA Lightweight Machine-to-Machine Protocol (V1.0 Feb 2017) is
   supported via the "Register Device" API (Register, De-Register and Update)

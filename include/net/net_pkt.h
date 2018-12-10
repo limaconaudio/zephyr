@@ -99,6 +99,12 @@ struct net_pkt {
 	u16_t appdatalen;
 	u8_t ll_reserve;	/* link layer header length */
 	u8_t ip_hdr_len;	/* pre-filled in order to avoid func call */
+	u8_t transport_proto;	/* Transport protol of data, like
+				 * IPPROTO_TCP or IPPROTO_UDP. This value is
+				 * saved so that we do not need to traverse
+				 * through extension headers (this is mainly
+				 * issue in IPv6).
+				 */
 
 #if defined(CONFIG_NET_TCP)
 	sys_snode_t sent_list;
@@ -112,10 +118,18 @@ struct net_pkt {
 				 * packet before EOF
 				 * Used only if defined(CONFIG_NET_TCP)
 				 */
-	u8_t pkt_queued: 1;	/* For outgoing packet: is this packet queued
-				 * to be sent but has not reached the driver
-				 * yet. Used only if defined(CONFIG_NET_TCP)
-				 */
+	union {
+		u8_t pkt_queued: 1; /* For outgoing packet: is this packet
+				     * queued to be sent but has not reached
+				     * the driver yet.
+				     * Used only if defined(CONFIG_NET_TCP)
+				     */
+		u8_t gptp_pkt: 1; /* For outgoing packet: is this packet
+				   * a GPTP packet.
+				   * Used only if defined (CONFIG_NET_GPTP)
+				   */
+	};
+
 	u8_t forwarding : 1;	/* Are we forwarding this pkt
 				 * Used only if defined(CONFIG_NET_ROUTE)
 				 */
@@ -253,6 +267,16 @@ static inline void net_pkt_set_family(struct net_pkt *pkt, u8_t family)
 	pkt->family = family;
 }
 
+static inline bool net_pkt_is_gptp(struct net_pkt *pkt)
+{
+	return !!(pkt->gptp_pkt);
+}
+
+static inline void net_pkt_set_gptp(struct net_pkt *pkt, bool is_gptp)
+{
+	pkt->gptp_pkt = is_gptp;
+}
+
 static inline u8_t net_pkt_ip_hdr_len(struct net_pkt *pkt)
 {
 	return pkt->ip_hdr_len;
@@ -261,6 +285,16 @@ static inline u8_t net_pkt_ip_hdr_len(struct net_pkt *pkt)
 static inline void net_pkt_set_ip_hdr_len(struct net_pkt *pkt, u8_t len)
 {
 	pkt->ip_hdr_len = len;
+}
+
+static inline u8_t net_pkt_transport_proto(struct net_pkt *pkt)
+{
+	return pkt->transport_proto;
+}
+
+static inline void net_pkt_set_transport_proto(struct net_pkt *pkt, u8_t proto)
+{
+	pkt->transport_proto = proto;
 }
 
 static inline u8_t *net_pkt_next_hdr(struct net_pkt *pkt)
@@ -654,6 +688,13 @@ static inline void net_pkt_set_ipv4_auto(struct net_pkt *pkt,
 {
 	pkt->ipv4_auto_arp_msg = is_auto_arp_msg;
 }
+#else
+static inline bool net_pkt_ipv4_auto(struct net_pkt *pkt)
+{
+	return false;
+}
+
+#define net_pkt_set_ipv4_auto(...)
 #endif
 
 #define NET_IPV6_HDR(pkt) ((struct net_ipv6_hdr *)net_pkt_ip_data(pkt))

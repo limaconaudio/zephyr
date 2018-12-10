@@ -12,7 +12,7 @@
 #include <zephyr/types.h>
 #include <gpio.h>
 
-#define LIS3DH_I2C_ADDRESS		CONFIG_LIS3DH_I2C_ADDR
+#define LIS3DH_I2C_ADDRESS		DT_LIS3DH_I2C_ADDRESS
 
 #define LIS3DH_AUTOINCREMENT_ADDR	BIT(7)
 
@@ -114,7 +114,4 @@ int lis3dh_sample_fetch(struct device *dev, enum sensor_channel chan);
 int lis3dh_init_interrupt(struct device *dev);
 #endif
 
-#define SYS_LOG_DOMAIN "LIS3DH"
-#define SYS_LOG_LEVEL CONFIG_SYS_LOG_SENSOR_LEVEL
-#include <logging/sys_log.h>
 #endif /* __SENSOR_LIS3DH__ */

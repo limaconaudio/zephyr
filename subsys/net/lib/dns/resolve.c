@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_dns_resolve
-#define NET_LOG_LEVEL CONFIG_DNS_RESOLVER_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_dns_resolve, CONFIG_DNS_RESOLVER_LOG_LEVEL);
 
 #include <zephyr/types.h>
 #include <string.h>
@@ -82,7 +82,7 @@ static struct dns_resolve_context dns_default_ctx;
 static bool server_is_mdns(sa_family_t family, struct sockaddr *addr)
 {
 	if (family == AF_INET) {
-		if (net_is_ipv4_addr_mcast(&net_sin(addr)->sin_addr) &&
+		if (net_ipv4_is_addr_mcast(&net_sin(addr)->sin_addr) &&
 		    net_sin(addr)->sin_addr.s4_addr[3] == 251) {
 			return true;
 		}
@@ -91,7 +91,7 @@ static bool server_is_mdns(sa_family_t family, struct sockaddr *addr)
 	}
 
 	if (family == AF_INET6) {
-		if (net_is_ipv6_addr_mcast(&net_sin6(addr)->sin6_addr) &&
+		if (net_ipv6_is_addr_mcast(&net_sin6(addr)->sin6_addr) &&
 		    net_sin6(addr)->sin6_addr.s6_addr[15] == 0xfb) {
 			return true;
 		}
@@ -105,7 +105,7 @@ static bool server_is_mdns(sa_family_t family, struct sockaddr *addr)
 static bool server_is_llmnr(sa_family_t family, struct sockaddr *addr)
 {
 	if (family == AF_INET) {
-		if (net_is_ipv4_addr_mcast(&net_sin(addr)->sin_addr) &&
+		if (net_ipv4_is_addr_mcast(&net_sin(addr)->sin_addr) &&
 		    net_sin(addr)->sin_addr.s4_addr[3] == 252) {
 			return true;
 		}
@@ -114,7 +114,7 @@ static bool server_is_llmnr(sa_family_t family, struct sockaddr *addr)
 	}
 
 	if (family == AF_INET6) {
-		if (net_is_ipv6_addr_mcast(&net_sin6(addr)->sin6_addr) &&
+		if (net_ipv6_is_addr_mcast(&net_sin6(addr)->sin6_addr) &&
 		    net_sin6(addr)->sin6_addr.s6_addr[15] == 0x03) {
 			return true;
 		}
@@ -518,7 +518,7 @@ static void cb_recv(struct net_context *net_ctx,
 	struct dns_resolve_context *ctx = user_data;
 	struct net_buf *dns_cname = NULL;
 	struct net_buf *dns_data = NULL;
-	u16_t dns_id = 0;
+	u16_t dns_id = 0U;
 	int ret, i;
 
 	ARG_UNUSED(net_ctx);
@@ -853,7 +853,7 @@ try_resolve:
 	}
 
 	for (j = 0; j < SERVER_COUNT; j++) {
-		hop_limit = 0;
+		hop_limit = 0U;
 
 		if (!ctx->servers[j].net_ctx) {
 			continue;
@@ -875,7 +875,7 @@ try_resolve:
 				continue;
 			}
 
-			hop_limit = 1;
+			hop_limit = 1U;
 		}
 
 		ret = dns_write(ctx, j, i, dns_data, dns_qname, hop_limit);
@@ -914,7 +914,7 @@ quit:
 		}
 
 		if (dns_id) {
-			*dns_id = 0;
+			*dns_id = 0U;
 		}
 	}
 

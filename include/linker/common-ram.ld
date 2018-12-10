@@ -3,6 +3,13 @@
 		DEVICE_INIT_SECTIONS()
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
+#if defined(CONFIG_GEN_ISR_TABLES) && defined(CONFIG_DYNAMIC_INTERRUPTS)
+	SECTION_DATA_PROLOGUE(sw_isr_table, (OPTIONAL),)
+	{
+		*(SW_ISR_TABLE)
+	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
+#endif
+
 	/* verify we don't have rogue .init_<something> initlevel sections */
 	SECTION_DATA_PROLOGUE(initlevel_error, (OPTIONAL), )
 	{
@@ -116,13 +123,6 @@
 		_k_pipe_list_start = .;
 		KEEP(*(SORT_BY_NAME("._k_pipe.static.*")))
 		_k_pipe_list_end = .;
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
-
-	SECTION_DATA_PROLOGUE(_k_work_area, (OPTIONAL), SUBALIGN(4))
-	{
-		_k_work_list_start = .;
-		KEEP(*(SORT_BY_NAME("._k_work.static.*")))
-		_k_work_list_end = .;
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 	SECTION_DATA_PROLOGUE(_k_task_list, (OPTIONAL), SUBALIGN(4))

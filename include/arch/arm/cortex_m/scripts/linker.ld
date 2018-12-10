@@ -68,6 +68,25 @@
 	#define RAM_ADDR CONFIG_SRAM_BASE_ADDRESS
 #endif
 
+/* Set alignment to CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE
+ * to make linker section alignment comply with MPU granularity.
+ */
+#if defined(CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE)
+_region_min_align = CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE;
+#else
+/* If building without MPU support, use default 4-byte alignment. */
+_region_min_align = 4;
+#endif
+
+#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
+#define MPU_ALIGN(region_size) \
+    . = ALIGN(_region_min_align); \
+    . = ALIGN( 1 << LOG2CEIL(region_size))
+#else
+#define MPU_ALIGN(region_size) \
+    . = ALIGN(_region_min_align)
+#endif
+
 MEMORY
     {
     FLASH                 (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
@@ -87,6 +106,23 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 
 SECTIONS
     {
+
+#include <linker/rel-sections.ld>
+
+    /*
+     * .plt and .iplt are here according to 'arm-zephyr-elf-ld --verbose',
+     * before text section.
+     */
+    SECTION_PROLOGUE(.plt,,)
+	{
+	*(.plt)
+	}
+
+    SECTION_PROLOGUE(.iplt,,)
+	{
+	*(.iplt)
+	}
+
     GROUP_START(ROMABLE_REGION)
 
 	_image_rom_start = ROM_ADDR;
@@ -114,6 +150,8 @@ SECTIONS
 
 	KEEP(*(IRQ_VECTOR_TABLE))
 
+	KEEP(*(.vectors))
+
 	KEEP(*(.openocd_dbg))
 	KEEP(*(".openocd_dbg.*"))
 
@@ -122,14 +160,27 @@ SECTIONS
 	KEEP(*(.kinetis_flash_config))
 	KEEP(*(".kinetis_flash_config.*"))
 
-#ifdef CONFIG_GEN_SW_ISR_TABLE
-	KEEP(*(SW_ISR_TABLE))
-#endif
 	_vector_end = .;
+	} GROUP_LINK_IN(ROMABLE_REGION)
+
+#ifdef CONFIG_CODE_DATA_RELOCATION
+
+#include <linker_relocate.ld>
+
+#endif /* CONFIG_CODE_DATA_RELOCATION */
+
+    SECTION_PROLOGUE(_TEXT_SECTION_NAME_2,,)
+	{
 	_image_text_start = .;
 	*(.text)
 	*(".text.*")
 	*(.gnu.linkonce.t.*)
+
+	/*
+	 * These are here according to 'arm-zephyr-elf-ld --verbose',
+	 * after .gnu.linkonce.t.*
+	 */
+	*(.glue_7t) *(.glue_7) *(.vfp11_veneer) *(.v4_bx)
 
 #include <linker/priv_stacks-text.ld>
 #include <linker/kobject-text.ld>
@@ -137,6 +188,16 @@ SECTIONS
 	} GROUP_LINK_IN(ROMABLE_REGION)
 
 	_image_text_end = .;
+
+#if defined (CONFIG_CPLUSPLUS)
+	SECTION_PROLOGUE(.ARM.extab,,)
+	{
+	/*
+	 * .ARM.extab section containing exception unwinding information.
+	 */
+	*(.ARM.extab* .gnu.linkonce.armextab.*)
+	} GROUP_LINK_IN(ROMABLE_REGION)
+#endif
 
 	SECTION_PROLOGUE(.ARM.exidx,,)
 	{
@@ -162,6 +223,10 @@ SECTIONS
 	*(.rodata)
 	*(".rodata.*")
 	*(.gnu.linkonce.r.*)
+
+#ifdef CONFIG_SOC_RODATA_LD
+#include <soc-rodata.ld>
+#endif
 
 #ifdef CONFIG_CUSTOM_RODATA_LD
 /* Located in project source directory */
@@ -213,8 +278,25 @@ SECTIONS
     } > FLASH_CCFG
 #endif
 
+    /*
+     * These are here according to 'arm-zephyr-elf-ld --verbose',
+     * before data section.
+     */
+    SECTION_PROLOGUE(.got,,)
+	{
+	*(.got.plt)
+	*(.igot.plt)
+	*(.got)
+	*(.igot)
+	}
+
     GROUP_START(RAMABLE_REGION)
 
+	/* Align the start of image SRAM with the
+	 * minimum granularity required by MPU.
+	 */
+	. = ALIGN(_region_min_align);
+	_image_ram_start = .;
 
 #if defined(CONFIG_SOC_SERIES_STM32F0X) && !defined(CONFIG_IS_BOOTLOADER)
     /* Must be first in ramable region */
@@ -235,32 +317,11 @@ SECTIONS
 	}
 #endif
 
-#include <app_data_alignment.ld>
-
-#if defined(CONFIG_APP_SHARED_MEM)
-#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
-#define APP_SHARED_ALIGN . = ALIGN(4);
-		#include <app_smem.ld>
-#else
-	SECTION_PROLOGUE(_APP_SMEM_SECTION_NAME, (OPTIONAL),)
-	{
-		. = ALIGN(4);
-		_image_ram_start = .;
-		_app_smem_start = .;
-		APP_SMEM_SECTION()
-		_app_smem_end = .;
-		. = ALIGN(4);
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
-#endif  /* CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT */
-
-	_app_smem_size = _app_smem_end - _app_smem_start;
-	_app_smem_rom_start = LOADADDR(_APP_SMEM_SECTION_NAME);
-#endif  /* CONFIG_APP_SHARED_MEM */
-
 #ifdef CONFIG_APPLICATION_MEMORY
 	SECTION_DATA_PROLOGUE(_APP_DATA_SECTION_NAME, (OPTIONAL),)
 	{
 
+		MPU_ALIGN(__app_ram_size);
 		__app_ram_start = .;
 		__app_data_ram_start = .;
 		APP_INPUT_SECTION(.data)
@@ -289,14 +350,50 @@ SECTIONS
 
 	__app_last_address_used = .;
 
-	/* Pad out application ram area to make MPU friendly */
-	SECTION_PROLOGUE(app_pad, (NOLOAD OPTIONAL),)
-	{
-		. = ALIGN(_app_data_align);
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
+	/* Align the end of the application memory
+	 * with MPU alignment requirement.
+	 */
+	MPU_ALIGN(__app_ram_size);
 	__app_ram_end = .;
 	__app_ram_size = __app_ram_end - __app_ram_start;
 #endif /* CONFIG_APPLICATION_MEMORY */
+
+#if defined(CONFIG_NOCACHE_MEMORY)
+	/* Non-cached region of RAM */
+	SECTION_PROLOGUE(_NOCACHE_SECTION_NAME,(NOLOAD),)
+	{
+		MPU_ALIGN(_nocache_ram_size);
+		_nocache_ram_start = .;
+		KERNEL_INPUT_SECTION(.nocache)
+		KERNEL_INPUT_SECTION(".nocache.*")
+		MPU_ALIGN(_nocache_ram_size);
+		_nocache_ram_end = .;
+	} GROUP_LINK_IN(RAMABLE_REGION)
+	_nocache_ram_size = _nocache_ram_end - _nocache_ram_start;
+#endif /* CONFIG_NOCACHE_MEMORY */
+
+#if defined(CONFIG_APP_SHARED_MEM)
+#define APP_SHARED_ALIGN . = ALIGN(_region_min_align);
+#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
+		#include <app_smem.ld>
+#else
+	SECTION_PROLOGUE(_APP_SMEM_SECTION_NAME, (OPTIONAL),)
+	{
+		APP_SHARED_ALIGN;
+		_app_smem_start = .;
+		APP_SMEM_SECTION()
+		/* Align the end of shared app mem section with the
+		 * minimum granularity required by MPU.
+		 */
+		APP_SHARED_ALIGN;
+		_app_smem_end = .;
+
+	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
+#endif  /* CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT */
+
+	_app_smem_size = _app_smem_end - _app_smem_start;
+	_app_smem_rom_start = LOADADDR(_APP_SMEM_SECTION_NAME);
+#endif  /* CONFIG_APP_SHARED_MEM */
 
     SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),)
 	{
@@ -330,6 +427,10 @@ SECTIONS
         KERNEL_INPUT_SECTION(".noinit.*")
 	*(".kernel_noinit.*")
 
+#ifdef CONFIG_SOC_NOINIT_LD
+#include <soc-noinit.ld>
+#endif
+
         } GROUP_LINK_IN(RAMABLE_REGION)
 
     SECTION_DATA_PROLOGUE(_DATA_SECTION_NAME,,)
@@ -338,6 +439,10 @@ SECTIONS
 	KERNEL_INPUT_SECTION(.data)
 	KERNEL_INPUT_SECTION(".data.*")
 	*(".kernel.*")
+
+#ifdef CONFIG_SOC_RWDATA_LD
+#include <soc-rwdata.ld>
+#endif
 
 #ifdef CONFIG_CUSTOM_RWDATA_LD
 /* Located in project source directory */
@@ -351,6 +456,8 @@ SECTIONS
 #include <linker/common-ram.ld>
 #include <linker/priv_stacks.ld>
 #include <linker/kobject.ld>
+
+#include <linker/priv_stacks-noinit.ld>
 
     __data_ram_end = .;
 
@@ -412,5 +519,22 @@ SECTIONS
 #ifdef CONFIG_GEN_ISR_TABLES
 #include <linker/intlist.ld>
 #endif
+
+#include <linker/debug-sections.ld>
+
+    SECTION_PROLOGUE(.ARM.attributes, 0,)
+	{
+	KEEP(*(.ARM.attributes))
+	KEEP(*(.gnu.attributes))
+	}
+
+/* Must be last in romable region */
+SECTION_PROLOGUE(.last_section,(NOLOAD),)
+{
+} GROUP_LINK_IN(ROMABLE_REGION)
+
+/* To provide the image size as a const expression,
+ * calculate this value here. */
+_flash_used = LOADADDR(.last_section) - _image_rom_start;
 
     }

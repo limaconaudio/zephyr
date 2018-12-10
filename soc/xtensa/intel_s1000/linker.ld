@@ -167,8 +167,12 @@ _memmap_cacheattr_intel_s1000 = 0xf2ff4242;
 PROVIDE(_memmap_cacheattr_reset = _memmap_cacheattr_intel_s1000);
 SECTIONS
 {
+
+#include <linker/rel-sections.ld>
+
   .ResetVector.text : ALIGN(4)
   {
+    . = CONFIG_TEXT_SECTION_OFFSET;
     _ResetVector_text_start = ABSOLUTE(.);
     KEEP (*(.ResetVector.text))
     _ResetVector_text_end = ABSOLUTE(.);
@@ -312,6 +316,7 @@ SECTIONS
     _text_start = ABSOLUTE(.);
     *(.entry.text)
     *(.init.literal)
+    *(.iram0.text)
     KEEP(*(.init))
     *(.literal .text .literal.* .text.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
     *(.fini.literal)
@@ -367,7 +372,6 @@ SECTIONS
     _data_start = ABSOLUTE(.);
     *(.data)
     *(.data.*)
-    KEEP(*(SW_ISR_TABLE))
     *(.gnu.linkonce.d.*)
     KEEP(*(.gnu.linkonce.d.*personality*))
     *(.data1)
@@ -378,6 +382,8 @@ SECTIONS
     *(.sdata2.*)
     *(.gnu.linkonce.s2.*)
     KEEP(*(.jcr))
+    . = ALIGN(4096);
+    *(.gna_model)
     _data_end = ABSOLUTE(.);
   } >data :data_phdr
   .lit4 : ALIGN(4)
@@ -414,7 +420,8 @@ SECTIONS
   /* stack */
   _end = ALIGN(8);
   PROVIDE(end = ALIGN(8));
-  __stack = L2_SRAM_BASE + L2_SRAM_SIZE;
+  __stack = DT_L2_SRAM_BASE + DT_L2_SRAM_SIZE;
+  .comment  0 :  { *(.comment) }
   .debug 0 : { *(.debug) }
   .line 0 : { *(.line) }
   .debug_srcinfo 0 : { *(.debug_srcinfo) }
@@ -432,6 +439,8 @@ SECTIONS
   .debug_funcnames 0 : { *(.debug_funcnames) }
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames 0 : { *(.debug_varnames) }
+  .debug_ranges  0 :  { *(.debug_ranges) }
+  .xtensa.info  0 :  { *(.xtensa.info) }
   .xt.insn 0 :
   {
     KEEP (*(.xt.insn))

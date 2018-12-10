@@ -8,7 +8,6 @@
 #include <arch/cpu.h>
 #include <device.h>
 #include <system_timer.h>
-#include <board.h>
 
 /* Timer Ctrl Bitfields */
 #define TIMER_CTRL_EN              (1 << 0)            /* Timer Enable Bit */
@@ -29,18 +28,18 @@ static void pulpino_timer_irq_handler(void *unused)
 	ARG_UNUSED(unused);
 
 	/* Reset counter */
-	timer->val = 0;
+	timer->val = 0U;
 
-	accumulated_cycle_count += sys_clock_hw_cycles_per_tick;
+	accumulated_cycle_count += sys_clock_hw_cycles_per_tick();
 
-	_sys_clock_tick_announce();
+	z_clock_announce(1);
 }
 
 #ifdef CONFIG_TICKLESS_IDLE
 #error "Tickless idle not yet implemented for pulpino timer"
 #endif
 
-int _sys_clock_driver_init(struct device *device)
+int z_clock_driver_init(struct device *device)
 {
 	ARG_UNUSED(device);
 	IRQ_CONNECT(PULP_TIMER_A_CMP_IRQ, 0,
@@ -50,10 +49,10 @@ int _sys_clock_driver_init(struct device *device)
 	/*
 	 * Initialize timer.
 	 * Reset counter and set timer to generate interrupt
-	 * every sys_clock_hw_cycles_per_tick
+	 * every sys_clock_hw_cycles_per_tick()
 	 */
-	timer->val = 0;
-	timer->cmp = sys_clock_hw_cycles_per_tick;
+	timer->val = 0U;
+	timer->cmp = sys_clock_hw_cycles_per_tick();
 	timer->ctrl = TIMER_CTRL_EN;
 
 	return 0;
@@ -71,4 +70,9 @@ int _sys_clock_driver_init(struct device *device)
 u32_t _timer_cycle_get_32(void)
 {
 	return accumulated_cycle_count + timer->val;
+}
+
+u32_t z_clock_elapsed(void)
+{
+	return 0;
 }

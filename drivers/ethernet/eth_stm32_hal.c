@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <net/net_pkt.h>
 #include <net/net_if.h>
 #include <net/ethernet.h>
+#include <ethernet/eth_stats.h>
 #include <soc.h>
 #include <misc/printk.h>
 #include <clock_control.h>
@@ -54,10 +55,9 @@ static inline void disable_mcast_filter(ETH_HandleTypeDef *heth)
 	heth->Instance->MACFFR = tmp;
 }
 
-static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
+static int eth_tx(struct device *dev, struct net_pkt *pkt)
 {
-	struct device *dev;
-	struct eth_stm32_hal_dev_data *dev_data;
+	struct eth_stm32_hal_dev_data *dev_data = DEV_DATA(dev);
 	ETH_HandleTypeDef *heth;
 	u8_t *dma_buffer;
 	int res;
@@ -65,13 +65,8 @@ static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
 	u16_t total_len;
 	__IO ETH_DMADescTypeDef *dma_tx_desc;
 
-	__ASSERT_NO_MSG(iface != NULL);
 	__ASSERT_NO_MSG(pkt != NULL);
 	__ASSERT_NO_MSG(pkt->frags != NULL);
-
-	dev = net_if_get_device(iface);
-	dev_data = DEV_DATA(dev);
-
 	__ASSERT_NO_MSG(dev != NULL);
 	__ASSERT_NO_MSG(dev_data != NULL);
 
@@ -121,8 +116,6 @@ static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
 		res = -EIO;
 		goto error;
 	}
-
-	net_pkt_unref(pkt);
 
 	res = 0;
 error:
@@ -194,6 +187,10 @@ release_desc:
 		heth->Instance->DMARPDR = 0;
 	}
 
+	if (!pkt) {
+		eth_stats_update_errors_rx(dev_data->iface);
+	}
+
 	return pkt;
 }
 
@@ -220,6 +217,7 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 			net_pkt_print_frags(pkt);
 			res = net_recv_data(dev_data->iface, pkt);
 			if (res < 0) {
+				eth_stats_update_errors_rx(dev_data->iface);
 				LOG_ERR("Failed to enqueue frame "
 					"into RX queue: %d", res);
 				net_pkt_unref(pkt);
@@ -265,6 +263,7 @@ static int eth_initialize(struct device *dev)
 {
 	struct eth_stm32_hal_dev_data *dev_data;
 	struct eth_stm32_hal_dev_cfg *cfg;
+	int ret = 0;
 
 	__ASSERT_NO_MSG(dev != NULL);
 
@@ -278,14 +277,19 @@ static int eth_initialize(struct device *dev)
 	__ASSERT_NO_MSG(dev_data->clock != NULL);
 
 	/* enable clock */
-	clock_control_on(dev_data->clock,
+	ret = clock_control_on(dev_data->clock,
 		(clock_control_subsys_t *)&cfg->pclken);
-	clock_control_on(dev_data->clock,
+	ret |= clock_control_on(dev_data->clock,
 		(clock_control_subsys_t *)&cfg->pclken_tx);
-	clock_control_on(dev_data->clock,
+	ret |= clock_control_on(dev_data->clock,
 		(clock_control_subsys_t *)&cfg->pclken_rx);
-	clock_control_on(dev_data->clock,
+	ret |= clock_control_on(dev_data->clock,
 		(clock_control_subsys_t *)&cfg->pclken_ptp);
+
+	if (ret) {
+		LOG_ERR("Failed to enable ethernet clock");
+		return -EIO;
+	}
 
 	__ASSERT_NO_MSG(cfg->config_func != NULL);
 
@@ -338,7 +342,7 @@ static void eth_iface_init(struct net_if *iface)
 	if (hal_ret == HAL_TIMEOUT) {
 		/* HAL Init time out. This could be linked to */
 		/* a recoverable error. Log the issue and continue */
-		/* dirver initialisation */
+		/* driver initialisation */
 		LOG_ERR("HAL_ETH_Init Timed out");
 	} else if (hal_ret != HAL_OK) {
 		LOG_ERR("HAL_ETH_Init failed: %d", hal_ret);
@@ -387,9 +391,9 @@ static enum ethernet_hw_caps eth_stm32_hal_get_capabilities(struct device *dev)
 
 static const struct ethernet_api eth_api = {
 	.iface_api.init = eth_iface_init,
-	.iface_api.send = eth_tx,
 
 	.get_capabilities = eth_stm32_hal_get_capabilities,
+	.send = eth_tx,
 };
 
 static struct device DEVICE_NAME_GET(eth0_stm32_hal);
@@ -421,7 +425,11 @@ static struct eth_stm32_hal_dev_data eth0_data = {
 			.PhyAddress = CONFIG_ETH_STM32_HAL_PHY_ADDRESS,
 			.RxMode = ETH_RXINTERRUPT_MODE,
 			.ChecksumMode = ETH_CHECKSUM_BY_SOFTWARE,
+#if defined(CONFIG_ETH_STM32_HAL_MII)
+			.MediaInterface = ETH_MEDIA_INTERFACE_MII,
+#else
 			.MediaInterface = ETH_MEDIA_INTERFACE_RMII,
+#endif
 		},
 	},
 	.mac_addr = {

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_tc
-#define NET_LOG_LEVEL CONFIG_NET_TC_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_tc, CONFIG_NET_TC_LOG_LEVEL);
 
 #include <zephyr.h>
 #include <string.h>
@@ -257,6 +257,7 @@ void net_tc_tx_init(void)
 			       tx_stack[i],
 			       K_THREAD_STACK_SIZEOF(tx_stack[i]),
 			       K_PRIO_COOP(thread_priority));
+		k_thread_name_set(&tx_classes[i].work_q.thread, "tx_workq");
 	}
 }
 
@@ -295,5 +296,6 @@ void net_tc_rx_init(void)
 			       rx_stack[i],
 			       K_THREAD_STACK_SIZEOF(rx_stack[i]),
 			       K_PRIO_COOP(thread_priority));
+		k_thread_name_set(&rx_classes[i].work_q.thread, "rx_workq");
 	}
 }

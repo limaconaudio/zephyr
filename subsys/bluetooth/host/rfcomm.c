@@ -21,7 +21,9 @@
 #include <bluetooth/l2cap.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_RFCOMM)
-/* FIXME: #include "common/log.h" */
+#define LOG_MODULE_NAME bt_rfcomm
+#include "common/log.h"
+
 #include <bluetooth/rfcomm.h>
 
 #include "hci_core.h"
@@ -915,12 +917,12 @@ static int rfcomm_send_pn(struct bt_rfcomm_dlc *dlc, u8_t cr)
 		/* If PN comes in already opened dlc or cfc not supported
 		 * these should be 0
 		 */
-		pn->credits = 0;
-		pn->flow_ctrl = 0;
+		pn->credits = 0U;
+		pn->flow_ctrl = 0U;
 	}
-	pn->max_retrans = 0;
-	pn->ack_timer = 0;
-	pn->priority = 0;
+	pn->max_retrans = 0U;
+	pn->ack_timer = 0U;
+	pn->priority = 0U;
 
 	fcs = rfcomm_calc_fcs(BT_RFCOMM_FCS_LEN_UIH, buf->data);
 	net_buf_add_u8(buf, fcs);

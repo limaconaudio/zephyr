@@ -50,8 +50,10 @@ static void test_error(void)
 	printk("DMA could not proceed, an error occurred\n");
 }
 
-static void dma_user_callback(struct device *dev, u32_t id, int error_code)
+static void dma_user_callback(void *arg, u32_t id, int error_code)
 {
+	struct device *dev = (struct device *)arg;
+
 	if (error_code == 0) {
 		test_transfer(dev, id);
 	} else {
@@ -79,11 +81,12 @@ void main(void)
 	dma_cfg.dest_data_size = 1;
 	dma_cfg.source_burst_length = 1;
 	dma_cfg.dest_burst_length = 1;
+	dma_cfg.callback_arg = dma;
 	dma_cfg.dma_callback = dma_user_callback;
 	dma_cfg.block_count = 1;
 	dma_cfg.head_block = &dma_block_cfg;
 
-	chan_id = 0;
+	chan_id = 0U;
 
 	printk("Starting the transfer and waiting for 1 second\n");
 	dma_block_cfg.block_size = strlen(tx_data);

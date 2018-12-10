@@ -7,7 +7,7 @@
  */
 
 #define LOG_MODULE_NAME ieee802154_cc2520
-#define LOG_LEVEL CONFIG_IEEE802154_LOG_LEVEL
+#define LOG_LEVEL CONFIG_IEEE802154_DRIVER_LOG_LEVEL
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
@@ -17,7 +17,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <kernel.h>
 #include <arch/cpu.h>
 
-#include <board.h>
 #include <device.h>
 #include <init.h>
 #include <net/net_if.h>
@@ -64,7 +63,7 @@ static struct spi_cs_control cs_ctrl;
 /*********
  * DEBUG *
  ********/
-#if CONFIG_IEEE802154_LOG_LEVEL == LOG_LEVEL_DBG
+#if LOG_LEVEL == LOG_LEVEL_DBG
 static inline void _cc2520_print_gpio_config(struct device *dev)
 {
 	struct cc2520_context *cc2520 = dev->driver_data;
@@ -122,7 +121,7 @@ static inline void _cc2520_print_exceptions(struct cc2520_context *cc2520)
 
 	flag = read_reg_excflag1(cc2520);
 
-	SYS_LOG_DBG("EXCFLAG1:");
+	LOG_DBG("EXCFLAG1:");
 
 	if (flag & EXCFLAG1_RX_FRM_DONE) {
 		LOG_DBG(" RX_FRM_DONE");
@@ -161,7 +160,7 @@ static inline void _cc2520_print_errors(struct cc2520_context *cc2520)
 {
 	u8_t flag = read_reg_excflag2(cc2520);
 
-	SYS_LOG_DBG("EXCFLAG2:");
+	LOG_DBG("EXCFLAG2:");
 
 	if (flag & EXCFLAG2_MEMADDR_ERROR) {
 		LOG_DBG(" MEMADDR_ERROR");
@@ -195,7 +194,7 @@ static inline void _cc2520_print_errors(struct cc2520_context *cc2520)
 #define _cc2520_print_gpio_config(...)
 #define _cc2520_print_exceptions(...)
 #define _cc2520_print_errors(...)
-#endif /* CONFIG_IEEE802154_LOG_LEVEL == 4 */
+#endif /* LOG_LEVEL == LOG_LEVEL_DBG */
 
 
 /*********************
@@ -262,7 +261,7 @@ static inline u8_t _cc2520_status(struct cc2520_context *ctx)
 
 static bool verify_osc_stabilization(struct cc2520_context *cc2520)
 {
-	u8_t timeout = 100;
+	u8_t timeout = 100U;
 	u8_t status;
 
 	do {
@@ -500,7 +499,7 @@ static inline bool verify_txfifo_status(struct cc2520_context *cc2520,
 
 static inline bool verify_tx_done(struct cc2520_context *cc2520)
 {
-	u8_t timeout = 10;
+	u8_t timeout = 10U;
 	u8_t status;
 
 	do {
@@ -576,9 +575,9 @@ static inline void insert_radio_noise_details(struct net_pkt *pkt, u8_t *buf)
 	 */
 	lqi = buf[1] & CC2520_FCS_CORRELATION;
 	if (lqi <= 50) {
-		lqi = 0;
+		lqi = 0U;
 	} else if (lqi >= 110) {
-		lqi = 255;
+		lqi = 255U;
 	} else {
 		lqi = (lqi - 50) << 2;
 	}
@@ -817,7 +816,7 @@ static int cc2520_tx(struct device *dev,
 	u8_t *frame = frag->data - net_pkt_ll_reserve(pkt);
 	u8_t len = net_pkt_ll_reserve(pkt) + frag->len;
 	struct cc2520_context *cc2520 = dev->driver_data;
-	u8_t retry = 2;
+	u8_t retry = 2U;
 	bool status;
 
 	LOG_DBG("%p (%u)", frag, len);
@@ -986,8 +985,7 @@ static inline int configure_spi(struct device *dev)
 {
 	struct cc2520_context *cc2520 = dev->driver_data;
 
-	cc2520->spi = device_get_binding(
-			CONFIG_IEEE802154_CC2520_SPI_DRV_NAME);
+	cc2520->spi = device_get_binding(DT_IEEE802154_CC2520_SPI_DRV_NAME);
 	if (!cc2520->spi) {
 		LOG_ERR("Unable to get SPI device");
 		return -ENODEV;
@@ -995,25 +993,25 @@ static inline int configure_spi(struct device *dev)
 
 #if defined(CONFIG_IEEE802154_CC2520_GPIO_SPI_CS)
 	cs_ctrl.gpio_dev = device_get_binding(
-		CONFIG_IEEE802154_CC2520_GPIO_SPI_CS_DRV_NAME);
+		DT_IEEE802154_CC2520_GPIO_SPI_CS_DRV_NAME);
 	if (!cs_ctrl.gpio_dev) {
 		LOG_ERR("Unable to get GPIO SPI CS device");
 		return -ENODEV;
 	}
 
-	cs_ctrl.gpio_pin = CONFIG_IEEE802154_CC2520_GPIO_SPI_CS_PIN;
+	cs_ctrl.gpio_pin = DT_IEEE802154_CC2520_GPIO_SPI_CS_PIN;
 	cs_ctrl.delay = 0;
 
 	cc2520->spi_cfg.cs = &cs_ctrl;
 
 	LOG_DBG("SPI GPIO CS configured on %s:%u",
-		    CONFIG_IEEE802154_CC2520_GPIO_SPI_CS_DRV_NAME,
-		    CONFIG_IEEE802154_CC2520_GPIO_SPI_CS_PIN);
+		    DT_IEEE802154_CC2520_GPIO_SPI_CS_DRV_NAME,
+		    DT_IEEE802154_CC2520_GPIO_SPI_CS_PIN);
 #endif /* CONFIG_IEEE802154_CC2520_GPIO_SPI_CS */
 
-	cc2520->spi_cfg.frequency = CONFIG_IEEE802154_CC2520_SPI_FREQ;
+	cc2520->spi_cfg.frequency = DT_IEEE802154_CC2520_SPI_FREQ;
 	cc2520->spi_cfg.operation = SPI_WORD_SET(8);
-	cc2520->spi_cfg.slave = CONFIG_IEEE802154_CC2520_SPI_SLAVE;
+	cc2520->spi_cfg.slave = DT_IEEE802154_CC2520_SPI_SLAVE;
 
 	return 0;
 }
@@ -1074,7 +1072,6 @@ static struct cc2520_context cc2520_context_data;
 
 static struct ieee802154_radio_api cc2520_radio_api = {
 	.iface_api.init	= cc2520_iface_init,
-	.iface_api.send	= ieee802154_radio_send,
 
 	.get_capabilities	= cc2520_get_capabilities,
 	.cca			= cc2520_cca,
@@ -1198,7 +1195,7 @@ static int insert_crypto_parameters(struct cipher_ctx *ctx,
 	u8_t data[128];
 	u8_t *in_buf;
 	u8_t in_len;
-	u8_t m = 0;
+	u8_t m = 0U;
 
 	if (!apkt->pkt->out_buf || !apkt->pkt->out_buf_max) {
 		LOG_ERR("Out buffer needs to be set");
@@ -1234,7 +1231,7 @@ static int insert_crypto_parameters(struct cipher_ctx *ctx,
 		in_buf = apkt->ad;
 		in_len = apkt->ad_len;
 
-		*auth_crypt = 0;
+		*auth_crypt = 0U;
 	} else {
 		in_buf = data;
 
@@ -1249,7 +1246,7 @@ static int insert_crypto_parameters(struct cipher_ctx *ctx,
 
 	if (ctx->mode_params.ccm_info.tag_len) {
 		if ((ctx->mode_params.ccm_info.tag_len >> 2) > 3) {
-			m = 3;
+			m = 3U;
 		} else {
 			m = ctx->mode_params.ccm_info.tag_len >> 2;
 		}

@@ -29,6 +29,7 @@
 #endif
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_hci_driver
 #include "common/log.h"
 
 #include "util/util.h"
@@ -48,10 +49,10 @@ static K_SEM_DEFINE(sem_prio_recv, 0, UINT_MAX);
 static K_FIFO_DEFINE(recv_fifo);
 
 struct k_thread prio_recv_thread_data;
-static BT_STACK_NOINIT(prio_recv_thread_stack,
-		       CONFIG_BT_CTLR_RX_PRIO_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(prio_recv_thread_stack,
+			     CONFIG_BT_CTLR_RX_PRIO_STACK_SIZE);
 struct k_thread recv_thread_data;
-static BT_STACK_NOINIT(recv_thread_stack, CONFIG_BT_RX_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(recv_thread_stack, CONFIG_BT_RX_STACK_SIZE);
 
 #if defined(CONFIG_INIT_STACKS)
 static u32_t prio_ts;
@@ -227,7 +228,7 @@ static inline struct net_buf *process_hbuf(struct radio_pdu_node_rx *n)
 		    (class == HCI_CLASS_ACL_DATA && hbuf_count)) {
 			/* node to process later, schedule an iteration */
 			BT_DBG("FC: signalling");
-			k_poll_signal(&hbuf_signal, 0x0);
+			k_poll_signal_raise(&hbuf_signal, 0x0);
 		}
 		return NULL;
 	}
@@ -269,7 +270,7 @@ static inline struct net_buf *process_hbuf(struct radio_pdu_node_rx *n)
 				 * iteration
 				 */
 				BT_DBG("FC: signalling");
-				k_poll_signal(&hbuf_signal, 0x0);
+				k_poll_signal_raise(&hbuf_signal, 0x0);
 			}
 		}
 	}

@@ -7,7 +7,7 @@
  */
 
 #define LOG_MODULE_NAME ieee802154_mcr20a
-#define LOG_LEVEL CONFIG_IEEE802154_LOG_LEVEL
+#define LOG_LEVEL CONFIG_IEEE802154_DRIVER_LOG_LEVEL
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
@@ -17,7 +17,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <kernel.h>
 #include <arch/cpu.h>
 
-#include <board.h>
 #include <device.h>
 #include <init.h>
 #include <net/net_if.h>
@@ -43,7 +42,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define _MAX_PKT_TX_DURATION		(133 + 9 + 8 + 9)
 
 #if LOG_LEVEL == LOG_LEVEL_DBG
-/* Prevent timer overflow during SYS_LOG_* output */
+/* Prevent timer overflow during LOG_* output */
 #define _MACACKWAITDURATION		(864 / 16 + 11625)
 #define MCR20A_SEQ_SYNC_TIMEOUT		(200)
 #else
@@ -279,7 +278,7 @@ static int mcr20a_timer_set(struct mcr20a_context *mcr20a,
 			    u8_t cmp_reg,
 			    u32_t timeout)
 {
-	u32_t now = 0;
+	u32_t now = 0U;
 	u32_t next;
 	bool retval;
 
@@ -456,7 +455,7 @@ static inline int mcr20a_abort_sequence(struct mcr20a_context *mcr20a,
 static inline int mcr20a_set_sequence(struct mcr20a_context *mcr20a,
 				      u8_t seq)
 {
-	u8_t ctrl1 = 0;
+	u8_t ctrl1 = 0U;
 
 	seq = set_bits_phy_ctrl1_xcvseq(seq);
 	ctrl1 = read_reg_phy_ctrl1(mcr20a);
@@ -721,7 +720,7 @@ static void mcr20a_thread_main(void *arg)
 	struct mcr20a_context *mcr20a = dev->driver_data;
 	u8_t dregs[MCR20A_PHY_CTRL4 + 1];
 	bool set_new_seq;
-	u8_t ctrl1 = 0;
+	u8_t ctrl1 = 0U;
 
 	while (true) {
 		k_sem_take(&mcr20a->isr_sem, K_FOREVER);
@@ -804,7 +803,7 @@ static inline void set_reset(struct device *dev, u32_t value)
 	struct mcr20a_context *mcr20a = dev->driver_data;
 
 	gpio_pin_write(mcr20a->reset_gpio,
-		       CONFIG_MCR20A_GPIO_RESET_PIN, value);
+		       DT_MCR20A_GPIO_RESET_PIN, value);
 }
 
 static void enable_irqb_interrupt(struct mcr20a_context *mcr20a,
@@ -812,10 +811,10 @@ static void enable_irqb_interrupt(struct mcr20a_context *mcr20a,
 {
 	if (enable) {
 		gpio_pin_enable_callback(mcr20a->irq_gpio,
-					 CONFIG_MCR20A_GPIO_IRQ_B_PIN);
+					 DT_MCR20A_GPIO_IRQ_B_PIN);
 	} else {
 		gpio_pin_disable_callback(mcr20a->irq_gpio,
-					  CONFIG_MCR20A_GPIO_IRQ_B_PIN);
+					  DT_MCR20A_GPIO_IRQ_B_PIN);
 	}
 }
 
@@ -823,7 +822,7 @@ static inline void setup_gpio_callbacks(struct mcr20a_context *mcr20a)
 {
 	gpio_init_callback(&mcr20a->irqb_cb,
 			   irqb_int_handler,
-			   BIT(CONFIG_MCR20A_GPIO_IRQ_B_PIN));
+			   BIT(DT_MCR20A_GPIO_IRQ_B_PIN));
 	gpio_add_callback(mcr20a->irq_gpio, &mcr20a->irqb_cb);
 }
 
@@ -1154,7 +1153,7 @@ error:
 static int mcr20a_start(struct device *dev)
 {
 	struct mcr20a_context *mcr20a = dev->driver_data;
-	u8_t timeout = 6;
+	u8_t timeout = 6U;
 	u8_t status;
 
 	k_mutex_lock(&mcr20a->phy_mutex, K_FOREVER);
@@ -1276,9 +1275,9 @@ error:
 static int power_on_and_setup(struct device *dev)
 {
 	struct mcr20a_context *mcr20a = dev->driver_data;
-	u8_t timeout = 6;
+	u8_t timeout = 6U;
 	u32_t status;
-	u8_t tmp = 0;
+	u8_t tmp = 0U;
 
 	if (!PART_OF_KW2XD_SIP) {
 		set_reset(dev, 0);
@@ -1289,7 +1288,7 @@ static int power_on_and_setup(struct device *dev)
 			_usleep(50);
 			timeout--;
 			gpio_pin_read(mcr20a->irq_gpio,
-				      CONFIG_MCR20A_GPIO_IRQ_B_PIN, &status);
+				      DT_MCR20A_GPIO_IRQ_B_PIN, &status);
 		} while (status && timeout);
 
 		if (status) {
@@ -1342,28 +1341,28 @@ static inline int configure_gpios(struct device *dev)
 	struct mcr20a_context *mcr20a = dev->driver_data;
 
 	/* setup gpio for the modem interrupt */
-	mcr20a->irq_gpio = device_get_binding(CONFIG_MCR20A_GPIO_IRQ_B_NAME);
+	mcr20a->irq_gpio = device_get_binding(DT_MCR20A_GPIO_IRQ_B_NAME);
 	if (mcr20a->irq_gpio == NULL) {
 		LOG_ERR("Failed to get pointer to %s device",
-			    CONFIG_MCR20A_GPIO_IRQ_B_NAME);
+			    DT_MCR20A_GPIO_IRQ_B_NAME);
 		return -EINVAL;
 	}
 
 	gpio_pin_configure(mcr20a->irq_gpio,
-			   CONFIG_MCR20A_GPIO_IRQ_B_PIN,
+			   DT_MCR20A_GPIO_IRQ_B_PIN,
 			   GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
 			   GPIO_PUD_PULL_UP |
 			   GPIO_INT_ACTIVE_LOW);
 
 	/* setup gpio for the modems reset */
-	mcr20a->reset_gpio = device_get_binding(CONFIG_MCR20A_GPIO_RESET_NAME);
+	mcr20a->reset_gpio = device_get_binding(DT_MCR20A_GPIO_RESET_NAME);
 	if (mcr20a->reset_gpio == NULL) {
 		LOG_ERR("Failed to get pointer to %s device",
-			    CONFIG_MCR20A_GPIO_RESET_NAME);
+			    DT_MCR20A_GPIO_RESET_NAME);
 		return -EINVAL;
 	}
 
-	gpio_pin_configure(mcr20a->reset_gpio, CONFIG_MCR20A_GPIO_RESET_PIN,
+	gpio_pin_configure(mcr20a->reset_gpio, DT_MCR20A_GPIO_RESET_PIN,
 			   GPIO_DIR_OUT);
 	set_reset(dev, 1);
 
@@ -1375,7 +1374,7 @@ static inline int configure_spi(struct device *dev)
 	struct mcr20a_context *mcr20a = dev->driver_data;
 
 	mcr20a->spi = device_get_binding(
-			CONFIG_IEEE802154_MCR20A_SPI_DRV_NAME);
+			DT_IEEE802154_MCR20A_SPI_DRV_NAME);
 	if (!mcr20a->spi) {
 		LOG_ERR("Unable to get SPI device");
 		return -ENODEV;
@@ -1383,29 +1382,29 @@ static inline int configure_spi(struct device *dev)
 
 #if defined(CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS)
 	mcr20a->cs_ctrl.gpio_dev = device_get_binding(
-		CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS_DRV_NAME);
+		DT_IEEE802154_MCR20A_GPIO_SPI_CS_DRV_NAME);
 	if (!mcr20a->cs_ctrl.gpio_dev) {
 		LOG_ERR("Unable to get GPIO SPI CS device");
 		return -ENODEV;
 	}
 
-	mcr20a->cs_ctrl.gpio_pin = CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS_PIN;
+	mcr20a->cs_ctrl.gpio_pin = DT_IEEE802154_MCR20A_GPIO_SPI_CS_PIN;
 	mcr20a->cs_ctrl.delay = 0;
 
 	mcr20a->spi_cfg.cs = &mcr20a->cs_ctrl;
 
 	LOG_DBG("SPI GPIO CS configured on %s:%u",
-		    CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS_DRV_NAME,
-		    CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS_PIN);
+		    DT_IEEE802154_MCR20A_GPIO_SPI_CS_DRV_NAME,
+		    DT_IEEE802154_MCR20A_GPIO_SPI_CS_PIN);
 #endif /* CONFIG_IEEE802154_MCR20A_GPIO_SPI_CS */
 
-	mcr20a->spi_cfg.frequency = CONFIG_IEEE802154_MCR20A_SPI_FREQ;
+	mcr20a->spi_cfg.frequency = DT_IEEE802154_MCR20A_SPI_FREQ;
 	mcr20a->spi_cfg.operation = SPI_WORD_SET(8);
-	mcr20a->spi_cfg.slave = CONFIG_IEEE802154_MCR20A_SPI_SLAVE;
+	mcr20a->spi_cfg.slave = DT_IEEE802154_MCR20A_SPI_SLAVE;
 
 	LOG_DBG("SPI configured %s, %d",
-		    CONFIG_IEEE802154_MCR20A_SPI_DRV_NAME,
-		    CONFIG_IEEE802154_MCR20A_SPI_SLAVE);
+		    DT_IEEE802154_MCR20A_SPI_DRV_NAME,
+		    DT_IEEE802154_MCR20A_SPI_SLAVE);
 
 	return 0;
 }
@@ -1463,7 +1462,6 @@ static struct mcr20a_context mcr20a_context_data;
 
 static struct ieee802154_radio_api mcr20a_radio_api = {
 	.iface_api.init	= mcr20a_iface_init,
-	.iface_api.send	= ieee802154_radio_send,
 
 	.get_capabilities	= mcr20a_get_capabilities,
 	.cca			= mcr20a_cca,

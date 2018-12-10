@@ -19,6 +19,10 @@
 #include <arch/arc/v2/mpu/arc_core_mpu.h>
 #endif
 
+#if defined(CONFIG_ARM)
+#include <arch/arm/cortex_m/mpu/arm_core_mpu_dev.h>
+#endif
+
 #define INFO(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #define PIPE_LEN 1
 #define BYTES_TO_READ_WRITE 1
@@ -502,7 +506,7 @@ static void write_other_stack(void)
 	expect_fault = true;
 	expected_reason = REASON_HW_EXCEPTION;
 	BARRIER();
-	*ptr = 0;
+	*ptr = 0U;
 
 	/* Shouldn't be reached, but if so, let the other thread exit */
 	if (give_uthread_end_sem) {
@@ -513,7 +517,7 @@ static void write_other_stack(void)
 }
 
 /**
- * @brief Test to revoke acess to kobject without permission
+ * @brief Test to revoke access to kobject without permission
  *
  * @ingroup kernel_memprotect_tests
  */
@@ -691,8 +695,8 @@ void test_main(void)
 	 */
 #if defined(CONFIG_ARC)
 	/*
-	 * appmem_init_app_memory will accees all partitions
-	 * For CONFIG_ARC_MPU_VER == 3, these partiontons are not added
+	 * appmem_init_app_memory will access all partitions
+	 * For CONFIG_ARC_MPU_VER == 3, these partitions are not added
 	 * into MPU now, so need to disable mpu first to do app_bss_zero()
 	 */
 	arc_core_mpu_disable();

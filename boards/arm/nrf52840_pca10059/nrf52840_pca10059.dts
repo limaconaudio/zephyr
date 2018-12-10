@@ -15,9 +15,8 @@
 
 	chosen {
 		zephyr,console = &uart0;
-#ifdef CONFIG_MCUMGR_SMP_UART
+		zephyr,shell-uart = &uart0;
 		zephyr,uart-mcumgr = &uart0;
-#endif
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 	};
@@ -142,13 +141,10 @@
 			label = "image-scratch";
 			reg = <0x000c1000 0x0001f000>;
 		};
-
-#if defined(CONFIG_FS_FLASH_STORAGE_PARTITION)
 		storage_partition: partition@fa000 {
 			label = "storage";
 			reg = <0x000fa000 0x00004000>;
 		};
-#endif
 	};
 };
 

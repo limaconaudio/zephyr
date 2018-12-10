@@ -126,6 +126,8 @@ struct dma_block_config {
  *     block_count  is the number of blocks used for block chaining, this
  *     depends on availability of the DMA controller.
  *
+ *     callback_arg  private argument from DMA client.
+ *
  * dma_callback is the callback function pointer. If enabled, callback function
  *              will be invoked at transfer completion or when error happens
  *              (error_code: zero-transfer success, non zero-error happens).
@@ -147,7 +149,8 @@ struct dma_config {
 	u32_t  dest_burst_length :   16;
 	u32_t block_count;
 	struct dma_block_config *head_block;
-	void (*dma_callback)(struct device *dev, u32_t channel,
+	void *callback_arg;
+	void (*dma_callback)(void *callback_arg, u32_t channel,
 			     int error_code);
 };
 
@@ -161,12 +164,16 @@ struct dma_config {
 typedef int (*dma_api_config)(struct device *dev, u32_t channel,
 			      struct dma_config *config);
 
+typedef int (*dma_api_reload)(struct device *dev, u32_t channel,
+		u32_t src, u32_t dst, size_t size);
+
 typedef int (*dma_api_start)(struct device *dev, u32_t channel);
 
 typedef int (*dma_api_stop)(struct device *dev, u32_t channel);
 
 struct dma_driver_api {
 	dma_api_config config;
+	dma_api_reload reload;
 	dma_api_start start;
 	dma_api_stop stop;
 };
@@ -188,9 +195,32 @@ struct dma_driver_api {
 static inline int dma_config(struct device *dev, u32_t channel,
 			     struct dma_config *config)
 {
-	const struct dma_driver_api *api = dev->driver_api;
+	const struct dma_driver_api *api =
+		(const struct dma_driver_api *)dev->driver_api;
 
 	return api->config(dev, channel, config);
+}
+
+/**
+ * @brief Reload buffer(s) for a DMA channel
+ *
+ * @param dev     Pointer to the device structure for the driver instance.
+ * @param channel Numeric identification of the channel to configure
+ *                selected channel
+ * @param src     source address for the DMA transfer
+ * @param dst     destination address for the DMA transfer
+ * @param size    size of DMA transfer
+ *
+ * @retval 0 if successful.
+ * @retval Negative errno code if failure.
+ */
+static inline int dma_reload(struct device *dev, u32_t channel,
+		u32_t src, u32_t dst, size_t size)
+{
+	const struct dma_driver_api *api =
+		(const struct dma_driver_api *)dev->driver_api;
+
+	return api->reload(dev, channel, src, dst, size);
 }
 
 /**
@@ -211,7 +241,8 @@ __syscall int dma_start(struct device *dev, u32_t channel);
 
 static inline int _impl_dma_start(struct device *dev, u32_t channel)
 {
-	const struct dma_driver_api *api = dev->driver_api;
+	const struct dma_driver_api *api =
+		(const struct dma_driver_api *)dev->driver_api;
 
 	return api->start(dev, channel);
 }
@@ -233,7 +264,8 @@ __syscall int dma_stop(struct device *dev, u32_t channel);
 
 static inline int _impl_dma_stop(struct device *dev, u32_t channel)
 {
-	const struct dma_driver_api *api = dev->driver_api;
+	const struct dma_driver_api *api =
+		(const struct dma_driver_api *)dev->driver_api;
 
 	return api->stop(dev, channel);
 }

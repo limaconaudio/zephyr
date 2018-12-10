@@ -13,6 +13,7 @@
 #include <bluetooth/conn.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_SETTINGS)
+#define LOG_MODULE_NAME bt_settings
 #include "common/log.h"
 
 #include "hci_core.h"
@@ -120,7 +121,7 @@ static int set(int argc, char **argv, char *val)
 			BT_ERR("Invalid length ID address in storage");
 			(void)memset(bt_dev.id_addr, 0,
 				     sizeof(bt_dev.id_addr));
-			bt_dev.id_count = 0;
+			bt_dev.id_count = 0U;
 		} else {
 			int i;
 

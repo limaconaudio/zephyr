@@ -13,6 +13,7 @@
 #include "util/mem.h"
 #include "hal/ecb.h"
 
+#define LOG_MODULE_NAME bt_ctlr_nrf5_ecb
 #include "common/log.h"
 #include "hal/debug.h"
 
@@ -35,7 +36,7 @@ static void do_ecb(struct ecb_param *ecb)
 		while ((NRF_ECB->EVENTS_ENDECB == 0) &&
 		       (NRF_ECB->EVENTS_ERRORECB == 0) &&
 		       (NRF_ECB->ECBDATAPTR != 0)) {
-#if defined(CONFIG_SOC_SERIES_NWTSIM_NRFXX)
+#if defined(CONFIG_SOC_SERIES_BSIM_NRFXX)
 			__WFE();
 #else
 			/*__WFE();*/
@@ -158,7 +159,7 @@ static void ecb_cb(u32_t status, u8_t *cipher_be, void *context)
 	struct ecb_ut_context *ecb_ut_context =
 		(struct ecb_ut_context *)context;
 
-	ecb_ut_context->done = 1;
+	ecb_ut_context->done = 1U;
 	ecb_ut_context->status = status;
 	if (!status) {
 		mem_rcopy(ecb_ut_context->cipher_text, cipher_be,
@@ -174,13 +175,13 @@ u32_t ecb_ut(void)
 				0x88, 0x99, 0x00, 0x11, 0x22, 0x33, 0x44,
 				0x55 };
 	u8_t cipher_text[16];
-	u32_t status = 0;
+	u32_t status = 0U;
 	struct ecb ecb;
 	struct ecb_ut_context context;
 
 	ecb_encrypt(key, clear_text, cipher_text, NULL);
 
-	context.done = 0;
+	context.done = 0U;
 	ecb.in_key_le = key;
 	ecb.in_clear_text_le = clear_text;
 	ecb.fp_ecb = ecb_cb;

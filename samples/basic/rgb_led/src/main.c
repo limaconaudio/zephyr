@@ -14,7 +14,6 @@
 #include <misc/printk.h>
 #include <device.h>
 #include <pwm.h>
-#include <board.h>
 
 #if defined(CONFIG_SOC_QUARK_SE_C1000)
 #define PWM_DEV0	CONFIG_PWM_QMSI_DEV_NAME
@@ -23,13 +22,21 @@
 #define PWM_CH1		1
 #define PWM_DEV2	CONFIG_PWM_QMSI_DEV_NAME
 #define PWM_CH2		2
-#elif defined(CONFIG_BOARD_HEXIWEAR_K64)
-#define PWM_DEV0	RED_PWM_NAME
-#define PWM_CH0		RED_PWM_CHANNEL
-#define PWM_DEV1	GREEN_PWM_NAME
-#define PWM_CH1		GREEN_PWM_CHANNEL
-#define PWM_DEV2	BLUE_PWM_NAME
-#define PWM_CH2		BLUE_PWM_CHANNEL
+#elif defined(RED_PWM_LED_PWM_CONTROLLER) && \
+      defined(RED_PWM_LED_PWM_CHANNEL) && \
+      defined(GREEN_PWM_LED_PWM_CONTROLLER) && \
+      defined(GREEN_PWM_LED_PWM_CHANNEL) && \
+      defined(BLUE_PWM_LED_PWM_CONTROLLER) && \
+      defined(BLUE_PWM_LED_PWM_CHANNEL)
+/* Get the defines from dt (based on aliases 'red-pwm-led', 'green-pwm-led' &
+ * 'blue-pwm-led')
+ */
+#define PWM_DEV0	RED_PWM_LED_PWM_CONTROLLER
+#define PWM_CH0		RED_PWM_LED_PWM_CHANNEL
+#define PWM_DEV1	GREEN_PWM_LED_PWM_CONTROLLER
+#define PWM_CH1		GREEN_PWM_LED_PWM_CHANNEL
+#define PWM_DEV2	BLUE_PWM_LED_PWM_CONTROLLER
+#define PWM_CH2		BLUE_PWM_LED_PWM_CHANNEL
 #else
 #error "Choose supported board or add new board for the application"
 #endif
@@ -65,7 +72,7 @@ void main(void)
 	}
 
 	while (1) {
-		for (pulse_width0 = 0; pulse_width0 <= PERIOD;
+		for (pulse_width0 = 0U; pulse_width0 <= PERIOD;
 		     pulse_width0 += STEPSIZE) {
 			if (write_pin(pwm_dev[0], PWM_CH0,
 				      pulse_width0) != 0) {
@@ -73,7 +80,7 @@ void main(void)
 				return;
 			}
 
-			for (pulse_width1 = 0; pulse_width1 <= PERIOD;
+			for (pulse_width1 = 0U; pulse_width1 <= PERIOD;
 			     pulse_width1 += STEPSIZE) {
 				if (write_pin(pwm_dev[1], PWM_CH1,
 					      pulse_width1) != 0) {
@@ -81,7 +88,7 @@ void main(void)
 					return;
 				}
 
-				for (pulse_width2 = 0; pulse_width2 <= PERIOD;
+				for (pulse_width2 = 0U; pulse_width2 <= PERIOD;
 				     pulse_width2 += STEPSIZE) {
 					if (write_pin(pwm_dev[2], PWM_CH2,
 						      pulse_width2) != 0) {

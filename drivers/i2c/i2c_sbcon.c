@@ -12,7 +12,6 @@
  * hardware state of two-bit serial interfaces like I2C.
  */
 
-#include <board.h>
 #include <device.h>
 #include <errno.h>
 #include <i2c.h>
@@ -114,7 +113,7 @@ static int i2c_sbcon_init(struct device *dev)
 static struct i2c_sbcon_context i2c_sbcon_dev_data_##_num;		\
 									\
 static const struct i2c_sbcon_config i2c_sbcon_dev_cfg_##_num = {	\
-	.sbcon		= (void *)I2C_SBCON_##_num##_BASE_ADDR,		\
+	.sbcon		= (void *)DT_I2C_SBCON_##_num##_BASE_ADDR,		\
 };									\
 									\
 DEVICE_INIT(i2c_sbcon_##_num, CONFIG_I2C_SBCON_##_num##_NAME,		\

@@ -38,6 +38,7 @@ struct net_arp_hdr {
 }  __packed;
 
 #define NET_ARP_HTYPE_ETH 1
+#define NET_ARP_IPV4_PTYPE_SIZE 4
 
 #define NET_ARP_REQUEST 1
 #define NET_ARP_REPLY   2
@@ -70,7 +71,8 @@ void net_arp_init(void);
  */
 
 #else /* CONFIG_NET_ARP */
-
+#define net_arp_prepare(_kt, _u1, _u2) _kt
+#define net_arp_input(_ptt) NET_OK
 #define net_arp_clear_cache(...)
 #define net_arp_init(...)
 

@@ -12,6 +12,10 @@
 
 #include "lis2mdl.h"
 
+#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(LIS2MDL);
+
 static int lis2mdl_enable_int(struct device *dev, int enable)
 {
 	struct lis2mdl_data *lis2mdl = dev->driver_data;
@@ -35,9 +39,12 @@ int lis2mdl_trigger_set(struct device *dev,
 		lis2mdl->handler_drdy = handler;
 		if (handler) {
 			/* fetch raw data sample: re-trigger lost interrupt */
-			i2c_burst_read(lis2mdl->i2c, lis2mdl->i2c_addr,
-				       LIS2MDL_OUT_REG,
-				       raw, sizeof(raw));
+			if (i2c_burst_read(lis2mdl->i2c, lis2mdl->i2c_addr,
+					   LIS2MDL_OUT_REG, raw,
+					   sizeof(raw)) < 0) {
+				LOG_ERR("Failed to fetch raw data sample.");
+				return -EIO;
+			}
 			return lis2mdl_enable_int(dev, 1);
 		} else {
 			return lis2mdl_enable_int(dev, 0);
@@ -118,7 +125,7 @@ int lis2mdl_init_interrupt(struct device *dev)
 	/* setup data ready gpio interrupt */
 	lis2mdl->gpio = device_get_binding(config->gpio_name);
 	if (lis2mdl->gpio == NULL) {
-		SYS_LOG_DBG("Cannot get pointer to %s device",
+		LOG_DBG("Cannot get pointer to %s device",
 			    config->gpio_name);
 		return -EINVAL;
 	}
@@ -132,7 +139,7 @@ int lis2mdl_init_interrupt(struct device *dev)
 			   BIT(config->gpio_pin));
 
 	if (gpio_add_callback(lis2mdl->gpio, &lis2mdl->gpio_cb) < 0) {
-		SYS_LOG_DBG("Could not set gpio callback");
+		LOG_DBG("Could not set gpio callback");
 		return -EIO;
 	}
 

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_rpl_br_coap
-#define NET_LOG_LEVEL LOG_LEVEL_DBG
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_rpl_br_sample, LOG_LEVEL_DBG);
 
 #include <zephyr.h>
 #include <stdio.h>
@@ -41,6 +41,8 @@ struct coap_request {
 	void *user_data;
 };
 
+struct network_topology topology;
+
 static struct net_context *coap;
 static struct coap_request requests[MAX_COAP_REQUESTS];
 
@@ -68,7 +70,7 @@ get_coap_request_by_type(const struct sockaddr_in6 *peer,
 {
 	u8_t i;
 
-	for (i = 0; i < MAX_COAP_REQUESTS; i++) {
+	for (i = 0U; i < MAX_COAP_REQUESTS; i++) {
 		if (!requests[i].used) {
 			continue;
 		}
@@ -88,7 +90,7 @@ get_coap_request_by_id(const struct sockaddr_in6 *peer, u16_t id)
 {
 	u8_t i;
 
-	for (i = 0; i < MAX_COAP_REQUESTS; i++) {
+	for (i = 0U; i < MAX_COAP_REQUESTS; i++) {
 		if (!requests[i].used) {
 			continue;
 		}
@@ -108,7 +110,7 @@ get_coap_request_by_addr(const struct in6_addr *peer)
 {
 	u8_t i;
 
-	for (i = 0; i < MAX_COAP_REQUESTS; i++) {
+	for (i = 0U; i < MAX_COAP_REQUESTS; i++) {
 		if (!requests[i].used) {
 			continue;
 		}
@@ -141,9 +143,9 @@ static void clear_coap_request(struct coap_request *request)
 	}
 
 	request->type = COAP_REQ_NONE;
-	request->id = 0;
-	request->code = 0;
-	request->count = 0;
+	request->id = 0U;
+	request->code = 0U;
+	request->count = 0U;
 	request->used = false;
 	request->cb = NULL;
 	request->user_data = NULL;
@@ -161,13 +163,13 @@ static bool toggle_led(const struct sockaddr_in6 *peer, u16_t id)
 
 	pkt = net_pkt_get_tx(coap, PKT_WAIT_TIME);
 	if (!pkt) {
-		NET_ERR("Ran out of network packets");
+		LOG_ERR("Ran out of network packets");
 		return false;
 	}
 
 	frag = net_pkt_get_data(coap, PKT_WAIT_TIME);
 	if (!frag) {
-		NET_ERR("Ran out of network buffers");
+		LOG_ERR("Ran out of network buffers");
 		goto end;
 	}
 
@@ -176,7 +178,7 @@ static bool toggle_led(const struct sockaddr_in6 *peer, u16_t id)
 	r = coap_packet_init(&request, pkt, 1, COAP_TYPE_NON_CON,
 			     0, NULL, COAP_METHOD_POST, id);
 	if (r < 0) {
-		NET_ERR("Failed to initialize CoAP packet");
+		LOG_ERR("Failed to initialize CoAP packet");
 		goto end;
 	}
 
@@ -184,7 +186,7 @@ static bool toggle_led(const struct sockaddr_in6 *peer, u16_t id)
 		r = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
 					      *p, strlen(*p));
 		if (r < 0) {
-			NET_ERR("Unable add option to request.\n");
+			LOG_ERR("Unable add option to request.\n");
 			goto end;
 		}
 	}
@@ -193,7 +195,7 @@ static bool toggle_led(const struct sockaddr_in6 *peer, u16_t id)
 			       sizeof(struct sockaddr_in6),
 			       NULL, 0, NULL, NULL);
 	if (r < 0) {
-		NET_ERR("Cannot send data to peer (%d)", r);
+		LOG_ERR("Cannot send data to peer (%d)", r);
 		goto end;
 	}
 
@@ -214,13 +216,13 @@ static bool set_rpl_observer(const struct sockaddr_in6 *peer, u16_t id)
 
 	pkt = net_pkt_get_tx(coap, PKT_WAIT_TIME);
 	if (!pkt) {
-		NET_ERR("Ran out of network packets");
+		LOG_ERR("Ran out of network packets");
 		return false;
 	}
 
 	frag = net_pkt_get_data(coap, PKT_WAIT_TIME);
 	if (!frag) {
-		NET_ERR("Ran out of network buffers");
+		LOG_ERR("Ran out of network buffers");
 		goto end;
 	}
 
@@ -230,13 +232,13 @@ static bool set_rpl_observer(const struct sockaddr_in6 *peer, u16_t id)
 			     8, coap_next_token(),
 			     COAP_METHOD_GET, id);
 	if (r < 0) {
-		NET_ERR("Failed to initialize CoAP packet");
+		LOG_ERR("Failed to initialize CoAP packet");
 		goto end;
 	}
 
 	r = coap_append_option_int(&request, COAP_OPTION_OBSERVE, 0);
 	if (r < 0) {
-		NET_ERR("Unable add option to request");
+		LOG_ERR("Unable add option to request");
 		goto end;
 	}
 
@@ -244,7 +246,7 @@ static bool set_rpl_observer(const struct sockaddr_in6 *peer, u16_t id)
 		r = coap_packet_append_option(&request, COAP_OPTION_URI_PATH,
 					      *p, strlen(*p));
 		if (r < 0) {
-			NET_ERR("Unable add option to request");
+			LOG_ERR("Unable add option to request");
 			goto end;
 		}
 	}
@@ -253,7 +255,7 @@ static bool set_rpl_observer(const struct sockaddr_in6 *peer, u16_t id)
 			       sizeof(struct sockaddr_in6),
 			       NULL, 0, NULL, NULL);
 	if (r < 0) {
-		NET_ERR("Cannot send data to peer (%d)", r);
+		LOG_ERR("Cannot send data to peer (%d)", r);
 		goto end;
 	}
 
@@ -293,7 +295,7 @@ static void add_nbr_to_topology(struct in6_addr *nbr)
 		return;
 	}
 
-	topology.nodes[0].id = 1;
+	topology.nodes[0].id = 1U;
 	topology.nodes[0].used = true;
 	snprintk(topology.nodes[0].label, sizeof(topology.nodes[0].label),
 		 "NBR");
@@ -305,7 +307,7 @@ static void add_node_to_topology(struct in6_addr *node)
 	u8_t i;
 
 	/* BR takes 'id : 1', so node's id starts from 2 */
-	for (i = 1; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 1U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (topology.nodes[i].used) {
 			continue;
 		}
@@ -328,7 +330,7 @@ static void update_node_topology(struct in6_addr *node,
 {
 	u8_t i;
 
-	for (i = 0; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 0U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (!topology.nodes[i].used) {
 			continue;
 		}
@@ -348,7 +350,7 @@ static void remove_node_from_topology(struct in6_addr *node)
 {
 	u8_t i;
 
-	for (i = 1; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 1U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (!topology.nodes[i].used) {
 			continue;
 		}
@@ -387,12 +389,12 @@ static void node_obs_reply(struct coap_packet *response, void *user_data)
 
 	frag = coap_packet_get_payload(response, &offset, &len);
 	if (!frag && offset == 0xffff) {
-		NET_ERR("Error while getting payload");
+		LOG_ERR("Error while getting payload");
 		return;
 	}
 
 	if (!len) {
-		NET_ERR("Invalid response");
+		LOG_ERR("Invalid response");
 		return;
 	}
 
@@ -409,7 +411,7 @@ static void node_obs_reply(struct coap_packet *response, void *user_data)
 		return;
 	}
 
-	i = 0;
+	i = 0U;
 	offset = COAP_REPLY_PARENT;
 	while (payload[offset] != '\n') {
 		parent_str[i++] = payload[offset++];
@@ -429,7 +431,7 @@ static void node_obs_reply(struct coap_packet *response, void *user_data)
 	}
 
 	offset = COAP_REPLY_PARENT + i + COAP_REPLY_RANK;
-	i = 0;
+	i = 0U;
 	while (offset < len) {
 		rank_str[i++] = payload[offset++];
 	}
@@ -441,7 +443,7 @@ static void node_obs_reply(struct coap_packet *response, void *user_data)
 	rank_str[i] = '\0';
 
 	if (net_addr_pton(AF_INET6, parent_str, &parent) < 0) {
-		NET_ERR("Failed to convert parent address");
+		LOG_ERR("Failed to convert parent address");
 		return;
 	}
 
@@ -463,12 +465,12 @@ static void pkt_receive(struct net_context *context,
 	u16_t id;
 	u8_t type;
 	u8_t code;
-	u8_t opt_num = 4;
+	u8_t opt_num = 4U;
 	int r;
 
 	r = coap_packet_parse(&response, pkt, options, opt_num);
 	if (r < 0) {
-		NET_ERR("Invalid data received (%d)\n", r);
+		LOG_ERR("Invalid data received (%d)\n", r);
 		net_pkt_unref(pkt);
 		return;
 	}
@@ -479,12 +481,12 @@ static void pkt_receive(struct net_context *context,
 	get_from_ip_addr(&response, &from);
 
 	if (type != COAP_TYPE_ACK) {
-		NET_ERR("Invalid response, type %d", type);
+		LOG_ERR("Invalid response, type %d", type);
 		net_pkt_unref(pkt);
 		return;
 	}
 
-	NET_DBG("Received %d bytes coap payload",
+	LOG_DBG("Received %d bytes coap payload",
 		net_pkt_appdatalen(pkt) - response.hdr_len - response.opt_len);
 
 	coap_req = get_coap_request_by_id(&from, id);
@@ -494,7 +496,7 @@ static void pkt_receive(struct net_context *context,
 	}
 
 	if (code != coap_req->code) {
-		NET_ERR("Invalid response, code %d", code);
+		LOG_ERR("Invalid response, code %d", code);
 		goto end;
 	}
 
@@ -555,7 +557,7 @@ void coap_send_request(struct in6_addr *peer_addr,
 
 	request = get_free_coap_request();
 	if (!request) {
-		NET_ERR("Failed to get free coap request");
+		LOG_ERR("Failed to get free coap request");
 		return;
 	}
 
@@ -564,7 +566,7 @@ void coap_send_request(struct in6_addr *peer_addr,
 	net_ipaddr_copy(&request->peer.sin6_addr, &peer.sin6_addr);
 
 	request->id = coap_next_id();
-	request->count = 1;
+	request->count = 1U;
 	request->type = type;
 	request->cb = cb;
 	request->user_data = user_data;
@@ -591,11 +593,11 @@ int coap_init(void)
 
 	iface = net_if_get_ieee802154();
 	if (!iface) {
-		NET_ERR("No IEEE 802.15.4 network interface found.");
+		LOG_ERR("No IEEE 802.15.4 network interface found.");
 		return -EINVAL;
 	}
 
-	for (i = 0; i < NET_IF_MAX_IPV6_ADDR; i++) {
+	for (i = 0U; i < NET_IF_MAX_IPV6_ADDR; i++) {
 		if (iface->config.ip.ipv6->unicast[i].is_used) {
 			break;
 		}
@@ -612,20 +614,20 @@ int coap_init(void)
 
 	r = net_context_get(AF_INET6, SOCK_DGRAM, IPPROTO_UDP, &coap);
 	if (r < 0) {
-		NET_ERR("Could not get UDP context");
+		LOG_ERR("Could not get UDP context");
 		return r;
 	}
 
 	r = net_context_bind(coap, (struct sockaddr *) &my_addr,
 			     sizeof(my_addr));
 	if (r < 0) {
-		NET_ERR("Could not bind to the context");
+		LOG_ERR("Could not bind to the context");
 		return r;
 	}
 
 	r = net_context_recv(coap, pkt_receive, 0, NULL);
 	if (r < 0) {
-		NET_ERR("Could not set recv callback in the context");
+		LOG_ERR("Could not set recv callback in the context");
 		return r;
 	}
 

@@ -10,7 +10,7 @@
 #include <kernel.h>
 #include <string.h>
 #include <stdlib.h>
-#include <board.h>
+#include <soc.h>
 #include <adc.h>
 #include <arch/cpu.h>
 
@@ -267,7 +267,7 @@ static int adc_quark_d2000_read_request(struct device *dev,
 	if (seq_tbl->options) {
 		info->seq_size = seq_tbl->options->extra_samplings + 1;
 	} else {
-		info->seq_size = 1;
+		info->seq_size = 1U;
 	}
 
 	if (info->seq_size > ADC_FIFO_LEN) {
@@ -276,7 +276,7 @@ static int adc_quark_d2000_read_request(struct device *dev,
 
 	/* check if buffer has enough size */
 	utmp = info->channels;
-	num_channels = 0;
+	num_channels = 0U;
 	while (utmp) {
 		if (utmp & BIT(0)) {
 			num_channels++;
@@ -325,8 +325,8 @@ static void adc_quark_d2000_start_conversion(struct device *dev)
 		info->dev->config->config_info;
 	const struct adc_sequence *entry = info->ctx.sequence;
 	volatile adc_reg_t *adc_regs = config->reg_base;
-	u32_t i, val, interval_us = 0;
-	u32_t idx = 0, offset = 0;
+	u32_t i, val, interval_us = 0U;
+	u32_t idx = 0U, offset = 0U;
 
 	info->channel_id = find_lsb_set(info->channels) - 1;
 
@@ -338,7 +338,7 @@ static void adc_quark_d2000_start_conversion(struct device *dev)
 	adc_regs->sample = ADC_FIFO_CLEAR;
 
 	/* setup the sequence table */
-	for (i = 0; i < info->seq_size; i++) {
+	for (i = 0U; i < info->seq_size; i++) {
 		idx = i / 4;
 		offset = (i % 4) * 8;
 
@@ -481,11 +481,11 @@ static const struct adc_driver_api adc_quark_d2000_driver_api = {
 static void adc_quark_d2000_config_func_0(struct device *dev);
 
 static const struct adc_quark_d2000_config adc_quark_d2000_config_0 = {
-	.reg_base = (adc_reg_t *)CONFIG_ADC_0_BASE_ADDRESS,
+	.reg_base = (adc_reg_t *)DT_ADC_0_BASE_ADDRESS,
 	.config_func = adc_quark_d2000_config_func_0,
 };
 
-DEVICE_AND_API_INIT(adc_quark_d2000_0, CONFIG_ADC_0_NAME,
+DEVICE_AND_API_INIT(adc_quark_d2000_0, DT_ADC_0_NAME,
 		    &adc_quark_d2000_init, &adc_quark_d2000_data_0,
 		    &adc_quark_d2000_config_0, POST_KERNEL,
 		    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
@@ -493,11 +493,11 @@ DEVICE_AND_API_INIT(adc_quark_d2000_0, CONFIG_ADC_0_NAME,
 
 static void adc_quark_d2000_config_func_0(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_ADC_0_IRQ, CONFIG_ADC_0_IRQ_PRI,
+	IRQ_CONNECT(DT_ADC_0_IRQ, 0,
 		    adc_quark_d2000_isr,
 		    DEVICE_GET(adc_quark_d2000_0),
-		    CONFIG_ADC_0_IRQ_FLAGS);
+		    DT_ADC_0_IRQ_FLAGS);
 
-	irq_enable(CONFIG_ADC_0_IRQ);
+	irq_enable(DT_ADC_0_IRQ);
 }
 #endif /* CONFIG_ADC_0 */

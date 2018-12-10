@@ -19,13 +19,13 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-#include <board.h>
 #include <device.h>
 #include <misc/util.h>
 #include <kernel.h>
 #include <net/net_pkt.h>
 #include <net/net_if.h>
 #include <net/ethernet.h>
+#include <ethernet/eth_stats.h>
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
 #include <ptp_clock.h>
@@ -34,7 +34,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include "fsl_enet.h"
 #include "fsl_phy.h"
-#include "fsl_port.h"
 
 enum eth_mcux_phy_state {
 	eth_mcux_phy_state_initial,
@@ -184,7 +183,7 @@ static inline struct net_if *get_iface(struct eth_context *ctx, u16_t vlan_tag)
 
 static void eth_mcux_phy_enter_reset(struct eth_context *context)
 {
-	const u32_t phy_addr = 0;
+	const u32_t phy_addr = 0U;
 
 	/* Reset the PHY. */
 	ENET_StartSMIWrite(ENET, phy_addr, PHY_BASICCONTROL_REG,
@@ -195,6 +194,7 @@ static void eth_mcux_phy_enter_reset(struct eth_context *context)
 
 static void eth_mcux_phy_start(struct eth_context *context)
 {
+	const u32_t phy_addr = 0U;
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
 	LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
 #endif
@@ -204,9 +204,15 @@ static void eth_mcux_phy_start(struct eth_context *context)
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
 		ENET_ActiveRead(ENET);
-		eth_mcux_phy_enter_reset(context);
+		/* Reset the PHY. */
+		ENET_StartSMIWrite(ENET, phy_addr, PHY_BASICCONTROL_REG,
+			   kENET_MiiWriteValidFrame,
+			   PHY_BCTL_RESET_MASK);
+		context->phy_state = eth_mcux_phy_state_initial;
 		break;
 	case eth_mcux_phy_state_reset:
+		eth_mcux_phy_enter_reset(context);
+		break;
 	case eth_mcux_phy_state_autoneg:
 	case eth_mcux_phy_state_restart:
 	case eth_mcux_phy_state_read_status:
@@ -254,13 +260,20 @@ static void eth_mcux_phy_event(struct eth_context *context)
 	bool link_up;
 	phy_duplex_t phy_duplex = kPHY_FullDuplex;
 	phy_speed_t phy_speed = kPHY_Speed100M;
-	const u32_t phy_addr = 0;
+	const u32_t phy_addr = 0U;
 
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
 	LOG_DBG("phy_state=%s", phy_state_name(context->phy_state));
 #endif
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
+#ifdef CONFIG_SOC_SERIES_IMX_RT
+		ENET_StartSMIRead(ENET, phy_addr, PHY_CONTROL2_REG,
+			kENET_MiiReadValidFrame);
+		ENET_StartSMIWrite(ENET, phy_addr, PHY_CONTROL2_REG,
+			kENET_MiiWriteValidFrame, PHY_CTL2_REFCLK_SELECT_MASK);
+		context->phy_state = eth_mcux_phy_state_reset;
+#endif
 		break;
 	case eth_mcux_phy_state_closing:
 		if (context->enabled) {
@@ -368,8 +381,6 @@ static enet_ptp_time_data_t ptp_tx_buffer[CONFIG_ETH_MCUX_PTP_TX_BUFFERS];
 static bool eth_get_ptp_data(struct net_if *iface, struct net_pkt *pkt,
 			     enet_ptp_time_data_t *ptpTsData)
 {
-	struct gptp_hdr *hdr;
-
 #if defined(CONFIG_NET_VLAN)
 	struct net_eth_vlan_hdr *hdr_vlan;
 	struct ethernet_context *eth_ctx;
@@ -394,19 +405,8 @@ static bool eth_get_ptp_data(struct net_if *iface, struct net_pkt *pkt,
 	net_pkt_set_priority(pkt, NET_PRIORITY_CA);
 
 	if (ptpTsData) {
-
 		/* Cannot use GPTP_HDR as net_pkt fields are not all filled */
-
-#if defined(CONFIG_NET_VLAN)
-		if (vlan_enabled) {
-			hdr = (struct gptp_hdr *)((u8_t *)net_pkt_ll(pkt)
-				+ sizeof(struct net_eth_vlan_hdr));
-		} else
-#endif
-		{
-			hdr = (struct gptp_hdr *)((u8_t *)net_pkt_ll(pkt)
-						  + sizeof(struct net_eth_hdr));
-		}
+		struct gptp_hdr *hdr = gptp_get_hdr(pkt);
 
 		ptpTsData->version = hdr->ptp_version;
 		memcpy(ptpTsData->sourcePortId, &hdr->port_id,
@@ -437,9 +437,9 @@ static bool eth_get_ptp_data(struct net_if *iface, struct net_pkt *pkt,
 }
 #endif /* CONFIG_PTP_CLOCK_MCUX */
 
-static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
+static int eth_tx(struct device *dev, struct net_pkt *pkt)
 {
-	struct eth_context *context = net_if_get_device(iface)->driver_data;
+	struct eth_context *context = dev->driver_data;
 	const struct net_buf *frag;
 	u8_t *dst;
 	status_t status;
@@ -489,7 +489,7 @@ static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
 				total_len);
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
-	timestamped_frame = eth_get_ptp_data(iface, pkt, NULL);
+	timestamped_frame = eth_get_ptp_data(net_pkt_iface(pkt), pkt, NULL);
 	if (timestamped_frame) {
 		if (!status) {
 			ts_tx_pkt[ts_tx_wr] = net_pkt_ref(pkt);
@@ -511,8 +511,6 @@ static int eth_tx(struct net_if *iface, struct net_pkt *pkt)
 		return -1;
 	}
 
-	net_pkt_unref(pkt);
-
 	return 0;
 }
 
@@ -522,7 +520,7 @@ static void eth_rx(struct device *iface)
 	struct net_buf *prev_buf;
 	struct net_pkt *pkt;
 	const u8_t *src;
-	u32_t frame_length = 0;
+	u32_t frame_length = 0U;
 	status_t status;
 	unsigned int imask;
 	u16_t vlan_tag = NET_VLAN_TAG_UNSPEC;
@@ -540,36 +538,18 @@ static void eth_rx(struct device *iface)
 
 		ENET_GetRxErrBeforeReadFrame(&context->enet_handle,
 					     &error_stats);
-		/* Flush the current read buffer.  This operation can
-		 * only report failure if there is no frame to flush,
-		 * which cannot happen in this context.
-		 */
-		status = ENET_ReadFrame(ENET, &context->enet_handle, NULL, 0);
-		assert(status == kStatus_Success);
-		return;
+		goto flush;
 	}
 
 	pkt = net_pkt_get_reserve_rx(0, K_NO_WAIT);
 	if (!pkt) {
-		/* We failed to get a receive buffer.  We don't add
-		 * any further logging here because the allocator
-		 * issued a diagnostic when it failed to allocate.
-		 *
-		 * Flush the current read buffer.  This operation can
-		 * only report failure if there is no frame to flush,
-		 * which cannot happen in this context.
-		 */
-		status = ENET_ReadFrame(ENET, &context->enet_handle, NULL, 0);
-		assert(status == kStatus_Success);
-		return;
+		goto flush;
 	}
 
 	if (sizeof(context->frame_buf) < frame_length) {
 		LOG_ERR("frame too large (%d)", frame_length);
 		net_pkt_unref(pkt);
-		status = ENET_ReadFrame(ENET, &context->enet_handle, NULL, 0);
-		assert(status == kStatus_Success);
-		return;
+		goto flush;
 	}
 
 	/* As context->frame_buf is shared resource used by both eth_tx
@@ -583,7 +563,7 @@ static void eth_rx(struct device *iface)
 		irq_unlock(imask);
 		LOG_ERR("ENET_ReadFrame failed: %d", (int)status);
 		net_pkt_unref(pkt);
-		return;
+		goto error;
 	}
 
 	src = context->frame_buf;
@@ -598,7 +578,7 @@ static void eth_rx(struct device *iface)
 			LOG_ERR("Failed to get fragment buf");
 			net_pkt_unref(pkt);
 			assert(status == kStatus_Success);
-			return;
+			goto error;
 		}
 
 		if (!prev_buf) {
@@ -662,7 +642,19 @@ static void eth_rx(struct device *iface)
 
 	if (net_recv_data(get_iface(context, vlan_tag), pkt) < 0) {
 		net_pkt_unref(pkt);
+		goto error;
 	}
+
+	return;
+flush:
+	/* Flush the current read buffer.  This operation can
+	 * only report failure if there is no frame to flush,
+	 * which cannot happen in this context.
+	 */
+	status = ENET_ReadFrame(ENET, &context->enet_handle, NULL, 0);
+	assert(status == kStatus_Success);
+error:
+	eth_stats_update_errors_rx(get_iface(context, vlan_tag));
 }
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
@@ -755,7 +747,12 @@ static void generate_mac(u8_t *mac_addr)
 static void generate_mac(u8_t *mac_addr)
 {
 	/* Trivially "hash" up to 128 bits of MCU unique identifier */
+#ifdef CONFIG_SOC_SERIES_IMX_RT
+	u32_t id = OCOTP->CFG1 ^ OCOTP->CFG2;
+#endif
+#ifdef CONFIG_SOC_SERIES_KINETIS_K6X
 	u32_t id = SIM->UIDH ^ SIM->UIDMH ^ SIM->UIDML ^ SIM->UIDL;
+#endif
 
 	mac_addr[3] = id >> 8;
 	mac_addr[4] = id >> 16;
@@ -912,14 +909,12 @@ static struct device *eth_mcux_get_ptp_clock(struct device *dev)
 #endif
 
 static const struct ethernet_api api_funcs = {
-	.iface_api.init = eth_iface_init,
-	.iface_api.send = eth_tx,
-
-	.get_capabilities = eth_mcux_get_capabilities,
-
+	.iface_api.init		= eth_iface_init,
 #if defined(CONFIG_PTP_CLOCK_MCUX)
-	.get_ptp_clock = eth_mcux_get_ptp_clock,
+	.get_ptp_clock		= eth_mcux_get_ptp_clock,
 #endif
+	.get_capabilities	= eth_mcux_get_capabilities,
+	.send			= eth_tx,
 };
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
@@ -932,6 +927,30 @@ static void eth_mcux_ptp_isr(void *p)
 }
 #endif
 
+#if defined(ETH_IRQ_COMMON)
+static void eth_mcux_dispacher_isr(void *p)
+{
+	struct device *dev = p;
+	struct eth_context *context = dev->driver_data;
+	u32_t EIR = ENET_GetInterruptStatus(ENET);
+	int irq_lock_key = irq_lock();
+
+	if (EIR & (kENET_RxBufferInterrupt | kENET_RxFrameInterrupt)) {
+		ENET_ReceiveIRQHandler(ENET, &context->enet_handle);
+	} else if (EIR & (kENET_TxBufferInterrupt | kENET_TxFrameInterrupt)) {
+		ENET_TransmitIRQHandler(ENET, &context->enet_handle);
+	} else if (EIR & ENET_EIR_MII_MASK) {
+		k_work_submit(&context->phy_work);
+		ENET_ClearInterruptStatus(ENET, kENET_MiiInterrupt);
+	} else if (EIR) {
+		ENET_ClearInterruptStatus(ENET, 0xFFFFFFFF);
+	}
+
+	irq_unlock(irq_lock_key);
+}
+#endif
+
+#if defined(ETH_IRQ_RX)
 static void eth_mcux_rx_isr(void *p)
 {
 	struct device *dev = p;
@@ -939,7 +958,9 @@ static void eth_mcux_rx_isr(void *p)
 
 	ENET_ReceiveIRQHandler(ENET, &context->enet_handle);
 }
+#endif
 
+#if defined(ETH_IRQ_TX)
 static void eth_mcux_tx_isr(void *p)
 {
 	struct device *dev = p;
@@ -947,7 +968,9 @@ static void eth_mcux_tx_isr(void *p)
 
 	ENET_TransmitIRQHandler(ENET, &context->enet_handle);
 }
+#endif
 
+#if defined(ETH_IRQ_ERR_MISC)
 static void eth_mcux_error_isr(void *p)
 {
 	struct device *dev = p;
@@ -959,6 +982,7 @@ static void eth_mcux_error_isr(void *p)
 		ENET_ClearInterruptStatus(ENET, kENET_MiiInterrupt);
 	}
 }
+#endif
 
 static struct eth_context eth_0_context = {
 	.phy_duplex = kPHY_FullDuplex,
@@ -969,35 +993,47 @@ static struct eth_context eth_0_context = {
 		0x04,
 		0x9f,
 #if defined(CONFIG_ETH_MCUX_0_MANUAL_MAC)
-		CONFIG_ETH_MCUX_0_MAC3,
-		CONFIG_ETH_MCUX_0_MAC4,
-		CONFIG_ETH_MCUX_0_MAC5
+		DT_ETH_MCUX_0_MAC3,
+		DT_ETH_MCUX_0_MAC4,
+		DT_ETH_MCUX_0_MAC5
 #endif
 	}
 };
 
-ETH_NET_DEVICE_INIT(eth_mcux_0, CONFIG_ETH_MCUX_0_NAME, eth_0_init,
+ETH_NET_DEVICE_INIT(eth_mcux_0, DT_ETH_MCUX_0_NAME, eth_0_init,
 		    &eth_0_context, NULL, CONFIG_ETH_INIT_PRIORITY,
 		    &api_funcs, 1500);
 
 static void eth_0_config_func(void)
 {
-	IRQ_CONNECT(IRQ_ETH_RX, CONFIG_ETH_MCUX_0_IRQ_PRI,
+#if defined(ETH_IRQ_RX)
+	IRQ_CONNECT(DT_IRQ_ETH_RX, DT_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_rx_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_RX);
+	irq_enable(DT_IRQ_ETH_RX);
+#endif
 
-	IRQ_CONNECT(IRQ_ETH_TX, CONFIG_ETH_MCUX_0_IRQ_PRI,
+#if defined(ETH_IRQ_TX)
+	IRQ_CONNECT(DT_IRQ_ETH_TX, DT_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_tx_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_TX);
+	irq_enable(DT_IRQ_ETH_TX);
+#endif
 
-	IRQ_CONNECT(IRQ_ETH_ERR_MISC, CONFIG_ETH_MCUX_0_IRQ_PRI,
+#if defined(ETH_IRQ_ERR_MISC)
+	IRQ_CONNECT(DT_IRQ_ETH_ERR_MISC, DT_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_error_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_ERR_MISC);
+	irq_enable(DT_IRQ_ETH_ERR_MISC);
+#endif
+
+#if defined(ETH_IRQ_COMMON)
+	IRQ_CONNECT(DT_IRQ_ETH_COMMON, DT_ETH_MCUX_0_IRQ_PRI,
+		    eth_mcux_dispacher_isr, DEVICE_GET(eth_mcux_0), 0);
+	irq_enable(DT_IRQ_ETH_COMMON);
+#endif
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
-	IRQ_CONNECT(IRQ_ETH_IEEE1588_TMR, CONFIG_ETH_MCUX_0_IRQ_PRI,
+	IRQ_CONNECT(DT_IRQ_ETH_IEEE1588_TMR, DT_ETH_MCUX_0_IRQ_PRI,
 		    eth_mcux_ptp_isr, DEVICE_GET(eth_mcux_0), 0);
-	irq_enable(IRQ_ETH_IEEE1588_TMR);
+	irq_enable(DT_IRQ_ETH_IEEE1588_TMR);
 #endif
 }
 

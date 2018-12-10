@@ -12,6 +12,7 @@
 #include <misc/reboot.h>
 #include <misc/stack.h>
 #include <string.h>
+#include <device.h>
 
 static int cmd_kernel_version(const struct shell *shell,
 			      size_t argc, char **argv)
@@ -54,7 +55,7 @@ static int cmd_kernel_cycles(const struct shell *shell,
 				&& defined(CONFIG_THREAD_STACK_INFO)
 static void shell_tdata_dump(const struct k_thread *thread, void *user_data)
 {
-	unsigned int pcnt, unused = 0;
+	unsigned int pcnt, unused = 0U;
 	unsigned int size = thread->stack_info.size;
 	const char *tname;
 
@@ -94,7 +95,7 @@ static int cmd_kernel_threads(const struct shell *shell,
 
 static void shell_stack_dump(const struct k_thread *thread, void *user_data)
 {
-	unsigned int pcnt, unused = 0;
+	unsigned int pcnt, unused = 0U;
 	unsigned int size = thread->stack_info.size;
 	const char *tname;
 

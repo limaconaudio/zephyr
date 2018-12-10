@@ -8,13 +8,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ipv6
-#define NET_LOG_LEVEL CONFIG_NET_IPV6_LOG_LEVEL
-
 /* By default this prints too much data, set the value to 1 to see
  * neighbor cache contents.
  */
 #define NET_DEBUG_NBR 0
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ipv6, CONFIG_NET_IPV6_LOG_LEVEL);
 
 #include <errno.h>
 #include <stdlib.h>
@@ -152,6 +152,11 @@ static inline enum net_verdict process_icmpv6_pkt(struct net_pkt *pkt,
 	struct net_icmp_hdr icmp_hdr;
 	int ret;
 
+	if (net_calc_chksum_icmpv6(pkt) != 0) {
+		NET_DBG("DROP: ICMPv6 invalid checksum");
+		return NET_DROP;
+	}
+
 	ret = net_icmpv6_get_hdr(pkt, &icmp_hdr);
 	if (ret < 0) {
 		NET_DBG("NULL ICMPv6 header - dropping");
@@ -192,7 +197,7 @@ static inline struct net_pkt *check_unknown_option(struct net_pkt *pkt,
 	case 0x40:
 		return NULL;
 	case 0xc0:
-		if (net_is_ipv6_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
+		if (net_ipv6_is_addr_mcast(&NET_IPV6_HDR(pkt)->dst)) {
 			return NULL;
 		}
 		/* passthrough */
@@ -215,7 +220,7 @@ static inline struct net_buf *handle_ext_hdr_options(struct net_pkt *pkt,
 						     enum net_verdict *verdict)
 {
 	u8_t opt_type, opt_len;
-	u16_t length = 0, loc;
+	u16_t length = 0U, loc;
 #if defined(CONFIG_NET_RPL)
 	bool result;
 #endif
@@ -372,8 +377,8 @@ static enum net_verdict route_ipv6_packet(struct net_pkt *pkt,
 		int ret;
 
 		if (IS_ENABLED(CONFIG_NET_ROUTING) &&
-		    (net_is_ipv6_ll_addr(&hdr->src) ||
-		     net_is_ipv6_ll_addr(&hdr->dst))) {
+		    (net_ipv6_is_ll_addr(&hdr->src) ||
+		     net_ipv6_is_ll_addr(&hdr->dst))) {
 			/* RFC 4291 ch 2.5.6 */
 			no_route_info(pkt, &hdr->src, &hdr->dst);
 			goto drop;
@@ -421,7 +426,7 @@ drop:
 }
 #endif /* CONFIG_NET_ROUTE */
 
-enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
+enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt, bool is_loopback)
 {
 	struct net_ipv6_hdr *hdr = NET_IPV6_HDR(pkt);
 	int real_len = net_pkt_get_len(pkt);
@@ -432,23 +437,48 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 	u8_t first_option;
 	u16_t offset;
 	u16_t length;
-	u16_t total_len = 0;
+	u16_t total_len = 0U;
 	u8_t ext_bitmap;
 
-	if (real_len != pkt_len) {
+	if (real_len < pkt_len) {
 		NET_DBG("IPv6 packet size %d pkt len %d", pkt_len, real_len);
 		net_stats_update_ipv6_drop(net_pkt_iface(pkt));
 		goto drop;
+	} else if (real_len > pkt_len) {
+		net_pkt_pull(pkt, pkt_len, real_len - pkt_len);
+		real_len = net_pkt_get_len(pkt);
 	}
 
 	NET_DBG("IPv6 packet len %d received from %s to %s", real_len,
 		log_strdup(net_sprint_ipv6_addr(&hdr->src)),
 		log_strdup(net_sprint_ipv6_addr(&hdr->dst)));
 
-	if (net_is_ipv6_addr_mcast(&hdr->src)) {
-		NET_DBG("Dropping src multicast packet");
+	if (!is_loopback && (net_ipv6_is_addr_loopback(&hdr->dst) ||
+			     net_ipv6_is_addr_loopback(&hdr->src))) {
+		NET_DBG("Dropping ::1 packet");
 		net_stats_update_ipv6_drop(net_pkt_iface(pkt));
 		goto drop;
+	}
+
+	if (net_ipv6_is_addr_mcast(&hdr->src) ||
+	    net_ipv6_is_addr_mcast_scope(&hdr->dst, 0)) {
+		NET_DBG("Dropping multicast packet");
+		net_stats_update_ipv6_drop(net_pkt_iface(pkt));
+		goto drop;
+	}
+
+	if (!is_loopback) {
+		bool is_empty_group = net_ipv6_is_addr_mcast_group(
+			&hdr->dst, net_ipv6_unspecified_address());
+
+		if (net_ipv6_is_addr_mcast_iface(&hdr->dst) ||
+		    (is_empty_group &&
+		     (net_ipv6_is_addr_mcast_site(&hdr->dst) ||
+		      net_ipv6_is_addr_mcast_org(&hdr->dst)))) {
+			NET_DBG("Dropping invalid scope multicast packet");
+			net_stats_update_ipv6_drop(net_pkt_iface(pkt));
+			goto drop;
+		}
 	}
 
 	/* Check extension headers */
@@ -457,10 +487,9 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 	net_pkt_set_ip_hdr_len(pkt, sizeof(struct net_ipv6_hdr));
 	net_pkt_set_ipv6_hop_limit(pkt, NET_IPV6_HDR(pkt)->hop_limit);
 
-	if (!net_is_my_ipv6_addr(&hdr->dst) &&
-	    !net_is_my_ipv6_maddr(&hdr->dst) &&
-	    !net_is_ipv6_addr_mcast(&hdr->dst) &&
-	    !net_is_ipv6_addr_loopback(&hdr->dst)) {
+	if (!net_ipv6_is_my_addr(&hdr->dst) &&
+	    !net_ipv6_is_my_maddr(&hdr->dst) &&
+	    !net_ipv6_is_addr_mcast(&hdr->dst)) {
 #if defined(CONFIG_NET_ROUTE)
 		enum net_verdict verdict;
 
@@ -481,8 +510,8 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 	 * boundary, then drop the packet. RFC 4291 ch 2.5.6
 	 */
 	if (IS_ENABLED(CONFIG_NET_ROUTING) &&
-	    net_is_ipv6_ll_addr(&hdr->src) &&
-	    !net_is_ipv6_addr_mcast(&hdr->dst) &&
+	    net_ipv6_is_ll_addr(&hdr->src) &&
+	    !net_ipv6_is_addr_mcast(&hdr->dst) &&
 	    !net_if_ipv6_addr_lookup_by_iface(net_pkt_iface(pkt),
 					      &hdr->dst)) {
 		no_route_info(pkt, &hdr->src, &hdr->dst);
@@ -504,9 +533,9 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 	frag = pkt->frags;
 	next = hdr->nexthdr;
 	first_option = next;
-	length = 0;
-	ext_bitmap = 0;
-	start_of_ext = 0;
+	length = 0U;
+	ext_bitmap = 0U;
+	start_of_ext = 0U;
 	offset = sizeof(struct net_ipv6_hdr);
 	prev_hdr = &NET_IPV6_HDR(pkt)->nexthdr - &NET_IPV6_HDR(pkt)->vtc;
 
@@ -539,6 +568,22 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 			 * statistics.
 			 */
 			goto drop;
+
+		case NET_IPV6_NEXTHDR_DESTO:
+			frag = net_frag_read_u8(frag, offset, &offset,
+						(u8_t *)&length);
+			if (!frag) {
+				goto drop;
+			}
+			length = length * 8 + 8;
+			total_len += length;
+
+			ext_bitmap |= NET_IPV6_NEXTHDR_DESTO;
+
+			frag = handle_ext_hdr_options(pkt, frag, real_len,
+						      length, offset, &offset,
+						      &verdict);
+			break;
 
 		case NET_IPV6_NEXTHDR_HBHO:
 			if (ext_bitmap & NET_IPV6_EXT_HDR_BITMAP_HBHO) {
@@ -596,6 +641,7 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 upper_proto:
 
 	net_pkt_set_ipv6_ext_len(pkt, total_len);
+	net_pkt_set_transport_proto(pkt, next);
 
 	switch (next) {
 	case IPPROTO_ICMPV6:

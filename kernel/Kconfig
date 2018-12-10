@@ -434,7 +434,7 @@ config POLL
 	bool "Async I/O Framework"
 	help
 	  Asynchronous notification framework. Enable the k_poll() and
-	  k_poll_signal() APIs.  The former can wait on multiple events
+	  k_poll_signal_raise() APIs.  The former can wait on multiple events
 	  concurrently, which can be either directly triggered or triggered by
 	  the availability of some kernel objects (semaphores and fifos).
 
@@ -515,6 +515,11 @@ config SYS_CLOCK_TICKS_PER_SEC
 	  configurations even require calls to compiler built-in functions, and
 	  can require a non-trivial extra amount of stack space (e.g. around 80
 	  bytes on x86).
+
+	  Note that when available and enabled, in "tickless" mode
+	  this config variable specifies the minimum available timing
+	  granularity, not necessarily the number or frequency of
+	  interrupts delivered to the kernel.
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
 	int "System clock's h/w timer frequency"
@@ -669,6 +674,33 @@ config MP_NUM_CPUS
 	  multicpu API and SMP features.
 
 endmenu
+
+config TICKLESS_IDLE
+	bool "Tickless idle"
+	default y if SYS_POWER_MANAGEMENT || TICKLESS_CAPABLE
+	help
+	  This option suppresses periodic system clock interrupts whenever the
+	  kernel becomes idle. This permits the system to remain in a power
+	  saving state for extended periods without having to wake up to
+	  service each tick as it occurs.
+
+config TICKLESS_IDLE_THRESH
+	int "Tickless idle threshold"
+	default 3
+	depends on TICKLESS_IDLE
+	help
+	  This option enables clock interrupt suppression when the kernel idles
+	  for only a short period of time. It specifies the minimum number of
+	  ticks that must occur before the next kernel timer expires in order
+	  for suppression to happen.
+
+config TICKLESS_KERNEL
+	bool "Tickless kernel"
+	default y if TICKLESS_CAPABLE
+	help
+	  This option enables a fully event driven kernel. Periodic system
+	  clock interrupt generation would be stopped at all times. This option
+	  requires Tickless Idle option to be enabled.
 
 source "kernel/Kconfig.power_mgmt"
 

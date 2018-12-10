@@ -6,17 +6,18 @@
  */
 
 
-#include <board.h>
 #include <device.h>
 #include <dma.h>
 #include <errno.h>
 #include <init.h>
 #include <stdio.h>
+#include <soc.h>
 #include <string.h>
+#include <misc/util.h>
 
 #define LOG_LEVEL CONFIG_DMA_LOG_LEVEL
 #include <logging/log.h>
-LOG_MODULE_REGISTER(dma_stm32f4x)
+LOG_MODULE_REGISTER(dma_stm32f4x);
 
 #include <clock_control/stm32_clock_control.h>
 
@@ -48,8 +49,8 @@ struct dma_stm32_stream {
 	struct device *dev;
 	struct dma_stm32_stream_reg regs;
 	bool busy;
-
-	void (*dma_callback)(struct device *dev, u32_t id,
+	void *callback_arg;
+	void (*dma_callback)(void *arg, u32_t id,
 			     int error_code);
 };
 
@@ -87,9 +88,6 @@ struct dma_stm32_config {
 
 /* Maximum data sent in single transfer (Bytes) */
 #define DMA_STM32_MAX_DATA_ITEMS		0xffff
-
-#define BITS_PER_LONG		32
-#define GENMASK(h, l) (((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
 
 #define DMA_STM32_1_BASE	0x40026000
 #define DMA_STM32_2_BASE	0x40026400
@@ -249,12 +247,12 @@ static void dma_stm32_irq_handler(void *arg, u32_t id)
 	if ((irqstatus & DMA_STM32_TCI) && (config & DMA_STM32_SCR_TCIE)) {
 		dma_stm32_irq_clear(ddata, id, DMA_STM32_TCI);
 
-		stream->dma_callback(stream->dev, id, 0);
+		stream->dma_callback(stream->callback_arg, id, 0);
 	} else {
 		LOG_ERR("Internal error: IRQ status: 0x%x\n", irqstatus);
 		dma_stm32_irq_clear(ddata, id, irqstatus);
 
-		stream->dma_callback(stream->dev, id, -EIO);
+		stream->dma_callback(stream->callback_arg, id, -EIO);
 	}
 }
 
@@ -389,6 +387,7 @@ static int dma_stm32_config(struct device *dev, u32_t id,
 	stream->busy		= true;
 	stream->dma_callback	= config->dma_callback;
 	stream->direction	= config->channel_direction;
+	stream->callback_arg    = config->callback_arg;
 
 	if (stream->direction == MEMORY_TO_PERIPHERAL) {
 		regs->sm0ar = (u32_t)config->head_block->source_address;
@@ -500,7 +499,11 @@ static int dma_stm32_init(struct device *dev)
 
 	__ASSERT_NO_MSG(ddata->clk);
 
-	clock_control_on(ddata->clk, (clock_control_subsys_t *) &cdata->pclken);
+	if (clock_control_on(ddata->clk,
+		(clock_control_subsys_t *) &cdata->pclken) != 0) {
+		LOG_ERR("Could not enable DMA clock\n");
+		return -EIO;
+	}
 
 	/* Set controller specific configuration */
 	cdata->config(ddata);

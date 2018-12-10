@@ -88,8 +88,10 @@
 			compatible = "riscv,plic0";
 			interrupt-controller;
 			interrupts-extended = <&hlic 11>;
-			reg = <0xc000000 0x4000000>;
-			reg-names = "control";
+			reg = <0xc000000 0x2000
+			       0xc002000 0x1fe000
+			       0xc200000 0x2000000>;
+			reg-names = "prio", "irq_en", "reg";
 			riscv,max-priority = <7>;
 			riscv,ndev = <52>;
 		};
@@ -115,6 +117,7 @@
 			reg = <0x10015000 0x1000>;
 			reg-names = "control";
 			status = "disabled";
+			#pwm-cells = <2>;
 		};
 		pwm1: pwm@10025000 {
 			compatible = "sifive,pwm0";
@@ -123,6 +126,7 @@
 			reg = <0x10025000 0x1000>;
 			reg-names = "control";
 			status = "disabled";
+			#pwm-cells = <2>;
 		};
 		pwm2: pwm@10035000 {
 			compatible = "sifive,pwm0";
@@ -131,6 +135,7 @@
 			reg = <0x10035000 0x1000>;
 			reg-names = "control";
 			status = "disabled";
+			#pwm-cells = <2>;
 		};
 		modeselect: rom@1000 {
 			compatible = "sifive,modeselect0";

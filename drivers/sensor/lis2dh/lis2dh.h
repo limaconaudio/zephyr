@@ -18,7 +18,7 @@
 #if defined(CONFIG_LIS2DH_BUS_SPI)
 #include <spi.h>
 
-#define LIS2DH_BUS_ADDRESS		CONFIG_LIS2DH_SPI_SS_1
+#define LIS2DH_BUS_ADDRESS		DT_LIS2DH_SPI_SELECT_SLAVE
 
 #define LIS2DH_SPI_READ_BIT		BIT(7)
 #define LIS2DH_SPI_AUTOINC_ADDR		BIT(6)
@@ -27,14 +27,14 @@
 /* LIS2DH supports only SPI mode 0, word size 8 bits, MSB first */
 #define LIS2DH_SPI_CFG			SPI_WORD_SET(8)
 
-#define LIS2DH_BUS_DEV_NAME		CONFIG_LIS2DH_SPI_MASTER_DEV_NAME
+#define LIS2DH_BUS_DEV_NAME		DT_LIS2DH_SPI_MASTER_DEV_NAME
 
 #elif defined(CONFIG_LIS2DH_BUS_I2C)
 #include <i2c.h>
 
-#define LIS2DH_BUS_ADDRESS		CONFIG_LIS2DH_I2C_ADDR
+#define LIS2DH_BUS_ADDRESS		DT_LIS2DH_I2C_ADDRESS
 
-#define LIS2DH_BUS_DEV_NAME		CONFIG_LIS2DH_I2C_MASTER_DEV_NAME
+#define LIS2DH_BUS_DEV_NAME		DT_LIS2DH_I2C_MASTER_DEV_NAME
 
 #endif
 
@@ -216,14 +216,41 @@ struct lis2dh_data {
 #endif /* CONFIG_LIS2DH_TRIGGER */
 };
 
-#define SYS_LOG_DOMAIN "lis2dh"
-#define SYS_LOG_LEVEL CONFIG_SYS_LOG_SENSOR_LEVEL
-#include <logging/sys_log.h>
-
 #if defined(CONFIG_LIS2DH_BUS_SPI)
 int lis2dh_spi_access(struct lis2dh_data *ctx, u8_t cmd,
 		      void *data, size_t length);
 #endif
+
+static inline int lis2dh_bus_configure(struct device *dev)
+{
+	struct lis2dh_data *lis2dh = dev->driver_data;
+
+#if defined(CONFIG_LIS2DH_BUS_SPI)
+	lis2dh->spi = device_get_binding(LIS2DH_BUS_DEV_NAME);
+	if (lis2dh->spi == NULL) {
+		LOG_ERR("Could not get pointer to %s device",
+			    LIS2DH_BUS_DEV_NAME);
+		return -EINVAL;
+	}
+
+	lis2dh->spi_cfg.operation = LIS2DH_SPI_CFG;
+	lis2dh->spi_cfg.frequency = DT_LIS2DH_SPI_BUS_FREQ;
+	lis2dh->spi_cfg.slave = LIS2DH_BUS_ADDRESS;
+
+	return 0;
+#elif defined(CONFIG_LIS2DH_BUS_I2C)
+	lis2dh->bus = device_get_binding(LIS2DH_BUS_DEV_NAME);
+	if (lis2dh->bus == NULL) {
+		LOG_ERR("Could not get pointer to %s device",
+			    LIS2DH_BUS_DEV_NAME);
+		return -EINVAL;
+	}
+
+	return 0;
+#else
+	return -ENODEV;
+#endif
+}
 
 static inline int lis2dh_burst_read(struct device *dev, u8_t start_addr,
 				    u8_t *buf, u8_t num_bytes)
@@ -292,37 +319,6 @@ static inline int lis2dh_reg_write_byte(struct device *dev, u8_t reg_addr,
 
 	return i2c_write(lis2dh->bus, tx_buf, sizeof(tx_buf),
 			 LIS2DH_BUS_ADDRESS);
-#else
-	return -ENODEV;
-#endif
-}
-
-static inline int lis2dh_bus_configure(struct device *dev)
-{
-	struct lis2dh_data *lis2dh = dev->driver_data;
-
-#if defined(CONFIG_LIS2DH_BUS_SPI)
-	lis2dh->spi = device_get_binding(LIS2DH_BUS_DEV_NAME);
-	if (lis2dh->spi == NULL) {
-		SYS_LOG_ERR("Could not get pointer to %s device",
-			    LIS2DH_BUS_DEV_NAME);
-		return -EINVAL;
-	}
-
-	lis2dh->spi_cfg.operation = LIS2DH_SPI_CFG;
-	lis2dh->spi_cfg.frequency = CONFIG_LIS2DH_SPI_FREQUENCY;
-	lis2dh->spi_cfg.slave = LIS2DH_BUS_ADDRESS;
-
-	return 0;
-#elif defined(CONFIG_LIS2DH_BUS_I2C)
-	lis2dh->bus = device_get_binding(LIS2DH_BUS_DEV_NAME);
-	if (lis2dh->bus == NULL) {
-		SYS_LOG_ERR("Could not get pointer to %s device",
-			    LIS2DH_BUS_DEV_NAME);
-		return -EINVAL;
-	}
-
-	return 0;
 #else
 	return -ENODEV;
 #endif

@@ -218,6 +218,9 @@ struct ethernet_api {
 	/** Return ptp_clock device that is tied to this ethernet device */
 	struct device *(*get_ptp_clock)(struct device *dev);
 #endif /* CONFIG_PTP_CLOCK */
+
+	/** Send a network packet */
+	int (*send)(struct device *dev, struct net_pkt *pkt);
 };
 
 struct net_eth_hdr {
@@ -329,7 +332,6 @@ struct ethernet_context {
  */
 void ethernet_init(struct net_if *iface);
 
-#if defined(CONFIG_NET_VLAN)
 /* Separate header for VLAN as some of device interfaces might not
  * support VLAN.
  */
@@ -343,7 +345,6 @@ struct net_eth_vlan_hdr {
 	u16_t type;
 } __packed;
 
-#endif /* CONFIG_NET_VLAN */
 
 static inline bool net_eth_is_addr_broadcast(struct net_eth_addr *addr)
 {
@@ -525,28 +526,17 @@ struct net_if *net_eth_get_vlan_iface(struct net_if *iface, u16_t tag)
 	return NULL;
 }
 
+static inline bool net_eth_is_vlan_enabled(struct ethernet_context *ctx,
+					   struct net_if *iface)
+{
+	return false;
+}
+
 static inline bool net_eth_get_vlan_status(struct net_if *iface)
 {
 	return false;
 }
 #endif /* CONFIG_NET_VLAN */
-
-/**
- * @brief Fill ethernet header in network packet.
- *
- * @param ctx Ethernet context
- * @param pkt Network packet
- * @param ptype Upper level protocol type (in network byte order)
- * @param src Source ethernet address
- * @param dst Destination ethernet address
- *
- * @return Pointer to ethernet header struct inside net_buf.
- */
-struct net_eth_hdr *net_eth_fill_header(struct ethernet_context *ctx,
-					struct net_pkt *pkt,
-					u32_t ptype,
-					u8_t *src,
-					u8_t *dst);
 
 /**
  * @brief Inform ethernet L2 driver that ethernet carrier is detected.

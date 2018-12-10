@@ -72,6 +72,22 @@ struct shell_cmd_entry {
 struct shell;
 
 /**
+ * @brief Initializes a shell command arguments
+ *
+ * @param[in] _mandatory Number of mandatory arguments.
+ * @param[in] _optional  Number of optional arguments.
+ */
+#define SHELL_ARG(_mandatory, _optional) {				\
+	.mandatory = _mandatory,					\
+	.optional = _optional,						\
+}
+
+struct shell_static_args {
+	u8_t mandatory; /*!< Number of mandatory arguments. */
+	u8_t optional; /*!< Number of optional arguments. */
+};
+
+/**
  * @brief Shell command handler prototype.
  */
 typedef int (*shell_cmd_handler)(const struct shell *shell,
@@ -85,10 +101,39 @@ struct shell_static_entry {
 	const char *help; /*!< Command help string. */
 	const struct shell_cmd_entry *subcmd; /*!< Pointer to subcommand. */
 	shell_cmd_handler handler; /*!< Command handler. */
+	const struct shell_static_args *args; /*!< Command arguments. */
 };
 
 /**
- * @brief Macro for defining and adding a root command (level 0).
+ * @brief Macro for defining and adding a root command (level 0) with required
+ * number of arguments.
+ *
+ * @note Each root command shall have unique syntax. If a command will be called
+ * with wrong number of arguments shell will print an error message and command
+ * handler will not be called.
+ *
+ * @param[in] syntax  Command syntax (for example: history).
+ * @param[in] subcmd  Pointer to a subcommands array.
+ * @param[in] help    Pointer to a command help string.
+ * @param[in] handler Pointer to a function handler.
+ * @param[in] mandatory Number of mandatory arguments.
+ * @param[in] optional  Number of optional arguments.
+ */
+#define SHELL_CMD_ARG_REGISTER(syntax, subcmd, help, handler,		   \
+			       mandatory, optional)			   \
+	static const struct shell_static_entry UTIL_CAT(_shell_, syntax) = \
+	SHELL_CMD_ARG(syntax, subcmd, help, handler, mandatory, optional); \
+	static const struct shell_cmd_entry UTIL_CAT(shell_cmd_, syntax)   \
+	__attribute__ ((section("."					   \
+			STRINGIFY(UTIL_CAT(shell_root_cmd_, syntax)))))	   \
+	__attribute__((used)) = {					   \
+		.is_dynamic = false,					   \
+		.u.entry = &UTIL_CAT(_shell_, syntax)			   \
+	}
+
+/**
+ * @brief Macro for defining and adding a root command (level 0) with
+ * arguments.
  *
  * @note Each root command shall have unique syntax.
  *
@@ -97,15 +142,15 @@ struct shell_static_entry {
  * @param[in] help    Pointer to a command help string.
  * @param[in] handler Pointer to a function handler.
  */
-#define SHELL_CMD_REGISTER(syntax, subcmd, help, handler)		   \
-	static const struct shell_static_entry UTIL_CAT(shell_, syntax) =  \
+#define SHELL_CMD_REGISTER(syntax, subcmd, help, handler) \
+	static const struct shell_static_entry UTIL_CAT(_shell_, syntax) = \
 	SHELL_CMD(syntax, subcmd, help, handler);			   \
 	static const struct shell_cmd_entry UTIL_CAT(shell_cmd_, syntax)   \
 	__attribute__ ((section("."					   \
 			STRINGIFY(UTIL_CAT(shell_root_cmd_, syntax)))))	   \
 	__attribute__((used)) = {					   \
 		.is_dynamic = false,					   \
-		.u.entry = &UTIL_CAT(shell_, syntax)			   \
+		.u.entry = &UTIL_CAT(_shell_, syntax)			   \
 	}
 
 /**
@@ -141,6 +186,29 @@ struct shell_static_entry {
 	}
 
 /**
+ * @brief Initializes a shell command with arguments.
+ *
+ * @note If a command will be called with wrong number of arguments shell will
+ * print an error message and command handler will not be called.
+ *
+ * @param[in] _syntax  Command syntax (for example: history).
+ * @param[in] _subcmd  Pointer to a subcommands array.
+ * @param[in] _help    Pointer to a command help string.
+ * @param[in] _handler Pointer to a function handler.
+ * @param[in] _mandatory Number of mandatory arguments.
+ * @param[in] _optional Number of optional arguments.
+ */
+#define SHELL_CMD_ARG(_syntax, _subcmd, _help, _handler,		\
+		      _mandatory, _optional) {				\
+	.syntax = (const char *)STRINGIFY(_syntax),			\
+	.subcmd = _subcmd,						\
+	.help  = (const char *)_help,					\
+	.handler = _handler,						\
+	.args = _mandatory ?						\
+	(&(struct shell_static_args) SHELL_ARG(_mandatory, _optional)) : NULL\
+}
+
+/**
  * @brief Initializes a shell command.
  *
  * @param[in] _syntax  Command syntax (for example: history).
@@ -148,12 +216,9 @@ struct shell_static_entry {
  * @param[in] _help    Pointer to a command help string.
  * @param[in] _handler Pointer to a function handler.
  */
-#define SHELL_CMD(_syntax, _subcmd, _help, _handler) {	\
-	.syntax = (const char *)STRINGIFY(_syntax),	\
-	.subcmd = _subcmd,				\
-	.help  = (const char *)_help,			\
-	.handler = _handler				\
-}
+#define SHELL_CMD(_syntax, _subcmd, _help, _handler) \
+	SHELL_CMD_ARG(_syntax, _subcmd, _help, _handler, 0, 0)
+
 
 /**
  * @internal @brief Internal shell state in response to data received from the
@@ -282,12 +347,13 @@ struct shell_stats {
  */
 struct shell_flags {
 	u32_t insert_mode :1; /*!< Controls insert mode for text introduction.*/
-	u32_t show_help   :1; /*!< Shows help if -h or --help option present.*/
 	u32_t use_colors  :1; /*!< Controls colored syntax.*/
 	u32_t echo        :1; /*!< Controls shell echo.*/
 	u32_t processing  :1; /*!< Shell is executing process function.*/
 	u32_t tx_rdy      :1;
 	u32_t mode_delete :1; /*!< Operation mode of backspace key */
+	u32_t history_exit:1; /*!< Request to exit history mode */
+	u32_t last_nl     :8; /*!< Last received new line character */
 };
 
 BUILD_ASSERT_MSG((sizeof(struct shell_flags) == sizeof(u32_t)),
@@ -374,10 +440,13 @@ struct shell {
 
 	LOG_INSTANCE_PTR_DECLARE(log);
 
+	const char *thread_name;
 	struct k_thread *thread;
 	k_thread_stack_t *stack;
 };
 
+extern void shell_print_stream(const void *user_ctx, const char *data,
+			       size_t data_len);
 /**
  * @brief Macro for defining a shell instance.
  *
@@ -413,6 +482,7 @@ struct shell {
 		.stats = SHELL_STATS_PTR(_name),			     \
 		.log_backend = SHELL_LOG_BACKEND_PTR(_name),		     \
 		LOG_INSTANCE_PTR_INIT(log, shell, _name)		     \
+		.thread_name = STRINGIFY(_name),			     \
 		.thread = &_name##_thread,				     \
 		.stack = _name##_stack					     \
 	}
@@ -497,59 +567,59 @@ void shell_fprintf(const struct shell *shell, enum shell_vt100_color color,
 		   const char *p_fmt, ...);
 
 /**
+ * @brief Print info message to the shell.
+ *
+ *  This function shall not be used outside of the shell command context.
+ *
+ * @param[in] _sh Pointer to the shell instance.
+ * @param[in] _ft Format string.
+ * @param[in] ... List of parameters to print.
+ */
+#define shell_info(_sh, _ft, ...) \
+	shell_fprintf(_sh, SHELL_INFO, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print normal message to the shell.
+ *
+ *  This function shall not be used outside of the shell command context.
+ *
+ * @param[in] _sh Pointer to the shell instance.
+ * @param[in] _ft Format string.
+ * @param[in] ... List of parameters to print.
+ */
+#define shell_print(_sh, _ft, ...) \
+	shell_fprintf(_sh, SHELL_NORMAL, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print warning message to the shell.
+ *
+ * This function shall not be used outside of the shell command context.
+ *
+ * @param[in] _sh Pointer to the shell instance.
+ * @param[in] _ft Format string.
+ * @param[in] ... List of parameters to print.
+ */
+#define shell_warn(_sh, _ft, ...) \
+	shell_fprintf(_sh, SHELL_WARNING, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print error message to the shell.
+ *
+ * This function shall not be used outside of the shell command context.
+ * @param[in] _sh Pointer to the shell instance.
+ * @param[in] _ft Format string.
+ * @param[in] ... List of parameters to print.
+ */
+#define shell_error(_sh, _ft, ...) \
+	shell_fprintf(_sh, SHELL_ERROR, _ft "\n", ##__VA_ARGS__)
+
+/**
  * @brief Process function, which should be executed when data is ready in the
  *	  transport interface. To be used if shell thread is disabled.
  *
  * @param[in] shell Pointer to the shell instance.
  */
 void shell_process(const struct shell *shell);
-
-/**
- * @brief Option descriptor.
- */
-struct shell_getopt_option {
-	const char *optname; /*!< Option long name.*/
-	const char *optname_short; /*!< Option short name.*/
-	const char *optname_help; /*!< Option help string.*/
-};
-
-/**
- * @brief Option structure initializer.
- *
- * @param[in] _optname    Option name long.
- * @param[in] _shortname  Option name short.
- * @param[in] _help       Option help string.
- */
-#define SHELL_OPT(_optname, _shortname, _help) {	\
-	.optname = _optname,				\
-	.optname_short = _shortname,			\
-	.optname_help = _help,				\
-	}
-
-/**
- * @brief Informs that a command has been called with -h or --help option.
- *
- * @param[in] shell Pointer to the shell instance.
- *
- * @return True if help has been requested.
- */
-static inline bool shell_help_requested(const struct shell *shell)
-{
-	return shell->ctx->internal.flags.show_help;
-}
-
-/**
- * @brief Prints the current command help.
- *
- * Function will print a help string with: the currently entered command, its
- * options,and subcommands (if they exist).
- *
- * @param[in] shell      Pointer to the shell instance.
- * @param[in] opt        Pointer to the optional option array.
- * @param[in] opt_len    Option array size.
- */
-void shell_help_print(const struct shell *shell,
-		      const struct shell_getopt_option *opt, size_t opt_len);
 
 /**
  * @brief Change displayed shell prompt.
@@ -563,32 +633,14 @@ void shell_help_print(const struct shell *shell,
 int shell_prompt_change(const struct shell *shell, char *prompt);
 
 /**
- * @brief Prints help if requested and prints error message on wrong argument
- *	  count.
- *	  Optionally, printing help on wrong argument count can be enabled.
+ * @brief Prints the current command help.
  *
- * @param[in] shell	  Pointer to the shell instance.
- * @param[in] arg_cnt_ok  Flag indicating valid number of arguments.
- * @param[in] opt	  Pointer to the optional option array.
- * @param[in] opt_len	  Option array size.
+ * Function will print a help string with: the currently entered command
+ * and subcommands (if they exist).
  *
- * @return True if check passed, false otherwise or help was requested.
+ * @param[in] shell      Pointer to the shell instance.
  */
-bool shell_cmd_precheck(const struct shell *shell,
-			bool arg_cnt_ok,
-			const struct shell_getopt_option *opt,
-			size_t opt_len);
-
-/**
- * @internal @brief This function shall not be used directly, it is required by
- *		    the fprintf module.
- *
- * @param[in] p_user_ctx    Pointer to the context for the shell instance.
- * @param[in] p_data        Pointer to the data buffer.
- * @param[in] data_len      Data buffer size.
- */
-void shell_print_stream(const void *user_ctx, const char *data,
-			size_t data_len);
+void shell_help(const struct shell *shell);
 
 /** @brief Execute command.
  *
@@ -597,7 +649,9 @@ void shell_print_stream(const void *user_ctx, const char *data,
  * Note: This by no means makes any of the commands a stable interface, so
  * this function should only be used for debugging/diagnostic.
  *
- * @param[in] shell	Pointer to the shell instance.
+ * @param[in] shell	Pointer to the shell instance. It can be NULL when
+ *			the :option:`CONFIG_SHELL_BACKEND_DUMMY` option is
+ *			enabled.
  * @param[in] cmd	Command to be executed.
  *
  * @returns Result of the execution

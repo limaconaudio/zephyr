@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_6lo
-#define NET_LOG_LEVEL CONFIG_NET_6LO_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_6lo, CONFIG_NET_6LO_LOG_LEVEL);
 
 #include <errno.h>
 #include <net/net_core.h>
@@ -110,7 +110,7 @@ void net_6lo_set_context(struct net_if *iface,
 	/* If the context information already exists, update or remove
 	 * as per data.
 	 */
-	for (i = 0; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
+	for (i = 0U; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
 		if (!ctx_6co[i].is_used) {
 			unused = i;
 			continue;
@@ -145,7 +145,7 @@ get_6lo_context_by_cid(struct net_if *iface, u8_t cid)
 {
 	u8_t i;
 
-	for (i = 0; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
+	for (i = 0U; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
 		if (!ctx_6co[i].is_used) {
 			continue;
 		}
@@ -164,7 +164,7 @@ get_6lo_context_by_addr(struct net_if *iface, struct in6_addr *addr)
 {
 	u8_t i;
 
-	for (i = 0; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
+	for (i = 0U; i < CONFIG_NET_MAX_6LO_CONTEXTS; i++) {
 		if (!ctx_6co[i].is_used) {
 			continue;
 		}
@@ -288,7 +288,7 @@ static inline u8_t compress_sa(struct net_ipv6_hdr *ipv6,
 			       struct net_buf *frag,
 			       u8_t offset)
 {
-	if (net_is_ipv6_addr_unspecified(&ipv6->src)) {
+	if (net_ipv6_is_addr_unspecified(&ipv6->src)) {
 		NET_DBG("SAM_00, SAC_1 unspecified src address");
 
 		/* Unspecified IPv6 src address */
@@ -299,7 +299,7 @@ static inline u8_t compress_sa(struct net_ipv6_hdr *ipv6,
 	}
 
 	/* If address is link-local prefix and padded with zeros */
-	if (net_is_ipv6_ll_addr(&ipv6->src) &&
+	if (net_ipv6_is_ll_addr(&ipv6->src) &&
 	    net_6lo_ll_prefix_padded_with_zeros(&ipv6->src)) {
 
 		NET_DBG("SAC_0 src is ll_addr and padded with zeros");
@@ -446,12 +446,12 @@ static inline u8_t compress_da(struct net_ipv6_hdr *ipv6,
 			       u8_t offset)
 {
 	/* If destination address is multicast */
-	if (net_is_ipv6_addr_mcast(&ipv6->dst)) {
+	if (net_ipv6_is_addr_mcast(&ipv6->dst)) {
 		return compress_da_mcast(ipv6, pkt, frag, offset);
 	}
 
 	/* If address is link-local prefix and padded with zeros */
-	if (net_is_ipv6_ll_addr(&ipv6->dst) &&
+	if (net_ipv6_is_ll_addr(&ipv6->dst) &&
 	    net_6lo_ll_prefix_padded_with_zeros(&ipv6->dst)) {
 
 		NET_DBG("Dst is ll_addr and padded with zeros");
@@ -682,7 +682,7 @@ static inline bool compress_IPHC_header(struct net_pkt *pkt,
 	struct net_6lo_context *dst = NULL;
 #endif
 	struct net_ipv6_hdr *ipv6 = NET_IPV6_HDR(pkt);
-	u8_t offset = 0;
+	u8_t offset = 0U;
 	struct net_buf *frag;
 	u8_t compressed;
 
@@ -1217,8 +1217,8 @@ static inline void uncompress_cid(struct net_pkt *pkt,
 static inline bool uncompress_IPHC_header(struct net_pkt *pkt)
 {
 	struct net_udp_hdr *udp = NULL;
-	u8_t offset = 2;
-	u8_t chksum = 0;
+	u8_t offset = 2U;
+	u8_t chksum = 0U;
 	struct net_ipv6_hdr *ipv6;
 	struct net_buf *frag;
 	u16_t len;
@@ -1370,7 +1370,7 @@ end:
 		udp->len = htons(len);
 
 		if (chksum) {
-			udp->chksum = ~net_calc_chksum_udp(pkt);
+			udp->chksum = net_calc_chksum_udp(pkt);
 		}
 	}
 

@@ -21,7 +21,6 @@
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt.h>
 
-#include <gatt/dis.h>
 #include <gatt/bas.h>
 
 #define CSC_SUPPORTED_LOCATIONS		{ CSC_LOC_OTHER, \
@@ -269,10 +268,10 @@ static void measurement_nfy(struct bt_conn *conn, u32_t cwr, u16_t lwet,
 	u8_t buf[sizeof(*nfy) +
 		    (cwr ? sizeof(struct wheel_rev_data_nfy) : 0) +
 		    (ccr ? sizeof(struct crank_rev_data_nfy) : 0)];
-	u16_t len = 0;
+	u16_t len = 0U;
 
 	nfy = (void *) buf;
-	nfy->flags = 0;
+	nfy->flags = 0U;
 
 	/* Send Wheel Revolution data is present */
 	if (cwr) {
@@ -337,9 +336,9 @@ static void csc_simulation(void)
 	 * every 64 seconds.
 	 */
 	if (!(i % 64)) {
-		lcet = 0;
-		lwet = 0;
-		i = 0;
+		lcet = 0U;
+		lwet = 0U;
+		i = 0U;
 	}
 
 	i++;
@@ -379,7 +378,6 @@ static void bt_ready(int err)
 	printk("Bluetooth initialized\n");
 
 	bas_init();
-	dis_init(CONFIG_SOC, "ACME");
 	bt_gatt_service_register(&csc_svc);
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), NULL, 0);

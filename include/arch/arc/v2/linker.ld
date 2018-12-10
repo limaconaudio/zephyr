@@ -42,6 +42,14 @@
 		#define MPU_MIN_SIZE 32
 	#endif
 	#define MPU_MIN_SIZE_ALIGN . = ALIGN(MPU_MIN_SIZE );
+	#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
+		#define MPU_ALIGN(region_size) \
+			. = ALIGN(MPU_MIN_SIZE); \
+			. = ALIGN( 1 << LOG2CEIL(region_size))
+	#else
+		#define MPU_ALIGN(region_size) \
+			. = ALIGN(MPU_MIN_SIZE)
+	#endif
 #else
 	#define MPU_MIN_SIZE_ALIGN
 #endif
@@ -73,6 +81,9 @@ MEMORY {
 }
 
 SECTIONS {
+
+#include <linker/rel-sections.ld>
+
 	GROUP_START(ROMABLE_REGION)
 
 	SECTION_PROLOGUE(_TEXT_SECTION_NAME,,ALIGN(1024)) {
@@ -85,9 +96,6 @@ SECTIONS {
 		KEEP(*(".exc_vector_table.*"))
 		KEEP(*(IRQ_VECTOR_TABLE))
 
-#ifdef CONFIG_GEN_SW_ISR_TABLE
-		KEEP(*(SW_ISR_TABLE))
-#endif
 		*(.text)
 		*(".text.*")
 		*(.gnu.linkonce.t.*)
@@ -106,6 +114,10 @@ SECTIONS {
 		*(.rodata)
 		*(".rodata.*")
 		*(.gnu.linkonce.r.*)
+
+#ifdef CONFIG_SOC_RODATA_LD
+#include <soc-rodata.ld>
+#endif
 
 #ifdef CONFIG_CUSTOM_RODATA_LD
 /* Located in project source directory */
@@ -228,6 +240,10 @@ SECTIONS {
 		 KERNEL_INPUT_SECTION(".noinit.*")
 		 *(".kernel_noinit.*")
 
+#ifdef CONFIG_SOC_NOINIT_LD
+#include <soc-noinit.ld>
+#endif
+
 	} GROUP_LINK_IN(RAMABLE_REGION)
 
 	SECTION_DATA_PROLOGUE(_DATA_SECTION_NAME,,) {
@@ -237,6 +253,10 @@ SECTIONS {
 		KERNEL_INPUT_SECTION(.data)
 		KERNEL_INPUT_SECTION(".data.*")
 		*(".kernel.*")
+
+#ifdef CONFIG_SOC_RWDATA_LD
+#include <soc-rwdata.ld>
+#endif
 
 #ifdef CONFIG_CUSTOM_RWDATA_LD
 /* Located in project source directory */
@@ -271,4 +291,14 @@ SECTIONS {
 #ifdef CONFIG_GEN_ISR_TABLES
 #include <linker/intlist.ld>
 #endif
+
+#include <linker/debug-sections.ld>
+
+
+    SECTION_PROLOGUE(.ARC.attributes, 0,)
+	{
+	KEEP(*(.ARC.attributes))
+	KEEP(*(.gnu.attributes))
+	}
+
 	}

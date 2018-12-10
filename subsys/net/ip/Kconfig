@@ -20,6 +20,28 @@ config NET_RAW_MODE
 
 if !NET_RAW_MODE
 
+choice
+	prompt "Qemu networking"
+	default NET_QEMU_SLIP
+	depends on QEMU_TARGET
+	help
+	  Can be used to select how the network connectivity is established
+	  from inside qemu to host system. This can be done either via
+	  serial connection (SLIP) or via Qemu ethernet driver.
+
+config NET_QEMU_SLIP
+	bool "SLIP"
+	help
+	  Connect to host or to another Qemu via SLIP.
+
+config NET_QEMU_ETHERNET
+	bool "Ethernet"
+	help
+	  Connect to host system via Qemu ethernet driver support. One such
+	  driver that Zephyr supports is Intel e1000 ethernet driver.
+
+endchoice
+
 config NET_INIT_PRIO
 	int
 	default 90
@@ -35,10 +57,25 @@ source "subsys/net/ip/Kconfig.ipv4"
 
 config NET_SHELL
 	bool "Enable network shell utilities"
-	select CONSOLE_SHELL
+	select SHELL
 	help
 	  Activate shell module that provides network commands like
 	  ping to the console.
+
+config NET_SHELL_DYN_CMD_COMPLETION
+	bool "Enable network shell dynamic command completion"
+	depends on NET_SHELL
+	default y
+	help
+	  Enable various net-shell command to support dynamic command
+	  completion. This means that for example the nbr command can
+	  automatically complete the neighboring IPv6 address and user
+	  does not need to type it manually.
+	  Please note that this uses more memory in order to save the
+	  dynamic command strings. For example for nbr command the
+	  increase is 320 bytes (8 neighbors * 40 bytes for IPv6 address
+	  length) by default. Other dynamic completion commands in
+	  net-shell require also some smaller amount of memory.
 
 config NET_TC_TX_COUNT
 	int "How many Tx traffic classes to have for each network device"
@@ -340,6 +377,7 @@ config NET_TEST
 
 config NET_SLIP_TAP
 	bool "TAP SLIP driver"
+	depends on NET_QEMU_SLIP
 	select SLIP
 	select UART_PIPE
 	select UART_INTERRUPT_DRIVEN
@@ -469,6 +507,14 @@ config NET_PROMISCUOUS_MODE
 	  Enable promiscuous mode support. This only works if the network
 	  device driver supports promiscuous mode. The user application
 	  also needs to read the promiscuous mode data.
+
+if NET_PROMISCUOUS_MODE
+module = NET_PROMISC
+module-dep = NET_LOG
+module-str = Log level for promiscuous mode
+module-help = Enables promiscuous mode to output debug messages.
+source "subsys/net/Kconfig.template.log_config.net"
+endif # NET_PROMISCUOUS_MODE
 
 source "subsys/net/ip/Kconfig.stack"
 

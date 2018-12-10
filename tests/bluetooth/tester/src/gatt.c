@@ -20,6 +20,10 @@
 #include <misc/printk.h>
 #include <net/buf.h>
 
+#include <logging/log.h>
+#define LOG_MODULE_NAME bttester_gatt
+LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+
 #include "bttester.h"
 
 #define CONTROLLER_INDEX 0
@@ -88,7 +92,7 @@ static void *gatt_buf_add(const void *data, size_t len)
 
 	gatt_buf.len += len;
 
-	SYS_LOG_DBG("%d/%d used", gatt_buf.len, MAX_BUFFER_SIZE);
+	LOG_DBG("%d/%d used", gatt_buf.len, MAX_BUFFER_SIZE);
 
 	return ptr;
 }
@@ -139,7 +143,7 @@ static struct bt_gatt_attr *gatt_db_add(const struct bt_gatt_attr *pattern,
 		memcpy(attr->user_data, pattern->user_data, user_data_len);
 	}
 
-	SYS_LOG_DBG("handle 0x%04x", attr->handle);
+	LOG_DBG("handle 0x%04x", attr->handle);
 
 	attr_count++;
 	svc_attr_count++;
@@ -239,7 +243,7 @@ static void add_service(u8_t *data, u16_t len)
 	}
 
 	svc_count++;
-	svc_attr_count = 0;
+	svc_attr_count = 0U;
 
 	switch (cmd->type) {
 	case GATT_SERVICE_PRIMARY:
@@ -428,7 +432,7 @@ static void add_characteristic(u8_t *data, u16_t len)
 	union uuid uuid;
 
 	/* Pre-set char_id */
-	cmd_data.char_id = 0;
+	cmd_data.char_id = 0U;
 	cmd_data.permissions = cmd->permissions;
 	cmd_data.properties = cmd->properties;
 	cmd_data.uuid = &uuid.uuid;
@@ -610,7 +614,7 @@ static void add_descriptor(u8_t *data, u16_t len)
 	}
 
 	/* Pre-set desc_id */
-	cmd_data.desc_id = 0;
+	cmd_data.desc_id = 0U;
 	cmd_data.permissions = cmd->permissions;
 	cmd_data.uuid = &uuid.uuid;
 
@@ -670,7 +674,7 @@ static void add_included(u8_t *data, u16_t len)
 	const struct gatt_add_included_service_cmd *cmd = (void *) data;
 	struct gatt_add_included_service_rp rp;
 	struct bt_gatt_attr *svc;
-	u16_t included_service_id = 0;
+	u16_t included_service_id = 0U;
 
 	if (!svc_count || !cmd->svc_id) {
 		goto fail;
@@ -725,9 +729,9 @@ static void indicate_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			u8_t err)
 {
 	if (err != 0) {
-		SYS_LOG_ERR("Indication fail");
+		LOG_ERR("Indication fail");
 	} else {
-		SYS_LOG_DBG("Indication success");
+		LOG_DBG("Indication success");
 	}
 }
 
@@ -1564,7 +1568,7 @@ static u8_t notify_func(struct bt_conn *conn,
 	const bt_addr_le_t *addr = bt_conn_get_dst(conn);
 
 	if (!data) {
-		SYS_LOG_DBG("Unsubscribed");
+		LOG_DBG("Unsubscribed");
 		(void)memset(params, 0, sizeof(*params));
 		return BT_GATT_ITER_STOP;
 	}
@@ -1634,7 +1638,7 @@ static int enable_subscription(struct bt_conn *conn, u16_t ccc_handle,
 {
 	/* Fail if there is another subscription enabled */
 	if (subscribe_params.ccc_handle) {
-		SYS_LOG_ERR("Another subscription already enabled");
+		LOG_ERR("Another subscription already enabled");
 		return -EEXIST;
 	}
 
@@ -1655,7 +1659,7 @@ static int disable_subscription(struct bt_conn *conn, u16_t ccc_handle)
 {
 	/* Fail if CCC handle doesn't match */
 	if (ccc_handle != subscribe_params.ccc_handle) {
-		SYS_LOG_ERR("CCC handle doesn't match");
+		LOG_ERR("CCC handle doesn't match");
 		return -EINVAL;
 	}
 
@@ -1706,7 +1710,7 @@ static void config_subscription(u8_t *data, u16_t len, u16_t op)
 		}
 	}
 
-	SYS_LOG_DBG("Config subscription (op %u) status %u", op, status);
+	LOG_DBG("Config subscription (op %u) status %u", op, status);
 
 	bt_conn_unref(conn);
 	tester_rsp(BTP_SERVICE_ID_GATT, op, CONTROLLER_INDEX, status);
@@ -1733,11 +1737,11 @@ static u8_t get_attrs_rp(const struct bt_gatt_attr *attr, void *user_data)
 	gatt_attr->permission = attr->perm;
 
 	if (attr->uuid->type == BT_UUID_TYPE_16) {
-		gatt_attr->type_length = 2;
+		gatt_attr->type_length = 2U;
 		net_buf_simple_add_le16(foreach->buf,
 					BT_UUID_16(attr->uuid)->val);
 	} else {
-		gatt_attr->type_length = 16;
+		gatt_attr->type_length = 16U;
 		net_buf_simple_add_mem(foreach->buf,
 				       BT_UUID_128(attr->uuid)->val,
 				       gatt_attr->type_length);
@@ -1765,12 +1769,12 @@ static void get_attrs(u8_t *data, u16_t len)
 			goto fail;
 		}
 
-		SYS_LOG_DBG("start 0x%04x end 0x%04x, uuid %s", start_handle,
-			    end_handle, bt_uuid_str(&uuid.uuid));
+		LOG_DBG("start 0x%04x end 0x%04x, uuid %s", start_handle,
+			end_handle, bt_uuid_str(&uuid.uuid));
 
 		foreach.uuid = &uuid.uuid;
 	} else {
-		SYS_LOG_DBG("start 0x%04x end 0x%04x", start_handle, end_handle);
+		LOG_DBG("start 0x%04x end 0x%04x", start_handle, end_handle);
 
 		foreach.uuid = NULL;
 	}
@@ -1778,7 +1782,7 @@ static void get_attrs(u8_t *data, u16_t len)
 	net_buf_simple_init(buf, sizeof(*rp));
 
 	foreach.buf = buf;
-	foreach.count = 0;
+	foreach.count = 0U;
 
 	bt_gatt_foreach_attr(start_handle, end_handle, get_attrs_rp, &foreach);
 

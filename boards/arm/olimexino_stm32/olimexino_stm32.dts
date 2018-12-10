@@ -13,6 +13,7 @@
 
 	chosen {
 		zephyr,console = &usart1;
+		zephyr,shell-uart = &usart1;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 	};
@@ -42,6 +43,10 @@
 		sw0 = &user_button;
 	};
 };
+
+uext_i2c: &i2c2 {};
+uext_spi: &spi1 {};
+uext_serial: &usart1 {};
 
 &usart1 {
 	current-speed = <115200>;

@@ -4,8 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ieee802154_frame
-#define NET_LOG_LEVEL CONFIG_NET_L2_IEEE802154_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ieee802154_frame, CONFIG_NET_L2_IEEE802154_LOG_LEVEL);
+
+#include <net/net_core.h>
+#include <net/net_if.h>
+
+#include <ipv6.h>
+#include <nbr.h>
+
+#include "ieee802154_frame.h"
+#include "ieee802154_security.h"
 
 #define dbg_print_fs(fs)						\
 	NET_DBG("fs(1): %u/%u/%u/%u/%u/%u",				\
@@ -16,15 +25,6 @@
 		fs->fc.seq_num_suppr, fs->fc.ie_list,			\
 		fs->fc.dst_addr_mode, fs->fc.frame_version,		\
 		fs->fc.src_addr_mode, fs->sequence)
-
-#include <net/net_core.h>
-#include <net/net_if.h>
-
-#include <ipv6.h>
-#include <nbr.h>
-
-#include "ieee802154_frame.h"
-#include "ieee802154_security.h"
 
 #define BUF_TIMEOUT K_MSEC(50)
 
@@ -246,8 +246,8 @@ validate_mac_command(struct ieee802154_mpdu *mpdu, u8_t *buf, u8_t length)
 	struct ieee802154_command *c = (struct ieee802154_command *)buf;
 	bool src_pan_brdcst_chk = false;
 	bool dst_brdcst_chk = false;
-	u8_t comp = 0;
-	u8_t ar = 0;
+	u8_t comp = 0U;
+	u8_t ar = 0U;
 	u8_t src, dst;
 
 	switch (c->cfi) {
@@ -262,14 +262,14 @@ validate_mac_command(struct ieee802154_mpdu *mpdu, u8_t *buf, u8_t length)
 	case IEEE802154_CFI_ASSOCIATION_RESPONSE:
 	case IEEE802154_CFI_DISASSOCIATION_NOTIFICATION:
 	case IEEE802154_CFI_PAN_ID_CONLICT_NOTIFICATION:
-		ar = 1;
-		comp = 1;
+		ar = 1U;
+		comp = 1U;
 		src = IEEE802154_EXT_ADDR_LENGTH;
 		dst = IEEE802154_EXT_ADDR_LENGTH;
 
 		break;
 	case IEEE802154_CFI_DATA_REQUEST:
-		ar = 1;
+		ar = 1U;
 		src = IEEE802154_ADDR_MODE_SHORT |
 			IEEE802154_ADDR_MODE_EXTENDED;
 
@@ -277,14 +277,14 @@ validate_mac_command(struct ieee802154_mpdu *mpdu, u8_t *buf, u8_t length)
 		    IEEE802154_ADDR_MODE_NONE) {
 			dst = IEEE802154_ADDR_MODE_NONE;
 		} else {
-			comp = 1;
+			comp = 1U;
 			dst = IEEE802154_ADDR_MODE_SHORT |
 				IEEE802154_ADDR_MODE_EXTENDED;
 		}
 
 		break;
 	case IEEE802154_CFI_ORPHAN_NOTIFICATION:
-		comp = 1;
+		comp = 1U;
 		src = IEEE802154_EXT_ADDR_LENGTH;
 		dst = IEEE802154_ADDR_MODE_SHORT;
 
@@ -308,7 +308,7 @@ validate_mac_command(struct ieee802154_mpdu *mpdu, u8_t *buf, u8_t length)
 
 		break;
 	case IEEE802154_CFI_GTS_REQUEST:
-		ar = 1;
+		ar = 1U;
 		src = IEEE802154_ADDR_MODE_SHORT;
 		dst = IEEE802154_ADDR_MODE_NONE;
 
@@ -421,8 +421,8 @@ u16_t ieee802154_compute_header_size(struct net_if *iface,
 
 	/** if dst is NULL, we'll consider it as a brodcast header */
 	if (!dst ||
-	    net_is_ipv6_addr_mcast(dst) ||
-	    net_is_ipv6_addr_unspecified(dst)) {
+	    net_ipv6_is_addr_mcast(dst) ||
+	    net_ipv6_is_addr_unspecified(dst)) {
 		NET_DBG("Broadcast destination");
 		/* 4 dst pan/addr + 8 src addr */
 		hdr_len += IEEE802154_PAN_ID_LENGTH +
@@ -502,14 +502,14 @@ static inline struct ieee802154_fcf_seq *generate_fcf_grounds(u8_t **p_buf,
 
 	fs = (struct ieee802154_fcf_seq *) *p_buf;
 
-	fs->fc.security_enabled = 0;
-	fs->fc.frame_pending = 0;
+	fs->fc.security_enabled = 0U;
+	fs->fc.frame_pending = 0U;
 	fs->fc.ar = ack;
-	fs->fc.pan_id_comp = 0;
-	fs->fc.reserved = 0;
+	fs->fc.pan_id_comp = 0U;
+	fs->fc.reserved = 0U;
 	/** We support version 2006 only for now */
-	fs->fc.seq_num_suppr = 0;
-	fs->fc.ie_list = 0;
+	fs->fc.seq_num_suppr = 0U;
+	fs->fc.ie_list = 0U;
 	fs->fc.frame_version = IEEE802154_VERSION_802154_2006;
 
 	*p_buf += sizeof(struct ieee802154_fcf_seq);
@@ -550,12 +550,12 @@ bool data_addr_to_fs_settings(struct net_linkaddr *dst,
 
 	fs->fc.dst_addr_mode = get_dst_addr_mode(dst, &broadcast);
 	if (fs->fc.dst_addr_mode != IEEE802154_ADDR_MODE_NONE) {
-		fs->fc.pan_id_comp = 1;
+		fs->fc.pan_id_comp = 1U;
 
 		if (broadcast) {
 			params->dst.short_addr = IEEE802154_BROADCAST_ADDRESS;
 			params->dst.len = IEEE802154_SHORT_ADDR_LENGTH;
-			fs->fc.ar = 0;
+			fs->fc.ar = 0U;
 		} else {
 			params->dst.ext_addr = dst->addr;
 			params->dst.len = dst->len;
@@ -644,7 +644,7 @@ u8_t *generate_aux_security_hdr(struct ieee802154_security_ctx *sec_ctx,
 
 	aux_sec->control.security_level = sec_ctx->level;
 	aux_sec->control.key_id_mode = sec_ctx->key_mode;
-	aux_sec->control.reserved = 0;
+	aux_sec->control.reserved = 0U;
 
 	aux_sec->frame_counter = sys_cpu_to_le32(sec_ctx->frame_counter);
 
@@ -683,7 +683,7 @@ bool ieee802154_create_data_frame(struct ieee802154_context *ctx,
 		goto no_security_hdr;
 	}
 
-	fs->fc.security_enabled = 1;
+	fs->fc.security_enabled = 1U;
 
 	p_buf = generate_aux_security_hdr(&ctx->sec_ctx, p_buf);
 
@@ -732,8 +732,8 @@ static inline bool cfi_to_fs_settings(enum ieee802154_cfi cfi,
 {
 	switch (cfi) {
 	case IEEE802154_CFI_DISASSOCIATION_NOTIFICATION:
-		fs->fc.ar = 1;
-		fs->fc.pan_id_comp = 1;
+		fs->fc.ar = 1U;
+		fs->fc.pan_id_comp = 1U;
 
 		/* Fall through for common src/dst addr mode handling */
 	case IEEE802154_CFI_ASSOCIATION_REQUEST:
@@ -748,19 +748,19 @@ static inline bool cfi_to_fs_settings(enum ieee802154_cfi cfi,
 		break;
 	case IEEE802154_CFI_ASSOCIATION_RESPONSE:
 	case IEEE802154_CFI_PAN_ID_CONLICT_NOTIFICATION:
-		fs->fc.ar = 1;
-		fs->fc.pan_id_comp = 1;
+		fs->fc.ar = 1U;
+		fs->fc.pan_id_comp = 1U;
 		fs->fc.src_addr_mode = IEEE802154_ADDR_MODE_EXTENDED;
 		fs->fc.dst_addr_mode = IEEE802154_ADDR_MODE_EXTENDED;
 
 		break;
 	case IEEE802154_CFI_DATA_REQUEST:
-		fs->fc.ar = 1;
+		fs->fc.ar = 1U;
 		/* ToDo: src/dst addr mode: see 5.3.4 */
 
 		break;
 	case IEEE802154_CFI_ORPHAN_NOTIFICATION:
-		fs->fc.pan_id_comp = 1;
+		fs->fc.pan_id_comp = 1U;
 		fs->fc.src_addr_mode = IEEE802154_ADDR_MODE_EXTENDED;
 		fs->fc.dst_addr_mode = IEEE802154_ADDR_MODE_SHORT;
 
@@ -775,7 +775,7 @@ static inline bool cfi_to_fs_settings(enum ieee802154_cfi cfi,
 
 		break;
 	case IEEE802154_CFI_GTS_REQUEST:
-		fs->fc.ar = 1;
+		fs->fc.ar = 1U;
 		fs->fc.src_addr_mode = IEEE802154_ADDR_MODE_SHORT;
 		fs->fc.dst_addr_mode = IEEE802154_ADDR_MODE_NONE;
 
@@ -789,7 +789,7 @@ static inline bool cfi_to_fs_settings(enum ieee802154_cfi cfi,
 
 static inline u8_t mac_command_length(enum ieee802154_cfi cfi)
 {
-	u8_t reserve = 1; /* cfi is at least present */
+	u8_t reserve = 1U; /* cfi is at least present */
 
 	switch (cfi) {
 	case IEEE802154_CFI_ASSOCIATION_REQUEST:
@@ -886,8 +886,8 @@ bool ieee802154_create_ack_frame(struct net_if *iface,
 
 	fs = generate_fcf_grounds(&p_buf, false);
 
-	fs->fc.dst_addr_mode = 0;
-	fs->fc.src_addr_mode = 0;
+	fs->fc.dst_addr_mode = 0U;
+	fs->fc.src_addr_mode = 0U;
 
 	fs->fc.frame_type = IEEE802154_FRAME_TYPE_ACK;
 	fs->sequence = seq;

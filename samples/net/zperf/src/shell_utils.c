@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_zperf_shell_utils
-#define NET_LOG_LEVEL LOG_LEVEL_DBG
-
 #include <ctype.h>
 #include <misc/printk.h>
 #include <stdio.h>
@@ -24,8 +21,8 @@ const char *KBPS_UNIT[] = { "Mbps", "Kbps" };
 const u32_t K[] = { 1024 * 1024, 1024, 0 };
 const char *K_UNIT[] = { "M", "K", "" };
 
-void print_number(u32_t value, const u32_t *divisor,
-	const char **units)
+void print_number(const struct shell *shell, u32_t value,
+		  const u32_t *divisor, const char **units)
 {
 	const char **unit;
 	const u32_t *div;
@@ -42,9 +39,10 @@ void print_number(u32_t value, const u32_t *divisor,
 	if (*div != 0) {
 		radix = value / *div;
 		dec = (value % *div) * 100 / *div;
-		printk("%u.%s%u %s", radix, (dec < 10) ? "0" : "", dec, *unit);
+		shell_fprintf(shell, SHELL_NORMAL, "%u.%s%u %s", radix,
+			      (dec < 10) ? "0" : "", dec, *unit);
 	} else {
-		printk("%u %s", value, *unit);
+		shell_fprintf(shell, SHELL_NORMAL, "%u %s", value, *unit);
 	}
 }
 

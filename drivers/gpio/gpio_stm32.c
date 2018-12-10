@@ -64,7 +64,11 @@ static int gpio_stm32_config(struct device *dev, int access_op,
 	}
 
 	if (flags & GPIO_INT) {
-		stm32_exti_set_callback(pin, gpio_stm32_isr, dev);
+
+		if (stm32_exti_set_callback(pin, cfg->port,
+					    gpio_stm32_isr, dev)) {
+			return -EBUSY;
+		}
 
 		stm32_gpio_enable_int(cfg->port, pin);
 
@@ -188,7 +192,10 @@ static int gpio_stm32_init(struct device *device)
 	struct device *clk =
 		device_get_binding(STM32_CLOCK_CONTROL_NAME);
 
-	clock_control_on(clk, (clock_control_subsys_t *) &cfg->pclken);
+	if (clock_control_on(clk,
+		(clock_control_subsys_t *) &cfg->pclken) != 0) {
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -211,21 +218,13 @@ DEVICE_AND_API_INIT(gpio_stm32_## __suffix,				\
 		    &gpio_stm32_driver);
 
 
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	/* On STM32F1 series, AFIO should be clocked to access GPIOs */
-#define GPIO_DEVICE_INIT_STM32(__suffix, __SUFFIX)			\
-	GPIO_DEVICE_INIT("GPIO" #__SUFFIX, __suffix,			\
-			 GPIO##__SUFFIX##_BASE, STM32_PORT##__SUFFIX,	\
-			 LL_APB2_GRP1_PERIPH_AFIO |			\
-			 STM32_PERIPH_GPIO##__SUFFIX,			\
-			 STM32_CLOCK_BUS_GPIO)
-#else
-#define GPIO_DEVICE_INIT_STM32(__suffix, __SUFFIX)			\
-	GPIO_DEVICE_INIT("GPIO" #__SUFFIX, __suffix,			\
-			 GPIO##__SUFFIX##_BASE, STM32_PORT##__SUFFIX,	\
-			 STM32_PERIPH_GPIO##__SUFFIX,			\
-			 STM32_CLOCK_BUS_GPIO)
-#endif /* CONFIG_SOC_SERIES_STM32F1X */
+#define GPIO_DEVICE_INIT_STM32(__suffix, __SUFFIX)				\
+	GPIO_DEVICE_INIT(DT_GPIO_STM32_GPIO##__SUFFIX##_LABEL,		\
+			__suffix,						\
+			DT_GPIO_STM32_GPIO##__SUFFIX##_BASE_ADDRESS, 	\
+			STM32_PORT##__SUFFIX,					\
+			DT_GPIO_STM32_GPIO##__SUFFIX##_CLOCK_BITS,		\
+			DT_GPIO_STM32_GPIO##__SUFFIX##_CLOCK_BUS)
 
 #ifdef CONFIG_GPIO_STM32_PORTA
 GPIO_DEVICE_INIT_STM32(a, A);

@@ -42,7 +42,7 @@ static u32_t pwm_period_check(struct pwm_data *data, u8_t map_size,
 	}
 
 	/* fail if requested period does not match already running period */
-	for (i = 0; i < map_size; i++) {
+	for (i = 0U; i < map_size; i++) {
 		if ((data->map[i].pwm != pwm) &&
 		    (data->map[i].pulse_cycles != 0) &&
 		    (period_cycles != data->period_cycles)) {
@@ -59,7 +59,7 @@ static u8_t pwm_channel_map(struct pwm_data *data, u8_t map_size,
 	u8_t i;
 
 	/* find pin, if already present */
-	for (i = 0; i < map_size; i++) {
+	for (i = 0U; i < map_size; i++) {
 		if (pwm == data->map[i].pwm) {
 			return i;
 		}
@@ -176,11 +176,11 @@ static int pwm_nrf5_sw_pin_set(struct device *dev, u32_t pwm,
 	return 0;
 
 pin_set_pwm_off:
-	data->map[channel].pulse_cycles = 0;
+	data->map[channel].pulse_cycles = 0U;
 	bool pwm_active = false;
 
 	/* stop timer if all channels are inactive */
-	for (channel = 0; channel < config->map_size; channel++) {
+	for (channel = 0U; channel < config->map_size; channel++) {
 		if (data->map[channel].pulse_cycles) {
 			pwm_active = true;
 			break;
@@ -235,10 +235,10 @@ static int pwm_nrf5_sw_init(struct device *dev)
 }
 
 #define PWM_0_MAP_SIZE 3
-/* NOTE: nRF51x BLE controller use HW tIFS hence using only PPI channels 0-6.
+/* NOTE: nRF51x BLE controller use HW tIFS hence using only PPI channels 1-6.
  * nRF52x BLE controller implements SW tIFS and uses addition 6 PPI channels.
  * Also, nRF52x requires one additional PPI channel for decryption rate boost.
- * Hence, nRF52x BLE controller uses PPI channels 0-13.
+ * Hence, nRF52x BLE controller uses PPI channels 1-13.
  *
  * NOTE: If PA/LNA feature is enabled for nRF52x, then additional two PPI
  * channels 14-15 are used by BLE controller.

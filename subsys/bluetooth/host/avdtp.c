@@ -19,6 +19,7 @@
 #include <bluetooth/avdtp.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_AVDTP)
+#define LOG_MODULE_NAME bt_avdtp
 #include "common/log.h"
 
 #include "hci_core.h"
@@ -177,7 +178,7 @@ int bt_avdtp_l2cap_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(handler); i++) {
+	for (i = 0U; i < ARRAY_SIZE(handler); i++) {
 		if (sigid == handler[i].sig_id) {
 			handler[i].func(session, buf, msgtype);
 			return 0;

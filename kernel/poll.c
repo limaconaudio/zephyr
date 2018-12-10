@@ -65,7 +65,7 @@ static inline int is_condition_met(struct k_poll_event *event, u32_t *state)
 		}
 		break;
 	case K_POLL_TYPE_IGNORE:
-		return 0;
+		break;
 	default:
 		__ASSERT(false, "invalid event type (0x%x)\n", event->type);
 		break;
@@ -403,7 +403,7 @@ Z_SYSCALL_HANDLER(k_poll_signal_check, signal, signaled, result)
 }
 #endif
 
-int _impl_k_poll_signal(struct k_poll_signal *signal, int result)
+int _impl_k_poll_signal_raise(struct k_poll_signal *signal, int result)
 {
 	unsigned int key = irq_lock();
 	struct k_poll_event *poll_event;
@@ -424,10 +424,10 @@ int _impl_k_poll_signal(struct k_poll_signal *signal, int result)
 }
 
 #ifdef CONFIG_USERSPACE
-Z_SYSCALL_HANDLER(k_poll_signal, signal, result)
+Z_SYSCALL_HANDLER(k_poll_signal_raise, signal, result)
 {
 	Z_OOPS(Z_SYSCALL_OBJ(signal, K_OBJ_POLL_SIGNAL));
-	return _impl_k_poll_signal((struct k_poll_signal *)signal, result);
+	return _impl_k_poll_signal_raise((struct k_poll_signal *)signal, result);
 }
 Z_SYSCALL_HANDLER1_SIMPLE_VOID(k_poll_signal_reset, K_OBJ_POLL_SIGNAL,
 			       struct k_poll_signal *);

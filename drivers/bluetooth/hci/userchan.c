@@ -9,7 +9,6 @@
 #include <zephyr.h>
 #include <device.h>
 #include <init.h>
-#include <board.h>
 #include <misc/util.h>
 #include <misc/byteorder.h>
 
@@ -30,6 +29,7 @@
 #include <bluetooth/hci_driver.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_driver
 #include "common/log.h"
 
 #define BTPROTO_HCI      1
@@ -47,8 +47,8 @@ struct sockaddr_hci {
 #define H4_SCO           0x03
 #define H4_EVT           0x04
 
-static BT_STACK_NOINIT(rx_thread_stack,
-		       CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(rx_thread_stack,
+			     CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE);
 static struct k_thread rx_thread_data;
 
 static int uc_fd = -1;

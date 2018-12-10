@@ -35,7 +35,9 @@
 
 MEMORY
 {
+#ifdef CONFIG_XIP
     ROM (rx)  : ORIGIN = CONFIG_RISCV_ROM_BASE_ADDR, LENGTH = CONFIG_RISCV_ROM_SIZE
+#endif
     RAM (rwx) : ORIGIN = CONFIG_RISCV_RAM_BASE_ADDR, LENGTH = RISCV_RAM_SIZE
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST  (wx)      : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
@@ -46,18 +48,30 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 SECTIONS
     {
 
-    GROUP_START(ROM)
+#include <linker/rel-sections.ld>
+
+    /*
+     * The .plt and .iplt are here according to
+     * 'riscv32-zephyr-elf-ld --verbose', before text section.
+     */
+    SECTION_PROLOGUE(.plt,,)
+	{
+		*(.plt)
+	}
+
+    SECTION_PROLOGUE(.iplt,,)
+	{
+		*(.iplt)
+	}
+
+    GROUP_START(ROMABLE_REGION)
     _image_rom_start = .;
 
     SECTION_PROLOGUE(_VECTOR_SECTION_NAME,,)
     {
 		. = ALIGN(4);
 		KEEP(*(.vectors.*))
-    } GROUP_LINK_IN(ROM)
-
-    GROUP_END(ROM)
-
-    GROUP_START(ROMABLE_REGION)
+    } GROUP_LINK_IN(ROMABLE_REGION)
 
     SECTION_PROLOGUE(_RESET_SECTION_NAME,,)
     {
@@ -73,9 +87,6 @@ SECTIONS
     SECTION_PROLOGUE(_TEXT_SECTION_NAME,,)
 	{
 		. = ALIGN(4);
-#ifdef CONFIG_GEN_SW_ISR_TABLE
-		KEEP(*(SW_ISR_TABLE))
-#endif
 		KEEP(*(.openocd_debug))
 		KEEP(*(".openocd_debug.*"))
 
@@ -96,6 +107,11 @@ SECTIONS
 		 *(.rodata)
 		 *(".rodata.*")
 		 *(.gnu.linkonce.r.*)
+
+#ifdef CONFIG_SOC_RODATA_LD
+#include <soc-rodata.ld>
+#endif
+
 	} GROUP_LINK_IN(ROMABLE_REGION)
 
     _image_rom_end = .;
@@ -116,6 +132,10 @@ SECTIONS
 
 		 *(.sdata .sdata.* .gnu.linkonce.s.*)
 		 *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
+
+#ifdef CONFIG_SOC_RWDATA_LD
+#include <soc-rwdata.ld>
+#endif
 
 	}  GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
@@ -151,6 +171,11 @@ SECTIONS
 		 */
 		 *(.noinit)
 		 *(".noinit.*")
+
+#ifdef CONFIG_SOC_NOINIT_LD
+#include <soc-noinit.ld>
+#endif
+
 	} GROUP_LINK_IN(RAMABLE_REGION)
 
      _image_ram_end = .;
@@ -161,4 +186,7 @@ SECTIONS
 #endif
 
      GROUP_END(RAMABLE_REGION)
+
+#include <linker/debug-sections.ld>
+
 }

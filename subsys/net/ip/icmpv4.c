@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_icmpv4
-#define NET_LOG_LEVEL CONFIG_NET_ICMPV4_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_icmpv4, CONFIG_NET_ICMPV4_LOG_LEVEL);
 
 #include <errno.h>
 #include <misc/slist.h>
@@ -57,7 +57,7 @@ int net_icmpv4_get_hdr(struct net_pkt *pkt, struct net_icmp_hdr *hdr)
 
 int net_icmpv4_set_chksum(struct net_pkt *pkt)
 {
-	u16_t chksum = 0;
+	u16_t chksum = 0U;
 	struct net_buf *frag;
 	struct net_buf *temp_frag;
 	u16_t temp_pos;
@@ -83,7 +83,7 @@ int net_icmpv4_set_chksum(struct net_pkt *pkt)
 		return -EINVAL;
 	}
 
-	chksum = ~net_calc_chksum_icmpv4(pkt);
+	chksum = net_calc_chksum_icmpv4(pkt);
 
 	temp_frag = net_pkt_write(pkt, temp_frag, temp_pos, &temp_pos,
 				  sizeof(chksum), (u8_t *)&chksum,
@@ -110,7 +110,16 @@ static inline enum net_verdict icmpv4_handle_echo_request(struct net_pkt *pkt)
 
 	net_ipaddr_copy(&addr, &NET_IPV4_HDR(pkt)->src);
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->src,
-			&NET_IPV4_HDR(pkt)->dst);
+			net_if_ipv4_select_src_addr(net_pkt_iface(pkt),
+						    &addr));
+	/* If interface can not select src address based on dst addr
+	 * and src address is unspecified, drop the echo request.
+	 */
+	if (net_ipv4_is_addr_unspecified(&NET_IPV4_HDR(pkt)->src)) {
+		NET_DBG("DROP: src addr is unspecified");
+		return NET_DROP;
+	}
+
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->dst, &addr);
 
 	icmp_hdr.type = NET_ICMPV4_ECHO_REPLY;
@@ -121,10 +130,7 @@ static inline enum net_verdict icmpv4_handle_echo_request(struct net_pkt *pkt)
 		return NET_DROP;
 	}
 
-	ret = net_icmpv4_set_chksum(pkt);
-	if (ret < 0) {
-		return NET_DROP;
-	}
+	net_ipv4_finalize(pkt, IPPROTO_ICMP);
 
 	NET_DBG("Sending Echo Reply from %s to %s",
 		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)),
@@ -342,6 +348,20 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt)
 		return NET_DROP;
 	}
 
+	if (!icmp_hdr.chksum || net_calc_chksum_icmpv4(pkt) != 0) {
+		NET_DBG("DROP: Invalid checksum");
+		goto drop;
+	}
+
+	if (net_ipv4_is_addr_bcast(net_pkt_iface(pkt),
+				   &NET_IPV4_HDR(pkt)->dst)) {
+		if (!IS_ENABLED(CONFIG_NET_ICMPV4_ACCEPT_BROADCAST) ||
+		    icmp_hdr.type != NET_ICMPV4_ECHO_REQUEST) {
+			NET_DBG("Dropping broadcast pkt");
+			goto drop;
+		}
+	}
+
 	NET_DBG("ICMPv4 packet received type %d code %d",
 		icmp_hdr.type, icmp_hdr.code);
 
@@ -354,6 +374,7 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt)
 		}
 	}
 
+drop:
 	net_stats_update_icmp_drop(net_pkt_iface(pkt));
 
 	return NET_DROP;

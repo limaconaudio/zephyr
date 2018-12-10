@@ -8,7 +8,6 @@
 #include <clock_control.h>
 #include <misc/util.h>
 #include <kernel.h>
-#include <board.h>
 #include <errno.h>
 #include <i2c.h>
 
@@ -89,7 +88,7 @@ static int i2c_virtual_msg_write(struct device *dev, struct i2c_msg *msg,
 				 struct i2c_slave_config *config,
 				 bool prev_write)
 {
-	unsigned int len = 0;
+	unsigned int len = 0U;
 	u8_t *buf = msg->buf;
 	int ret;
 

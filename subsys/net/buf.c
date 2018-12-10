@@ -6,6 +6,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_MODULE_NAME net_buf
+#define LOG_LEVEL CONFIG_NET_BUF_LOG_LEVEL
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+
 #include <stdio.h>
 #include <errno.h>
 #include <stddef.h>
@@ -15,12 +21,6 @@
 #include <net/buf.h>
 
 #if defined(CONFIG_NET_BUF_LOG)
-#define LOG_MODULE_NAME net_buf
-#define NET_LOG_LEVEL CONFIG_NET_BUF_LOG_LEVEL
-
-#include <logging/log.h>
-LOG_MODULE_REGISTER();
-
 #define NET_BUF_DBG(fmt, ...) LOG_DBG("(%p) " fmt, k_current_get(), \
 				      ##__VA_ARGS__)
 #define NET_BUF_ERR(fmt, ...) LOG_ERR(fmt, ##__VA_ARGS__)
@@ -113,7 +113,7 @@ static u8_t *mem_pool_data_alloc(struct net_buf *buf, size_t *size,
 	memcpy(block.data, &block.id, sizeof(block.id));
 
 	ref_count = (u8_t *)block.data + sizeof(block.id);
-	*ref_count = 1;
+	*ref_count = 1U;
 
 	/* Return pointer to the byte following the ref count */
 	return ref_count + 1;
@@ -171,7 +171,7 @@ static u8_t *heap_data_alloc(struct net_buf *buf, size_t *size, s32_t timeout)
 		return NULL;
 	}
 
-	*ref_count = 1;
+	*ref_count = 1U;
 
 	return ref_count + 1;
 }
@@ -275,7 +275,7 @@ struct net_buf *net_buf_alloc_len(struct net_buf_pool *pool, size_t size,
 
 	irq_unlock(key);
 
-#if defined(CONFIG_NET_BUF_LOG) && SYS_LOG_LEVEL >= SYS_LOG_LEVEL_WARNING
+#if defined(CONFIG_NET_BUF_LOG) && (CONFIG_NET_BUF_LOG_LEVEL >= LOG_LEVEL_WRN)
 	if (timeout == K_FOREVER) {
 		u32_t ref = k_uptime_get_32();
 		buf = k_lifo_get(&pool->free, K_NO_WAIT);

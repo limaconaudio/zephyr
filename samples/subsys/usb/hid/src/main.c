@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2018 Intel Corporation.
+ * Copyright (c) 2018 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +12,7 @@
 #include <usb/class/usb_hid.h>
 
 #define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(main)
+LOG_MODULE_REGISTER(main);
 
 #define REPORT_ID_1	0x01
 #define REPORT_ID_2	0x02
@@ -56,34 +57,6 @@ static const u8_t hid_report_desc[] = {
 	HID_MI_COLLECTION_END,
 };
 
-static int debug_cb(struct usb_setup_packet *setup, s32_t *len,
-		    u8_t **data)
-{
-	USB_DBG("Debug callback");
-
-	return -ENOTSUP;
-}
-
-static int set_idle_cb(struct usb_setup_packet *setup, s32_t *len,
-		       u8_t **data)
-{
-	USB_DBG("Set Idle callback");
-
-	/* TODO: Do something */
-
-	return 0;
-}
-
-static int get_report_cb(struct usb_setup_packet *setup, s32_t *len,
-			 u8_t **data)
-{
-	USB_DBG("Get report callback");
-
-	/* TODO: Do something */
-
-	return 0;
-}
-
 static void send_report(struct k_work *work)
 {
 	static u8_t report_1[2] = { REPORT_ID_1, 0x00 };
@@ -91,7 +64,7 @@ static void send_report(struct k_work *work)
 
 	ret = hid_int_ep_write(report_1, sizeof(report_1), &wrote);
 
-	USB_DBG("Wrote %d bytes with ret %d", wrote, ret);
+	LOG_DBG("Wrote %d bytes with ret %d", wrote, ret);
 
 	/* Increment reported data */
 	report_1[1]++;
@@ -108,26 +81,33 @@ static void status_cb(enum usb_dc_status_code status, const u8_t *param)
 	case USB_DC_CONFIGURED:
 		in_ready_cb();
 		break;
+	case USB_DC_SOF:
+		break;
 	default:
-		USB_DBG("status %u unhandled", status);
+		LOG_DBG("status %u unhandled", status);
 		break;
 	}
 }
 
+static void idle_cb(u16_t report_id)
+{
+	static u8_t report_1[2] = { 0x00, 0xEB };
+	int ret, wrote;
+
+	ret = hid_int_ep_write(report_1, sizeof(report_1), &wrote);
+
+	LOG_DBG("Idle callback: wrote %d bytes with ret %d", wrote, ret);
+}
+
 static const struct hid_ops ops = {
-	.get_report = get_report_cb,
-	.get_idle = debug_cb,
-	.get_protocol = debug_cb,
-	.set_report = debug_cb,
-	.set_idle = set_idle_cb,
-	.set_protocol = debug_cb,
 	.int_in_ready = in_ready_cb,
 	.status_cb = status_cb,
+	.on_idle = idle_cb,
 };
 
 void main(void)
 {
-	USB_DBG("Starting application");
+	LOG_DBG("Starting application");
 
 	k_delayed_work_init(&delayed_report_send, send_report);
 

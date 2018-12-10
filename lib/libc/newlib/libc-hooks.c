@@ -25,8 +25,8 @@ static unsigned char __kernel __aligned(CONFIG_NEWLIB_LIBC_ALIGNED_HEAP_SIZE)
 #else
 
 #if CONFIG_X86
-#define USED_RAM_SIZE  (USED_RAM_END_ADDR - CONFIG_PHYS_RAM_ADDR)
-#define MAX_HEAP_SIZE ((KB(CONFIG_RAM_SIZE)) - USED_RAM_SIZE)
+#define USED_RAM_SIZE  (USED_RAM_END_ADDR - DT_PHYS_RAM_ADDR)
+#define MAX_HEAP_SIZE ((KB(DT_RAM_SIZE)) - USED_RAM_SIZE)
 #elif CONFIG_NIOS2
 #include <layout.h>
 #define USED_RAM_SIZE  (USED_RAM_END_ADDR - _RAM_ADDR)
@@ -100,8 +100,9 @@ Z_SYSCALL_HANDLER(_zephyr_read, buf, nbytes)
 }
 #endif
 
-int _impl__zephyr_write(char *buf, int nbytes)
+int _impl__zephyr_write(const void *buffer, int nbytes)
 {
+	const char *buf = buffer;
 	int i;
 
 	for (i = 0; i < nbytes; i++) {
@@ -117,11 +118,11 @@ int _impl__zephyr_write(char *buf, int nbytes)
 Z_SYSCALL_HANDLER(_zephyr_write, buf, nbytes)
 {
 	Z_OOPS(Z_SYSCALL_MEMORY_READ(buf, nbytes));
-	return _impl__zephyr_write((char *)buf, nbytes);
+	return _impl__zephyr_write((const void *)buf, nbytes);
 }
 #endif
 
-#ifndef CONFIG_POSIX_FS
+#ifndef CONFIG_POSIX_API
 int _read(int fd, char *buf, int nbytes)
 {
 	ARG_UNUSED(fd);
@@ -130,7 +131,7 @@ int _read(int fd, char *buf, int nbytes)
 }
 FUNC_ALIAS(_read, read, int);
 
-int _write(int fd, char *buf, int nbytes)
+int _write(int fd, const void *buf, int nbytes)
 {
 	ARG_UNUSED(fd);
 
@@ -156,7 +157,7 @@ int _lseek(int file, int ptr, int dir)
 }
 FUNC_ALIAS(_lseek, lseek, int);
 #else
-extern ssize_t write(int file, char *buffer, unsigned int count);
+extern ssize_t write(int file, const char *buffer, size_t count);
 #define _write	write
 #endif
 

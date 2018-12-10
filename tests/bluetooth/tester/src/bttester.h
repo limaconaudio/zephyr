@@ -24,10 +24,6 @@
 #define BTP_STATUS_UNKNOWN_CMD	0x02
 #define BTP_STATUS_NOT_READY	0x03
 
-#define SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define SYS_LOG_DOMAIN "bttester"
-#include <logging/sys_log.h>
-
 struct btp_hdr {
 	u8_t  service;
 	u8_t  opcode;

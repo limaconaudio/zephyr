@@ -7,7 +7,7 @@
  */
 
 #define LOG_MODULE_NAME ieee802154_nrf5
-#define LOG_LEVEL CONFIG_IEEE802154_LOG_LEVEL
+#define LOG_LEVEL CONFIG_IEEE802154_DRIVER_LOG_LEVEL
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
@@ -17,7 +17,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <kernel.h>
 #include <arch/cpu.h>
 
-#include <board.h>
+#include <soc.h>
 #include <device.h>
 #include <init.h>
 #include <net/net_if.h>
@@ -424,7 +424,6 @@ static const struct nrf5_802154_config nrf5_radio_cfg = {
 
 static struct ieee802154_radio_api nrf5_radio_api = {
 	.iface_api.init = nrf5_iface_init,
-	.iface_api.send = ieee802154_radio_send,
 
 	.get_capabilities = nrf5_get_capabilities,
 	.cca = nrf5_cca,

@@ -33,7 +33,7 @@ static struct k_thread tdata[NUM_THREAD];
 	do {				       \
 		u32_t t = k_uptime_get_32();   \
 		while (t == k_uptime_get_32()) \
-			posix_halt_cpu();      \
+			k_busy_wait(50);       \
 	} while (0)
 #else
 #define ALIGN_MS_BOUNDARY()		       \
@@ -63,7 +63,7 @@ static void thread_tslice(void *p1, void *p2, void *p3)
 	/*keep the current thread busy for more than one slice*/
 	while (k_uptime_get_32() - t32 < SLEEP_TICKLESS)
 #if defined(CONFIG_ARCH_POSIX)
-		posix_halt_cpu();
+		k_busy_wait(50);
 #else
 		;
 #endif

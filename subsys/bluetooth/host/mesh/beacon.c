@@ -16,6 +16,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_BEACON)
+#define LOG_MODULE_NAME bt_mesh_beacon
 #include "common/log.h"
 
 #include "adv.h"
@@ -228,7 +229,7 @@ static void update_beacon_observation(void)
 		}
 
 		sub->beacons_last = sub->beacons_cur;
-		sub->beacons_cur = 0;
+		sub->beacons_cur = 0U;
 	}
 }
 
@@ -397,8 +398,8 @@ void bt_mesh_beacon_enable(void)
 			continue;
 		}
 
-		sub->beacons_last = 0;
-		sub->beacons_cur = 0;
+		sub->beacons_last = 0U;
+		sub->beacons_cur = 0U;
 
 		bt_mesh_net_beacon_update(sub);
 	}

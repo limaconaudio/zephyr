@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_ctx
-#define NET_LOG_LEVEL CONFIG_NET_CONTEXT_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ctx, CONFIG_NET_CONTEXT_LOG_LEVEL);
 
 #include <kernel.h>
 #include <string.h>
@@ -418,7 +418,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv6_addr_mcast(&addr6->sin6_addr)) {
+		if (net_ipv6_is_addr_mcast(&addr6->sin6_addr)) {
 			struct net_if_mcast_addr *maddr;
 
 			maddr = net_if_ipv6_maddr_lookup(&addr6->sin6_addr,
@@ -429,7 +429,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 
 			ptr = &maddr->address.in6_addr;
 
-		} else if (net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
+		} else if (net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
 			iface = net_if_ipv6_select_src_iface(
 				&net_sin6(&context->remote)->sin6_addr);
 
@@ -507,7 +507,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv4_addr_mcast(&addr4->sin_addr)) {
+		if (net_ipv4_is_addr_mcast(&addr4->sin_addr)) {
 			struct net_if_mcast_addr *maddr;
 
 			maddr = net_if_ipv4_maddr_lookup(&addr4->sin_addr,
@@ -638,10 +638,15 @@ struct net_pkt *net_context_create_ipv4(struct net_context *context,
 		src = ((struct sockaddr_in_ptr *)&context->local)->sin_addr;
 	}
 
-	if (net_is_ipv4_addr_unspecified(src)
-	    || net_is_ipv4_addr_mcast(src)) {
+	if (net_ipv4_is_addr_unspecified(src)
+	    || net_ipv4_is_addr_mcast(src)) {
 		src = net_if_ipv4_select_src_addr(net_pkt_iface(pkt),
 						  (struct in_addr *)dst);
+		/* If src address is still unspecified, do not create pkt */
+		if (net_ipv4_is_addr_unspecified(src)) {
+			NET_DBG("DROP: src addr is unspecified");
+			return NULL;
+		}
 	}
 
 	return net_ipv4_create(pkt,
@@ -664,8 +669,8 @@ struct net_pkt *net_context_create_ipv6(struct net_context *context,
 		src = ((struct sockaddr_in6_ptr *)&context->local)->sin6_addr;
 	}
 
-	if (net_is_ipv6_addr_unspecified(src)
-	    || net_is_ipv6_addr_mcast(src)) {
+	if (net_ipv6_is_addr_unspecified(src)
+	    || net_ipv6_is_addr_mcast(src)) {
 		src = net_if_ipv6_select_src_addr(net_pkt_iface(pkt),
 						  (struct in6_addr *)dst);
 	}
@@ -733,7 +738,7 @@ int net_context_connect(struct net_context *context,
 		}
 
 		if (net_context_get_ip_proto(context) == IPPROTO_TCP &&
-		    net_is_ipv6_addr_mcast(&addr6->sin6_addr)) {
+		    net_ipv6_is_addr_mcast(&addr6->sin6_addr)) {
 			return -EADDRNOTAVAIL;
 		}
 
@@ -743,7 +748,7 @@ int net_context_connect(struct net_context *context,
 		addr6->sin6_port = net_sin6(addr)->sin6_port;
 		addr6->sin6_family = AF_INET6;
 
-		if (!net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
+		if (!net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
 			context->flags |= NET_CONTEXT_REMOTE_ADDR_SET;
 		} else {
 			context->flags &= ~NET_CONTEXT_REMOTE_ADDR_SET;
@@ -978,7 +983,7 @@ static int sendto(struct net_pkt *pkt,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
+		if (net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
 			return -EDESTADDRREQ;
 		}
 	} else
@@ -1175,7 +1180,7 @@ static int recv_udp(struct net_context *context,
 		.sa_family = net_context_get_family(context),
 	};
 	struct sockaddr *laddr = NULL;
-	u16_t lport = 0;
+	u16_t lport = 0U;
 	int ret;
 
 	ARG_UNUSED(timeout);

@@ -55,7 +55,13 @@ _arch_switch_to_main_thread(struct k_thread *main_thread,
 #endif
 	start_of_main_stack = (void *)STACK_ROUND_DOWN(start_of_main_stack);
 
+#ifdef CONFIG_TRACING
+	z_sys_trace_thread_switched_out();
+#endif
 	_current = main_thread;
+#ifdef CONFIG_TRACING
+	z_sys_trace_thread_switched_in();
+#endif
 
 	/* the ready queue cache already contains the main thread */
 
@@ -120,9 +126,6 @@ _set_thread_return_value(struct k_thread *thread, unsigned int value)
 extern void k_cpu_atomic_idle(unsigned int key);
 
 #define _is_in_isr() _IsInIsr()
-
-extern void _IntLibInit(void);
-
 
 extern FUNC_NORETURN void _arm_userspace_enter(k_thread_entry_t user_entry,
 					       void *p1, void *p2, void *p3,

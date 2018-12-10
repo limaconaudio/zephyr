@@ -19,10 +19,12 @@
 		i2c-2 = &i2c2;
 		led0 = &green_led;
 		sw0 = &sw0_user_button;
+		wdog = &wdog;
 	};
 
 	chosen {
 		zephyr,console = &usart1;
+		zephyr,shell-uart = &usart1;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 	};
@@ -65,8 +67,20 @@
 	status = "ok";
 };
 
+&spi0 {
+	status = "ok";
+};
+
 &usart1 {
 	current-speed = <115200>;
+	status = "ok";
+};
+
+&wdog {
+	status = "ok";
+};
+
+&usbhs {
 	status = "ok";
 };
 

@@ -1,3 +1,9 @@
+#if defined(CONFIG_GEN_ISR_TABLES) && !defined(CONFIG_DYNAMIC_INTERRUPTS)
+	SECTION_PROLOGUE(sw_isr_table, (OPTIONAL),)
+	{
+		*(SW_ISR_TABLE)
+	} GROUP_LINK_IN(ROMABLE_REGION)
+#endif
 #ifdef CONFIG_CPLUSPLUS
 	SECTION_PROLOGUE(_CTOR_SECTION_NAME,,)
 	{
@@ -79,4 +85,11 @@
 		__shell_root_cmds_start = .;
 		KEEP(*(SORT(.shell_root_cmd_*)));
 		__shell_root_cmds_end = .;
+	} GROUP_LINK_IN(ROMABLE_REGION)
+
+	SECTION_DATA_PROLOGUE(font_entry_sections, (OPTIONAL),)
+	{
+		__font_entry_start = .;
+		KEEP(*(SORT_BY_NAME(".font_entry.*")))
+		__font_entry_end = .;
 	} GROUP_LINK_IN(ROMABLE_REGION)

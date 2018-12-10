@@ -28,6 +28,7 @@
 extern "C" {
 #endif
 
+#define Z_DEVICE_MAX_NAME_LEN	48
 
 /**
  * @def DEVICE_INIT
@@ -35,9 +36,13 @@ extern "C" {
  * @brief Create device object and set it up for boot time initialization.
  *
  * @details This macro defines a device object that is automatically
- * configured by the kernel during system initialization.
+ * configured by the kernel during system initialization. Note that
+ * devices set up with this macro will not be accessible from user mode
+ * since the API is not specified; whenever possible, use DEVICE_AND_API_INIT
+ * instead.
  *
- * @param dev_name Device name.
+ * @param dev_name Device name. This must be less than Z_DEVICE_MAX_NAME_LEN
+ * characters in order to be looked up from user mode with device_get_binding().
  *
  * @param drv_name The name this instance of the driver exposes to
  * the system.
@@ -59,7 +64,7 @@ extern "C" {
  * yet available.
  * \n
  * \li PRE_KERNEL_2: Used for devices that rely on the initialization of devices
- * initialized as part of the PRIMARY level. These devices cannot use any
+ * initialized as part of the PRE_KERNEL_1 level. These devices cannot use any
  * kernel services during configuration, since they are not yet available.
  * \n
  * \li POST_KERNEL: Used for devices that require kernel services during
@@ -234,7 +239,7 @@ struct device {
 	void *driver_data;
 };
 
-void _sys_device_do_config_level(int level);
+void _sys_device_do_config_level(s32_t level);
 
 /**
  * @brief Retrieve the device structure for a driver by name
@@ -248,7 +253,7 @@ void _sys_device_do_config_level(int level);
  *
  * @return pointer to device structure; NULL if not found or cannot be used.
  */
-struct device *device_get_binding(const char *name);
+__syscall struct device *device_get_binding(const char *name);
 
 /**
  * @brief Device Power Management APIs
@@ -286,6 +291,18 @@ struct device *device_get_binding(const char *name);
  */
 #define DEVICE_PM_SUSPEND_STATE         3
 
+/** @def DEVICE_PM_FORCE_SUSPEND_STATE
+ *
+ * @brief device is in force SUSPEND power state
+ *
+ * @details Driver puts the device in suspended state after
+ * completing the ongoing transactions and will not process any
+ * queued work or will not take any new requests for processing.
+ * Most device context is lost by the hardware. Device drivers must
+ * save and restore or reinitialize any context lost by the hardware.
+ */
+#define DEVICE_PM_FORCE_SUSPEND_STATE	4
+
 /** @def DEVICE_PM_OFF_STATE
  *
  * @brief device is in OFF power state
@@ -294,7 +311,7 @@ struct device *device_get_binding(const char *name);
  * The device context is lost when this state is entered, so the OS
  * software will reinitialize the device when powering it back on
  */
-#define DEVICE_PM_OFF_STATE             4
+#define DEVICE_PM_OFF_STATE             5
 
 /* Constants defining support device power commands */
 #define DEVICE_PM_SET_POWER_STATE       1
@@ -423,6 +440,8 @@ int device_busy_check(struct device *chk_dev);
 /**
  * @}
  */
+
+#include <syscalls/device.h>
 
 #ifdef __cplusplus
 }

@@ -159,7 +159,7 @@ static inline void adc_context_complete(struct adc_context *ctx, int status)
 #ifdef CONFIG_ADC_ASYNC
 	if (ctx->asynchronous) {
 		if (ctx->signal) {
-			k_poll_signal(ctx->signal, status);
+			k_poll_signal_raise(ctx->signal, status);
 		}
 
 		k_sem_give(&ctx->lock);
@@ -185,7 +185,7 @@ static inline void adc_context_start_read(struct adc_context *ctx,
 	ctx->status = 0;
 
 	if (ctx->sequence->options) {
-		ctx->sampling_index = 0;
+		ctx->sampling_index = 0U;
 
 		if (ctx->sequence->options->interval_us != 0) {
 			atomic_set(&ctx->sampling_requested, 0);

@@ -10,7 +10,6 @@
 #include <misc/__assert.h>
 #include <soc.h>
 #include <uart.h>
-#include <board.h>
 
 /* Device constant configuration parameters */
 struct uart_sam0_dev_cfg {
@@ -135,7 +134,7 @@ static int uart_sam0_poll_in(struct device *dev, unsigned char *c)
 	return 0;
 }
 
-static unsigned char uart_sam0_poll_out(struct device *dev, unsigned char c)
+static void uart_sam0_poll_out(struct device *dev, unsigned char c)
 {
 	SercomUsart *const usart = DEV_CFG(dev)->regs;
 
@@ -144,7 +143,6 @@ static unsigned char uart_sam0_poll_out(struct device *dev, unsigned char c)
 
 	/* send a character */
 	usart->DATA.reg = c;
-	return c;
 }
 
 #if CONFIG_UART_INTERRUPT_DRIVEN
@@ -277,11 +275,11 @@ static void uart_sam0_irq_config_##n(struct device *dev)
 #define UART_SAM0_IRQ_HANDLER(n)					\
 static void uart_sam0_irq_config_##n(struct device *dev)		\
 {									\
-	IRQ_CONNECT(CONFIG_UART_SAM0_SERCOM##n##_IRQ,			\
-		    CONFIG_UART_SAM0_SERCOM##n##_IRQ_PRIORITY,		\
+	IRQ_CONNECT(DT_UART_SAM0_SERCOM##n##_IRQ,			\
+		    DT_UART_SAM0_SERCOM##n##_IRQ_PRIORITY,		\
 		    uart_sam0_isr, DEVICE_GET(uart_sam0_##n),		\
 		    0);							\
-	irq_enable(CONFIG_UART_SAM0_SERCOM##n##_IRQ);			\
+	irq_enable(DT_UART_SAM0_SERCOM##n##_IRQ);			\
 }
 #else
 #define UART_SAM0_IRQ_HANDLER_DECL(n)
@@ -289,13 +287,17 @@ static void uart_sam0_irq_config_##n(struct device *dev)		\
 #define UART_SAM0_IRQ_HANDLER(n)
 #endif
 
+#define CONFIG_UART_SAM0_SERCOM_PADS(n) \
+	(DT_UART_SAM0_SERCOM##n##_RXPO << SERCOM_USART_CTRLA_RXPO_Pos) |   \
+	(DT_UART_SAM0_SERCOM##n##_TXPO << SERCOM_USART_CTRLA_TXPO_Pos)
+
 #define UART_SAM0_CONFIG_DEFN(n)					       \
 static const struct uart_sam0_dev_cfg uart_sam0_config_##n = {		       \
-	.regs = (SercomUsart *)CONFIG_UART_SAM0_SERCOM##n##_BASE_ADDRESS,      \
-	.baudrate = CONFIG_UART_SAM0_SERCOM##n##_CURRENT_SPEED,		       \
+	.regs = (SercomUsart *)DT_UART_SAM0_SERCOM##n##_BASE_ADDRESS,      \
+	.baudrate = DT_UART_SAM0_SERCOM##n##_CURRENT_SPEED,		       \
 	.pm_apbcmask = PM_APBCMASK_SERCOM##n,				       \
 	.gclk_clkctrl_id = GCLK_CLKCTRL_ID_SERCOM##n##_CORE,		       \
-	.pads = CONFIG_UART_SAM0_SERCOM##n##_PADS,			       \
+	.pads = CONFIG_UART_SAM0_SERCOM_PADS(n),				       \
 	UART_SAM0_IRQ_HANDLER_FUNC(n)					       \
 }
 
@@ -303,33 +305,33 @@ static const struct uart_sam0_dev_cfg uart_sam0_config_##n = {		       \
 static struct uart_sam0_dev_data uart_sam0_data_##n;			       \
 UART_SAM0_IRQ_HANDLER_DECL(n);						       \
 UART_SAM0_CONFIG_DEFN(n);						       \
-DEVICE_AND_API_INIT(uart_sam0_##n, CONFIG_UART_SAM0_SERCOM##n##_LABEL,	       \
+DEVICE_AND_API_INIT(uart_sam0_##n, DT_UART_SAM0_SERCOM##n##_LABEL,	       \
 		    uart_sam0_init, &uart_sam0_data_##n,		       \
 		    &uart_sam0_config_##n, PRE_KERNEL_1,		       \
 		    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,			       \
 		    &uart_sam0_driver_api);				       \
 UART_SAM0_IRQ_HANDLER(n)
 
-#if CONFIG_UART_SAM0_SERCOM0_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM0_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(0)
 #endif
 
-#if CONFIG_UART_SAM0_SERCOM1_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM1_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(1)
 #endif
 
-#if CONFIG_UART_SAM0_SERCOM2_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM2_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(2)
 #endif
 
-#if CONFIG_UART_SAM0_SERCOM3_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM3_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(3)
 #endif
 
-#if CONFIG_UART_SAM0_SERCOM4_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM4_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(4)
 #endif
 
-#if CONFIG_UART_SAM0_SERCOM5_BASE_ADDRESS
+#if DT_UART_SAM0_SERCOM5_BASE_ADDRESS
 UART_SAM0_DEVICE_INIT(5)
 #endif

@@ -7,10 +7,11 @@
 #include <device.h>
 #include <xtensa_api.h>
 #include <xtensa/xtruntime.h>
-#include <board.h>
 #include <irq_nextlevel.h>
 #include <xtensa/hal.h>
 #include <init.h>
+
+#include "soc.h"
 
 #define LOG_LEVEL CONFIG_SOC_LOG_LEVEL
 #include <logging/log.h>
@@ -23,16 +24,16 @@ void _soc_irq_enable(u32_t irq)
 	struct device *dev_cavs, *dev_ictl;
 
 	switch (XTENSA_IRQ_NUMBER(irq)) {
-	case CAVS_ICTL_0_IRQ:
+	case DT_CAVS_ICTL_0_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_0_NAME);
 		break;
-	case CAVS_ICTL_1_IRQ:
+	case DT_CAVS_ICTL_1_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_1_NAME);
 		break;
-	case CAVS_ICTL_2_IRQ:
+	case DT_CAVS_ICTL_2_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_2_NAME);
 		break;
-	case CAVS_ICTL_3_IRQ:
+	case DT_CAVS_ICTL_3_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_3_NAME);
 		break;
 	default:
@@ -82,16 +83,16 @@ void _soc_irq_disable(u32_t irq)
 	struct device *dev_cavs, *dev_ictl;
 
 	switch (XTENSA_IRQ_NUMBER(irq)) {
-	case CAVS_ICTL_0_IRQ:
+	case DT_CAVS_ICTL_0_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_0_NAME);
 		break;
-	case CAVS_ICTL_1_IRQ:
+	case DT_CAVS_ICTL_1_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_1_NAME);
 		break;
-	case CAVS_ICTL_2_IRQ:
+	case DT_CAVS_ICTL_2_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_2_NAME);
 		break;
-	case CAVS_ICTL_3_IRQ:
+	case DT_CAVS_ICTL_3_IRQ:
 		dev_cavs = device_get_binding(CONFIG_CAVS_ICTL_3_NAME);
 		break;
 	default:
@@ -144,24 +145,6 @@ void _soc_irq_disable(u32_t irq)
 			_xtensa_irq_disable(XTENSA_IRQ_NUMBER(irq));
 		}
 	}
-}
-
-void soc_config_iomux_ctsrts(void)
-{
-	volatile struct soc_io_mux_regs *regs =
-		(volatile struct soc_io_mux_regs *)IOMUX_BASE;
-
-	/* Configure the MUX to select GPIO functionality for GPIO 23 and 24 */
-	regs->io_mux_ctl0 |= SOC_UART_RTS_CTS_MS;
-}
-
-void soc_config_iomux_i2c(void)
-{
-	volatile struct soc_io_mux_regs *regs =
-		(volatile struct soc_io_mux_regs *)IOMUX_BASE;
-
-	/* Configure the MUX to select the correct I2C port (I2C1) */
-	regs->io_mux_ctl2 |= SOC_I2C_I0_I1_MS;
 }
 
 static inline void soc_set_resource_ownership(void)
@@ -222,14 +205,14 @@ static void soc_read_bootstraps(void)
 
 	switch (bootstrap) {
 	case SOC_S1000_STRAP_REF_CLK_19P2:
-		ref_clk_freq = 19200000;
+		ref_clk_freq = 19200000U;
 		break;
 	case SOC_S1000_STRAP_REF_CLK_24P576:
-		ref_clk_freq = 24576000;
+		ref_clk_freq = 24576000U;
 		break;
 	case SOC_S1000_STRAP_REF_CLK_38P4:
 	default:
-		ref_clk_freq = 38400000;
+		ref_clk_freq = 38400000U;
 		break;
 	}
 }
@@ -242,14 +225,6 @@ static int soc_init(struct device *dev)
 
 	soc_set_resource_ownership();
 	soc_set_power_and_clock();
-
-#ifdef CONFIG_I2C
-	soc_config_iomux_i2c();
-#endif
-
-#ifdef CONFIG_GPIO
-	soc_config_iomux_ctsrts();
-#endif
 
 	return 0;
 }

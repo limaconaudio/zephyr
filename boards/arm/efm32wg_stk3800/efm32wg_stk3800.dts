@@ -11,8 +11,13 @@
 	model = "Silicon Labs EFM32WG STK3800 board";
 	compatible = "silabs,efm32wg_stk3800", "silabs,efm32wg";
 
+	aliases {
+		uart-0 = &uart0;
+	};
+
 	chosen {
 		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 	};
@@ -54,5 +59,6 @@
 
 &uart0 {
 	current-speed = <115200>;
+	location = <1>;
 	status = "ok";
 };

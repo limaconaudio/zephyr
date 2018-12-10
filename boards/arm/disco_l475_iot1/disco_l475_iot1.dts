@@ -13,6 +13,7 @@
 
 	chosen {
 		zephyr,console = &usart1;
+		zephyr,shell-uart = &usart1;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 	};
@@ -42,8 +43,13 @@
 		led1 = &green_led_1;
 		sw0 = &user_button;
 		bt = &bt0;
+		eswifi0 = &wifi0;
 	};
 };
+
+arduino_i2c: &i2c1 {};
+arduino_spi: &spi1 {};
+arduino_serial: &uart4 {};
 
 &usart1 {
 	current-speed = <115200>;
@@ -55,6 +61,13 @@
 &usart2 {
 	current-speed = <115200>;
 	pinctrl-0 = <&usart2_pins_a>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
+&uart4 {
+	current-speed = <115200>;
+	pinctrl-0 = <&uart4_pins_a>;
 	pinctrl-names = "default";
 	status = "ok";
 };
@@ -106,7 +119,7 @@
 &spi3 {
 	status = "ok";
 
-	cs-gpios = <&gpiod 13 0>;
+	cs-gpios = <&gpiod 13 0>, <&gpioe 0 0>;
 
 	bt0: spbtle-rf@0 {
 		compatible = "st,spbtle-rf";
@@ -115,6 +128,17 @@
 		irq-gpios = <&gpioe 6 0>;
 		spi-max-frequency = <2000000>;
 		label = "SPBTLE-RF";
+	};
+
+	wifi0: ism43362@1 {
+		compatible = "inventek,eswifi";
+		spi-max-frequency = <2000000>;
+		reg = <1>;
+		resetn-gpios = <&gpioe 8 0>;
+		boot0-gpios = <&gpiob 12 0>;
+		wakeup-gpios = <&gpiob 13 0>;
+		data-gpios = <&gpioe 1 0>;
+		label = "ESWIFI0";
 	};
 };
 

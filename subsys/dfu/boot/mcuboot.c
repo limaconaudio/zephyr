@@ -15,7 +15,6 @@
 
 #include <misc/__assert.h>
 #include <misc/byteorder.h>
-#include <board.h>
 #include <dfu/mcuboot.h>
 
 /*
@@ -498,7 +497,7 @@ int boot_erase_img_bank(u32_t bank_offset)
 static int boot_init(struct device *dev)
 {
 	ARG_UNUSED(dev);
-	flash_dev = device_get_binding(FLASH_DEV_NAME);
+	flash_dev = device_get_binding(DT_FLASH_DEV_NAME);
 	if (!flash_dev) {
 		return -ENODEV;
 	}

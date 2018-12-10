@@ -26,9 +26,9 @@ enum {
 	BT_CONN_BR_PAIRING_INITIATOR,	/* local host starts authentication */
 	BT_CONN_CLEANUP,                /* Disconnected, pending cleanup */
 	BT_CONN_AUTO_PHY_UPDATE,        /* Auto-update PHY */
-	BT_CONN_AUTO_DATA_LEN,          /* Auto data len change in progress */
 	BT_CONN_SLAVE_PARAM_UPDATE,	/* If slave param update timer fired */
 	BT_CONN_SLAVE_PARAM_SET,	/* If slave param were set from app */
+	BT_CONN_SLAVE_PARAM_L2CAP,	/* If should force L2CAP for CPUP */
 
 	/* Total number of flags - must be at the end of the enum */
 	BT_CONN_NUM_FLAGS,
@@ -46,6 +46,8 @@ struct bt_conn_le {
 
 	u16_t			latency;
 	u16_t			timeout;
+	u16_t			pending_latency;
+	u16_t			pending_timeout;
 
 	u8_t			features[8];
 
@@ -179,7 +181,6 @@ int bt_conn_addr_le_cmp(const struct bt_conn *conn, const bt_addr_le_t *peer);
  * e.g. as the handle since that's assigned to us by the controller.
  */
 #define BT_CONN_ID_INVALID 0xff
-u8_t bt_conn_get_id(struct bt_conn *conn);
 struct bt_conn *bt_conn_lookup_id(u8_t id);
 
 /* Look up a connection state. For BT_ADDR_LE_ANY, returns the first connection

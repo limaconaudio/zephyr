@@ -5,18 +5,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "nrf_timer.h"
+#include <nrfx/hal/nrf_timer.h>
 
 #define HAL_RADIO_NS2US_CEIL(ns)  ((ns + 999)/1000)
 #define HAL_RADIO_NS2US_ROUND(ns) ((ns + 500)/1000)
 
-#define EVENT_TIMER NRF_TIMER0
+/* Use the timer instance ID, not NRF_TIMERx directly, so that it can be checked
+ * in radio_nrf5_ppi.h by the preprocessor.
+ */
+#define EVENT_TIMER_ID 0
+#define EVENT_TIMER    _CONCAT(NRF_TIMER, EVENT_TIMER_ID)
 
 /* EVENTS_TIMER capture register used for sampling TIMER time-stamps. */
 #define HAL_EVENT_TIMER_SAMPLE_CC_OFFSET 3
 #define HAL_EVENT_TIMER_SAMPLE_TASK NRF_TIMER_TASK_CAPTURE3
 
-#if defined(CONFIG_SOC_SERIES_NWTSIM_NRFXX)
+#if defined(CONFIG_SOC_SERIES_BSIM_NRFXX)
 #include "radio_sim_nrfxx.h"
 #elif defined(CONFIG_SOC_SERIES_NRF51X)
 #include "radio_nrf51.h"

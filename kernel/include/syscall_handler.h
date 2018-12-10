@@ -411,8 +411,8 @@ static inline int _obj_validation_check(struct _k_object *ko,
 
 #define Z_SYSCALL_IS_OBJ(ptr, type, init) \
 	Z_SYSCALL_VERIFY_MSG( \
-	    !_obj_validation_check(_k_object_find((void *)ptr), (void *)ptr, \
-				   type, init), "access denied")
+	    _obj_validation_check(_k_object_find((void *)ptr), (void *)ptr, \
+				   type, init) == 0, "access denied")
 
 /**
  * @brief Runtime check driver object pointer for presence of operation
@@ -437,7 +437,7 @@ static inline int _obj_validation_check(struct _k_object *ko,
 /**
  * @brief Runtime check kernel object pointer for non-init functions
  *
- * Calls _k_object_validate and triggers a kernel oops if the check files.
+ * Calls _k_object_validate and triggers a kernel oops if the check fails.
  * For use in system call handlers which are not init functions; a fatal
  * error will occur if the object is not initialized.
  *

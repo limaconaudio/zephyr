@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_arp
-#define NET_LOG_LEVEL CONFIG_NET_ARP_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_arp, CONFIG_NET_ARP_LOG_LEVEL);
 
 #include <errno.h>
 #include <net/net_core.h>
@@ -234,31 +234,25 @@ static inline struct net_pkt *arp_prepare(struct net_if *iface,
 					  struct net_pkt *pending,
 					  struct in_addr *current_ip)
 {
-#if defined(CONFIG_NET_VLAN)
-	u16_t vlan_tag = net_eth_get_vlan_tag(iface);
-#endif
 	struct ethernet_context *ctx = net_if_l2_data(iface);
 	int eth_hdr_len = sizeof(struct net_eth_hdr);
 	struct net_pkt *pkt;
-	struct net_buf *frag;
 	struct net_arp_hdr *hdr;
-	struct net_eth_hdr *eth;
 	struct in_addr *my_addr;
 
-#if defined(CONFIG_NET_VLAN)
-	if (ctx->vlan_enabled && vlan_tag != NET_VLAN_TAG_UNSPEC) {
+	if (net_eth_is_vlan_enabled(ctx, iface) &&
+	    net_eth_get_vlan_tag(iface) != NET_VLAN_TAG_UNSPEC) {
 		eth_hdr_len = sizeof(struct net_eth_vlan_hdr);
 	}
-#endif
 
 	if (current_ip) {
 		/* This is the IPv4 autoconf case where we have already
 		 * things setup so no need to allocate new net_pkt
 		 */
 		pkt = pending;
-
-		net_buf_add(pkt->frags, sizeof(struct net_arp_hdr));
 	} else {
+		struct net_buf *frag;
+
 		pkt = net_pkt_get_reserve_tx(eth_hdr_len, NET_BUF_TIMEOUT);
 		if (!pkt) {
 			return NULL;
@@ -272,19 +266,14 @@ static inline struct net_pkt *arp_prepare(struct net_if *iface,
 
 		net_pkt_frag_add(pkt, frag);
 		net_pkt_set_iface(pkt, iface);
-		net_pkt_set_family(pkt, AF_INET);
-
-		net_buf_add(frag, sizeof(struct net_arp_hdr));
+		net_pkt_set_family(pkt, AF_UNSPEC);
 	}
 
+	net_pkt_set_vlan_tag(pkt, net_eth_get_vlan_tag(iface));
+
+	net_buf_add(pkt->frags, sizeof(struct net_arp_hdr));
+
 	hdr = NET_ARP_HDR(pkt);
-
-#if defined(CONFIG_NET_VLAN)
-	net_pkt_set_vlan_tag(pkt, vlan_tag);
-#endif
-
-	eth = net_eth_fill_header(ctx, pkt, htons(NET_ETH_PTYPE_ARP),
-				  NULL, NULL);
 
 	/* If entry is not set, then we are just about to send
 	 * an ARP request using the data in pending net_pkt.
@@ -297,18 +286,19 @@ static inline struct net_pkt *arp_prepare(struct net_if *iface,
 
 		net_ipaddr_copy(&entry->ip, next_addr);
 
-		memcpy(&eth->src.addr,
-		       net_if_get_link_addr(entry->iface)->addr,
-		       sizeof(struct net_eth_addr));
+		net_pkt_lladdr_src(pkt)->addr =
+			(u8_t *)net_if_get_link_addr(entry->iface)->addr;
 
 		arp_entry_register_pending(entry);
 	} else {
-		memcpy(&eth->src.addr,
-		       net_if_get_link_addr(iface)->addr,
-		       sizeof(struct net_eth_addr));
+		net_pkt_lladdr_src(pkt)->addr =
+			(u8_t *)net_if_get_link_addr(iface)->addr;
 	}
 
-	(void)memset(&eth->dst.addr, 0xff, sizeof(struct net_eth_addr));
+	net_pkt_lladdr_src(pkt)->len = sizeof(struct net_eth_addr);
+
+	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)net_eth_broadcast_addr();
+	net_pkt_lladdr_dst(pkt)->len = sizeof(struct net_eth_addr);
 
 	hdr->hwtype = htons(NET_ARP_HTYPE_ETH);
 	hdr->protocol = htons(NET_ETH_PTYPE_IP);
@@ -320,7 +310,7 @@ static inline struct net_pkt *arp_prepare(struct net_if *iface,
 
 	net_ipaddr_copy(&hdr->dst_ipaddr, next_addr);
 
-	memcpy(hdr->src_hwaddr.addr, eth->src.addr,
+	memcpy(hdr->src_hwaddr.addr, net_pkt_lladdr_src(pkt)->addr,
 	       sizeof(struct net_eth_addr));
 
 	if (entry) {
@@ -344,8 +334,6 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 {
 	struct ethernet_context *ctx;
 	struct arp_entry *entry;
-	struct net_linkaddr *ll;
-	struct net_eth_hdr *hdr;
 	struct in_addr *addr;
 
 	if (!pkt || !pkt->frags) {
@@ -353,26 +341,6 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 	}
 
 	ctx = net_if_l2_data(net_pkt_iface(pkt));
-
-	if (net_pkt_ll_reserve(pkt) != sizeof(struct net_eth_hdr)
-#if defined(CONFIG_NET_VLAN)
-	    && net_pkt_ll_reserve(pkt) != sizeof(struct net_eth_vlan_hdr)
-#endif
-	) {
-		/* Add the ethernet header if it is missing. */
-		struct net_buf *header;
-
-		header = net_pkt_get_frag(pkt, NET_BUF_TIMEOUT);
-		if (!header) {
-			return NULL;
-		}
-
-		net_pkt_frag_insert(pkt, header);
-
-		net_pkt_compact(pkt);
-	}
-
-	hdr = (struct net_eth_hdr *)net_pkt_ll(pkt);
 
 	/* Is the destination in the local network, if not route via
 	 * the gateway address.
@@ -383,7 +351,7 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 
 		if (ipv4) {
 			addr = &ipv4->gw;
-			if (net_is_ipv4_addr_unspecified(addr)) {
+			if (net_ipv4_is_addr_unspecified(addr)) {
 				NET_ERR("Gateway not set for iface %p",
 					net_pkt_iface(pkt));
 
@@ -430,17 +398,17 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 		return req;
 	}
 
-	ll = net_if_get_link_addr(entry->iface);
+	net_pkt_lladdr_src(pkt)->addr =
+		(u8_t *)net_if_get_link_addr(entry->iface)->addr;
+	net_pkt_lladdr_src(pkt)->len = sizeof(struct net_eth_addr);
+
+	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)&entry->eth;
+	net_pkt_lladdr_dst(pkt)->len = sizeof(struct net_eth_addr);
 
 	NET_DBG("ARP using ll %s for IP %s",
-		log_strdup(net_sprint_ll_addr(ll->addr,
+		log_strdup(net_sprint_ll_addr(net_pkt_lladdr_dst(pkt)->addr,
 					      sizeof(struct net_eth_addr))),
-		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->src)));
-
-	net_eth_fill_header(ctx, pkt,
-			    current_ip == NULL ? htons(NET_ETH_PTYPE_IP) :
-						 htons(NET_ETH_PTYPE_ARP),
-			    ll->addr, entry->eth.addr);
+		log_strdup(net_sprint_ipv4_addr(&NET_IPV4_HDR(pkt)->dst)));
 
 	return pkt;
 }
@@ -502,9 +470,7 @@ static void arp_update(struct net_if *iface,
 	/* Inserting entry into the table */
 	sys_slist_prepend(&arp_table, &entry->node);
 
-	if (net_if_send_data(iface, pkt) == NET_DROP) {
-		net_pkt_unref(pkt);
-	}
+	net_if_queue_tx(iface, pkt);
 }
 
 static inline struct net_pkt *arp_prepare_reply(struct net_if *iface,
@@ -515,19 +481,22 @@ static inline struct net_pkt *arp_prepare_reply(struct net_if *iface,
 	struct net_pkt *pkt;
 	struct net_buf *frag;
 	struct net_arp_hdr *hdr, *query;
-	struct net_eth_hdr *eth, *eth_query;
+	struct net_eth_hdr *eth_query;
 
-#if defined(CONFIG_NET_VLAN)
-	if (ctx->vlan_enabled &&
+	if (net_eth_is_vlan_enabled(ctx, iface) &&
 	    net_eth_get_vlan_tag(iface) != NET_VLAN_TAG_UNSPEC) {
 		eth_hdr_len = sizeof(struct net_eth_vlan_hdr);
 	}
-#endif
 
 	pkt = net_pkt_get_reserve_tx(eth_hdr_len, NET_BUF_TIMEOUT);
 	if (!pkt) {
 		goto fail;
 	}
+
+	net_pkt_set_iface(pkt, iface);
+	net_pkt_set_family(pkt, AF_UNSPEC);
+
+	eth_query = NET_ETH_HDR(req);
 
 	frag = net_pkt_get_frag(pkt, NET_BUF_TIMEOUT);
 	if (!frag) {
@@ -535,21 +504,11 @@ static inline struct net_pkt *arp_prepare_reply(struct net_if *iface,
 	}
 
 	net_pkt_frag_add(pkt, frag);
-	net_pkt_set_iface(pkt, iface);
-	net_pkt_set_family(pkt, AF_INET);
 
 	hdr = NET_ARP_HDR(pkt);
-	eth = NET_ETH_HDR(pkt);
 	query = NET_ARP_HDR(req);
-	eth_query = NET_ETH_HDR(req);
 
-#if defined(CONFIG_NET_VLAN)
 	net_pkt_set_vlan_tag(pkt, net_pkt_vlan_tag(req));
-#endif
-
-	net_eth_fill_header(ctx, pkt, htons(NET_ETH_PTYPE_ARP),
-			    net_if_get_link_addr(iface)->addr,
-			    eth_query->src.addr);
 
 	hdr->hwtype = htons(NET_ARP_HTYPE_ETH);
 	hdr->protocol = htons(NET_ETH_PTYPE_IP);
@@ -559,11 +518,17 @@ static inline struct net_pkt *arp_prepare_reply(struct net_if *iface,
 
 	memcpy(&hdr->dst_hwaddr.addr, &eth_query->src.addr,
 	       sizeof(struct net_eth_addr));
-	memcpy(&hdr->src_hwaddr.addr, &eth->src.addr,
+	memcpy(&hdr->src_hwaddr.addr, net_if_get_link_addr(iface)->addr,
 	       sizeof(struct net_eth_addr));
 
 	net_ipaddr_copy(&hdr->dst_ipaddr, &query->src_ipaddr);
 	net_ipaddr_copy(&hdr->src_ipaddr, &query->dst_ipaddr);
+
+	net_pkt_lladdr_src(pkt)->addr = net_if_get_link_addr(iface)->addr;
+	net_pkt_lladdr_src(pkt)->len = sizeof(struct net_eth_addr);
+
+	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)&hdr->dst_hwaddr.addr;
+	net_pkt_lladdr_dst(pkt)->len = sizeof(struct net_eth_addr);
 
 	net_buf_add(frag, sizeof(struct net_arp_hdr));
 
@@ -574,8 +539,23 @@ fail:
 	return NULL;
 }
 
+static bool arp_hdr_check(struct net_arp_hdr *arp_hdr)
+{
+	if (ntohs(arp_hdr->hwtype) != NET_ARP_HTYPE_ETH ||
+	    ntohs(arp_hdr->protocol) != NET_ETH_PTYPE_IP ||
+	    arp_hdr->hwlen != sizeof(struct net_eth_addr) ||
+	    arp_hdr->protolen != NET_ARP_IPV4_PTYPE_SIZE ||
+	    net_ipv4_is_addr_loopback(&arp_hdr->src_ipaddr)) {
+		NET_DBG("DROP: Invalid ARP header");
+		return false;
+	}
+
+	return true;
+}
+
 enum net_verdict net_arp_input(struct net_pkt *pkt)
 {
+	struct net_eth_hdr *eth_hdr;
 	struct net_arp_hdr *arp_hdr;
 	struct net_pkt *reply;
 	struct in_addr *addr;
@@ -590,12 +570,15 @@ enum net_verdict net_arp_input(struct net_pkt *pkt)
 	}
 
 	arp_hdr = NET_ARP_HDR(pkt);
+	if (!arp_hdr_check(arp_hdr)) {
+		return NET_DROP;
+	}
 
 	switch (ntohs(arp_hdr->opcode)) {
 	case NET_ARP_REQUEST:
-		if (IS_ENABLED(CONFIG_NET_ARP_GRATUITOUS)) {
-			struct net_eth_hdr *eth_hdr = NET_ETH_HDR(pkt);
+		eth_hdr = NET_ETH_HDR(pkt);
 
+		if (IS_ENABLED(CONFIG_NET_ARP_GRATUITOUS)) {
 			if (memcmp(&eth_hdr->dst,
 				   net_eth_broadcast_addr(),
 				   sizeof(struct net_eth_addr)) == 0 &&
@@ -613,6 +596,16 @@ enum net_verdict net_arp_input(struct net_pkt *pkt)
 					   true);
 				break;
 			}
+		}
+
+		/* Discard ARP request if Ethernet address is broadcast
+		 * and Source IP address is Multicast address.
+		 */
+		if (memcmp(&eth_hdr->dst, net_eth_broadcast_addr(),
+			   sizeof(struct net_eth_addr)) == 0 &&
+		    net_ipv4_is_addr_mcast(&arp_hdr->src_ipaddr)) {
+			NET_DBG("DROP: eth addr is bcast, src addr is mcast");
+			return NET_DROP;
 		}
 
 		/* Someone wants to know our ll address */
@@ -640,7 +633,7 @@ enum net_verdict net_arp_input(struct net_pkt *pkt)
 		break;
 
 	case NET_ARP_REPLY:
-		if (net_is_my_ipv4_addr(&arp_hdr->dst_ipaddr)) {
+		if (net_ipv4_is_my_addr(&arp_hdr->dst_ipaddr)) {
 			arp_update(net_pkt_iface(pkt),
 				   &arp_hdr->src_ipaddr,
 				   &arp_hdr->src_hwaddr,

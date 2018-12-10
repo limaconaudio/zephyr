@@ -119,6 +119,10 @@ _idle_state_cleared:
 #endif
 	blx r3		/* call ISR */
 
+#ifdef CONFIG_TRACING
+	bl z_sys_trace_isr_exit
+#endif
+
 #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
 	pop {r3}
 	mov lr, r3
@@ -128,5 +132,8 @@ _idle_state_cleared:
 #error Unknown ARM architecture
 #endif /* CONFIG_ARMV6_M_ARMV8_M_BASELINE */
 
-	/* exception return is done in _IntExit() */
-	b _IntExit
+	/* Use 'bx' instead of 'b' because 'bx' can jump further, and use
+	 * 'bx' instead of 'blx' because exception return is done in
+	 * _IntExit() */
+	ldr r0, =_IntExit
+	bx r0

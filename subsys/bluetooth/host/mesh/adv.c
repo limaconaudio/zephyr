@@ -18,6 +18,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_ADV)
+#define LOG_MODULE_NAME bt_mesh_adv
 #include "common/log.h"
 
 #include "../hci_core.h"
@@ -33,8 +34,8 @@
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
 
 /* Window and Interval are equal for continuous scanning */
-#define MESH_SCAN_INTERVAL_MS 10
-#define MESH_SCAN_WINDOW_MS   10
+#define MESH_SCAN_INTERVAL_MS 30
+#define MESH_SCAN_WINDOW_MS   30
 #define MESH_SCAN_INTERVAL    ADV_SCAN_UNIT(MESH_SCAN_INTERVAL_MS)
 #define MESH_SCAN_WINDOW      ADV_SCAN_UNIT(MESH_SCAN_WINDOW_MS)
 
@@ -55,7 +56,7 @@
 
 static K_FIFO_DEFINE(adv_queue);
 static struct k_thread adv_thread_data;
-static BT_STACK_NOINIT(adv_thread_stack, ADV_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(adv_thread_stack, ADV_STACK_SIZE);
 
 static const u8_t adv_type[] = {
 	[BT_MESH_ADV_PROV]   = BT_DATA_MESH_PROV,
@@ -186,7 +187,7 @@ static void adv_thread(void *p1, void *p2, void *p3)
 
 		/* busy == 0 means this was canceled */
 		if (BT_MESH_ADV(buf)->busy) {
-			BT_MESH_ADV(buf)->busy = 0;
+			BT_MESH_ADV(buf)->busy = 0U;
 			adv_send(buf);
 		}
 
@@ -244,7 +245,7 @@ void bt_mesh_adv_send(struct net_buf *buf, const struct bt_mesh_send_cb *cb,
 
 	BT_MESH_ADV(buf)->cb = cb;
 	BT_MESH_ADV(buf)->cb_data = cb_data;
-	BT_MESH_ADV(buf)->busy = 1;
+	BT_MESH_ADV(buf)->busy = 1U;
 
 	net_buf_put(&adv_queue, net_buf_ref(buf));
 }

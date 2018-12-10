@@ -32,7 +32,7 @@ LOG_MODULE_REGISTER(soc);
 MMU_BOOT_REGION(CONFIG_LOAPIC_BASE_ADDRESS, 4*1024, MMU_ENTRY_WRITE);
 
 /*ioapic */
-MMU_BOOT_REGION(CONFIG_IOAPIC_BASE_ADDRESS, 1024*1024, MMU_ENTRY_WRITE);
+MMU_BOOT_REGION(DT_IOAPIC_BASE_ADDRESS, 1024*1024, MMU_ENTRY_WRITE);
 
 /* peripherals */
 MMU_BOOT_REGION(0xB0000000, 128*1024, MMU_ENTRY_WRITE);
@@ -80,7 +80,7 @@ int _arc_init(struct device *arg)
 	reset_vector = (u32_t *)RESET_VECTOR;
 	LOG_DBG("Reset vector address: %x", *reset_vector);
 	shared_data->arc_start = *reset_vector;
-	shared_data->flags = 0;
+	shared_data->flags = 0U;
 	if (!shared_data->arc_start) {
 		/* Reset vector points to NULL => skip ARC init. */
 		LOG_DBG("Reset vector is NULL, skipping ARC init.");

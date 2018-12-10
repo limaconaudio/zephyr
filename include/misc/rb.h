@@ -112,7 +112,7 @@ static inline struct rbnode *rb_get_max(struct rbtree *tree)
  * implement a "set" construct by simply testing the pointer value
  * itself.
  */
-int rb_contains(struct rbtree *tree, struct rbnode *node);
+bool rb_contains(struct rbtree *tree, struct rbnode *node);
 
 /**
  * @brief Walk/enumerate a rbtree
@@ -181,7 +181,7 @@ struct rbnode *_rb_foreach_next(struct rbtree *tree, struct _rb_foreach *f);
 #define RB_FOR_EACH_CONTAINER(tree, node, field)			\
 	for (struct _rb_foreach __f = _RB_FOREACH_INIT(tree, node);	\
 	     (node = CONTAINER_OF(_rb_foreach_next(tree, &__f),		\
-				  __typeof__(*(node)), field));		\
+				  __typeof__(*(node)), field)) != NULL;	\
 	     /**/)
 
 #endif /* ZEPHYR_INCLUDE_MISC_RB_H_ */

@@ -11,8 +11,12 @@
 #include <sensor.h>
 #include <misc/util.h>
 #include <misc/__assert.h>
+#include <logging/log.h>
 
 #include "hdc1008.h"
+
+#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
+LOG_MODULE_REGISTER(HDC1008);
 
 static void hdc1008_gpio_callback(struct device *dev,
 				  struct gpio_callback *cb, u32_t pins)
@@ -22,7 +26,7 @@ static void hdc1008_gpio_callback(struct device *dev,
 
 	ARG_UNUSED(pins);
 
-	gpio_pin_disable_callback(dev, CONFIG_HDC1008_GPIO_PIN_NUM);
+	gpio_pin_disable_callback(dev, DT_HDC1008_GPIO_PIN_NUM);
 	k_sem_give(&drv_data->data_sem);
 }
 
@@ -33,18 +37,18 @@ static int hdc1008_sample_fetch(struct device *dev, enum sensor_channel chan)
 
 	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
 
-	gpio_pin_enable_callback(drv_data->gpio, CONFIG_HDC1008_GPIO_PIN_NUM);
+	gpio_pin_enable_callback(drv_data->gpio, DT_HDC1008_GPIO_PIN_NUM);
 
 	buf[0] = HDC1008_REG_TEMP;
-	if (i2c_write(drv_data->i2c, buf, 1, CONFIG_HDC1008_I2C_ADDR) < 0) {
-		SYS_LOG_DBG("Failed to write address pointer");
+	if (i2c_write(drv_data->i2c, buf, 1, DT_HDC1008_I2C_ADDR) < 0) {
+		LOG_DBG("Failed to write address pointer");
 		return -EIO;
 	}
 
 	k_sem_take(&drv_data->data_sem, K_FOREVER);
 
-	if (i2c_read(drv_data->i2c, buf, 4, CONFIG_HDC1008_I2C_ADDR) < 0) {
-		SYS_LOG_DBG("Failed to read sample data");
+	if (i2c_read(drv_data->i2c, buf, 4, DT_HDC1008_I2C_ADDR) < 0) {
+		LOG_DBG("Failed to read sample data");
 		return -EIO;
 	}
 
@@ -95,7 +99,7 @@ static u16_t read16(struct device *dev, u8_t a, u8_t d)
 {
 	u8_t buf[2];
 	if (i2c_burst_read(dev, a, d, (u8_t *)buf, 2) < 0) {
-		SYS_LOG_ERR("Error reading register.");
+		LOG_ERR("Error reading register.");
 	}
 	return (buf[0] << 8 | buf[1]);
 }
@@ -104,48 +108,48 @@ static int hdc1008_init(struct device *dev)
 {
 	struct hdc1008_data *drv_data = dev->driver_data;
 
-	drv_data->i2c = device_get_binding(CONFIG_HDC1008_I2C_MASTER_DEV_NAME);
+	drv_data->i2c = device_get_binding(DT_HDC1008_I2C_MASTER_DEV_NAME);
 
 	if (drv_data->i2c == NULL) {
-		SYS_LOG_DBG("Failed to get pointer to %s device!",
-			    CONFIG_HDC1008_I2C_MASTER_DEV_NAME);
+		LOG_DBG("Failed to get pointer to %s device!",
+			    DT_HDC1008_I2C_MASTER_DEV_NAME);
 		return -EINVAL;
 	}
 
-	if (read16(drv_data->i2c, CONFIG_HDC1008_I2C_ADDR, HDC1000_MANUFID)
+	if (read16(drv_data->i2c, DT_HDC1008_I2C_ADDR, HDC1000_MANUFID)
 	    != 0x5449) {
-		SYS_LOG_ERR("Failed to get correct manufacturer ID");
+		LOG_ERR("Failed to get correct manufacturer ID");
 		return -EINVAL;
 	}
-	if (read16(drv_data->i2c, CONFIG_HDC1008_I2C_ADDR, HDC1000_DEVICEID)
+	if (read16(drv_data->i2c, DT_HDC1008_I2C_ADDR, HDC1000_DEVICEID)
 	    != 0x1000) {
-		SYS_LOG_ERR("Failed to get correct device ID");
+		LOG_ERR("Failed to get correct device ID");
 		return -EINVAL;
 	}
 
 	k_sem_init(&drv_data->data_sem, 0, UINT_MAX);
 
 	/* setup data ready gpio interrupt */
-	drv_data->gpio = device_get_binding(CONFIG_HDC1008_GPIO_DEV_NAME);
+	drv_data->gpio = device_get_binding(DT_HDC1008_GPIO_DEV_NAME);
 	if (drv_data->gpio == NULL) {
-		SYS_LOG_DBG("Failed to get pointer to %s device",
-			    CONFIG_HDC1008_GPIO_DEV_NAME);
+		LOG_DBG("Failed to get pointer to %s device",
+			    DT_HDC1008_GPIO_DEV_NAME);
 		return -EINVAL;
 	}
 
-	gpio_pin_configure(drv_data->gpio, CONFIG_HDC1008_GPIO_PIN_NUM,
+	gpio_pin_configure(drv_data->gpio, DT_HDC1008_GPIO_PIN_NUM,
 			   GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
-#if defined(CONFIG_HDC1008_GPIO_FLAGS)
-			   CONFIG_HDC1008_GPIO_FLAGS |
+#if defined(DT_HDC1008_GPIO_FLAGS)
+			   DT_HDC1008_GPIO_FLAGS |
 #endif
 			   GPIO_INT_ACTIVE_LOW | GPIO_INT_DEBOUNCE);
 
 	gpio_init_callback(&drv_data->gpio_cb,
 			   hdc1008_gpio_callback,
-			   BIT(CONFIG_HDC1008_GPIO_PIN_NUM));
+			   BIT(DT_HDC1008_GPIO_PIN_NUM));
 
 	if (gpio_add_callback(drv_data->gpio, &drv_data->gpio_cb) < 0) {
-		SYS_LOG_DBG("Failed to set GPIO callback");
+		LOG_DBG("Failed to set GPIO callback");
 		return -EIO;
 	}
 
@@ -154,6 +158,6 @@ static int hdc1008_init(struct device *dev)
 
 static struct hdc1008_data hdc1008_data;
 
-DEVICE_AND_API_INIT(hdc1008, CONFIG_HDC1008_NAME, hdc1008_init, &hdc1008_data,
+DEVICE_AND_API_INIT(hdc1008, DT_HDC1008_NAME, hdc1008_init, &hdc1008_data,
 		    NULL, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
 		    &hdc1008_driver_api);

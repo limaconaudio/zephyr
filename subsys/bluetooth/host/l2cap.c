@@ -19,6 +19,7 @@
 #include <bluetooth/hci_driver.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_L2CAP)
+#define LOG_MODULE_NAME bt_l2cap
 #include "common/log.h"
 
 #include "hci_core.h"
@@ -155,8 +156,6 @@ void bt_l2cap_chan_remove(struct bt_conn *conn, struct bt_l2cap_chan *ch)
 	}
 }
 
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
-#if defined(CONFIG_BT_DEBUG_L2CAP)
 const char *bt_l2cap_chan_state_str(bt_l2cap_chan_state_t state)
 {
 	switch (state) {
@@ -175,6 +174,8 @@ const char *bt_l2cap_chan_state_str(bt_l2cap_chan_state_t state)
 	}
 }
 
+#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if defined(CONFIG_BT_DEBUG_L2CAP)
 void bt_l2cap_chan_set_state_debug(struct bt_l2cap_chan *chan,
 				   bt_l2cap_chan_state_t state,
 				   const char *func, int line)
@@ -722,6 +723,20 @@ static void l2cap_chan_destroy(struct bt_l2cap_chan *chan)
 	}
 }
 
+static u16_t le_err_to_result(int err)
+{
+	switch (err) {
+	case -ENOMEM:
+		return BT_L2CAP_LE_ERR_NO_RESOURCES;
+	case -EACCES:
+		return BT_L2CAP_LE_ERR_AUTHORIZATION;
+	case -EPERM:
+		return BT_L2CAP_LE_ERR_KEY_SIZE;
+	default:
+		return BT_L2CAP_LE_ERR_UNACCEPT_PARAMS;
+	}
+}
+
 static void le_conn_req(struct bt_l2cap *l2cap, u8_t ident,
 			struct net_buf *buf)
 {
@@ -731,6 +746,7 @@ static void le_conn_req(struct bt_l2cap *l2cap, u8_t ident,
 	struct bt_l2cap_le_conn_req *req = (void *)buf->data;
 	struct bt_l2cap_le_conn_rsp *rsp;
 	u16_t psm, scid, mtu, mps, credits;
+	int err;
 
 	if (buf->len < sizeof(*req)) {
 		BT_ERR("Too small LE conn req packet size");
@@ -760,34 +776,33 @@ static void le_conn_req(struct bt_l2cap *l2cap, u8_t ident,
 	/* Check if there is a server registered */
 	server = l2cap_server_lookup_psm(psm);
 	if (!server) {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_PSM_NOT_SUPP);
+		rsp->result = sys_cpu_to_le16(BT_L2CAP_LE_ERR_PSM_NOT_SUPP);
 		goto rsp;
 	}
 
 	/* Check if connection has minimum required security level */
 	if (conn->sec_level < server->sec_level) {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_AUTHENTICATION);
+		rsp->result = sys_cpu_to_le16(BT_L2CAP_LE_ERR_AUTHENTICATION);
 		goto rsp;
 	}
 
 	if (!L2CAP_LE_CID_IS_DYN(scid)) {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_INVALID_SCID);
+		rsp->result = sys_cpu_to_le16(BT_L2CAP_LE_ERR_INVALID_SCID);
 		goto rsp;
 	}
 
 	chan = bt_l2cap_le_lookup_tx_cid(conn, scid);
 	if (chan) {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_SCID_IN_USE);
+		rsp->result = sys_cpu_to_le16(BT_L2CAP_LE_ERR_SCID_IN_USE);
 		goto rsp;
 	}
 
 	/* Request server to accept the new connection and allocate the
 	 * channel.
-	 *
-	 * TODO: Handle different errors, it may be required to respond async.
 	 */
-	if (server->accept(conn, &chan) < 0) {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_NO_RESOURCES);
+	err = server->accept(conn, &chan);
+	if (err < 0) {
+		rsp->result = sys_cpu_to_le16(le_err_to_result(err));
 		goto rsp;
 	}
 
@@ -823,9 +838,9 @@ static void le_conn_req(struct bt_l2cap *l2cap, u8_t ident,
 		rsp->mps = sys_cpu_to_le16(ch->rx.mps);
 		rsp->mtu = sys_cpu_to_le16(ch->rx.mtu);
 		rsp->credits = sys_cpu_to_le16(ch->rx.init_credits);
-		rsp->result = BT_L2CAP_SUCCESS;
+		rsp->result = BT_L2CAP_LE_SUCCESS;
 	} else {
-		rsp->result = sys_cpu_to_le16(BT_L2CAP_ERR_NO_RESOURCES);
+		rsp->result = sys_cpu_to_le16(BT_L2CAP_LE_ERR_NO_RESOURCES);
 	}
 rsp:
 	bt_l2cap_send(conn, BT_L2CAP_CID_LE_SIG, buf);
@@ -899,13 +914,13 @@ static void le_disconn_req(struct bt_l2cap *l2cap, u8_t ident,
 static int l2cap_change_security(struct bt_l2cap_le_chan *chan, u16_t err)
 {
 	switch (err) {
-	case BT_L2CAP_ERR_ENCRYPTION:
+	case BT_L2CAP_LE_ERR_ENCRYPTION:
 		if (chan->chan.required_sec_level >= BT_SECURITY_MEDIUM) {
 			return -EALREADY;
 		}
 		chan->chan.required_sec_level = BT_SECURITY_MEDIUM;
 		break;
-	case BT_L2CAP_ERR_AUTHENTICATION:
+	case BT_L2CAP_LE_ERR_AUTHENTICATION:
 		if (chan->chan.required_sec_level < BT_SECURITY_MEDIUM) {
 			chan->chan.required_sec_level = BT_SECURITY_MEDIUM;
 		} else if (chan->chan.required_sec_level < BT_SECURITY_HIGH) {
@@ -946,9 +961,9 @@ static void le_conn_rsp(struct bt_l2cap *l2cap, u8_t ident,
 	       mtu, mps, credits, result);
 
 	/* Keep the channel in case of security errors */
-	if (result == BT_L2CAP_SUCCESS ||
-	    result == BT_L2CAP_ERR_AUTHENTICATION ||
-	    result == BT_L2CAP_ERR_ENCRYPTION) {
+	if (result == BT_L2CAP_LE_SUCCESS ||
+	    result == BT_L2CAP_LE_ERR_AUTHENTICATION ||
+	    result == BT_L2CAP_LE_ERR_ENCRYPTION) {
 		chan = l2cap_lookup_ident(conn, ident);
 	} else {
 		chan = l2cap_remove_ident(conn, ident);
@@ -966,7 +981,7 @@ static void le_conn_rsp(struct bt_l2cap *l2cap, u8_t ident,
 	chan->chan.ident = 0;
 
 	switch (result) {
-	case BT_L2CAP_SUCCESS:
+	case BT_L2CAP_LE_SUCCESS:
 		chan->tx.cid = dcid;
 		chan->tx.mtu = mtu;
 		chan->tx.mps = mps;
@@ -983,8 +998,8 @@ static void le_conn_rsp(struct bt_l2cap *l2cap, u8_t ident,
 		l2cap_chan_rx_give_credits(chan, chan->rx.init_credits);
 
 		break;
-	case BT_L2CAP_ERR_AUTHENTICATION:
-	case BT_L2CAP_ERR_ENCRYPTION:
+	case BT_L2CAP_LE_ERR_AUTHENTICATION:
+	case BT_L2CAP_LE_ERR_ENCRYPTION:
 		/* If security needs changing wait it to be completed */
 		if (l2cap_change_security(chan, result) == 0) {
 			return;
@@ -1441,7 +1456,7 @@ static void l2cap_chan_le_recv_seg(struct bt_l2cap_le_chan *chan,
 				   struct net_buf *buf)
 {
 	u16_t len;
-	u16_t seg = 0;
+	u16_t seg = 0U;
 
 	len = net_buf_frags_len(chan->_sdu);
 	if (len) {

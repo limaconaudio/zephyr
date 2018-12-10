@@ -11,6 +11,10 @@
 
 #include "sht3xd.h"
 
+#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(SHT3XD);
+
 static u16_t sht3xd_temp_processed_to_raw(const struct sensor_value *val)
 {
 	u64_t uval;
@@ -24,9 +28,9 @@ static int sht3xd_rh_processed_to_raw(const struct sensor_value *val)
 {
 	u64_t uval;
 
-	/* ret = val * (2^16 -1) / 100000 */
+	/* ret = val * (2^16 -1) / 100 */
 	uval = (u64_t)val->val1 * 1000000 + val->val2;
-	return ((uval * 0xFFFF) / 100000) / 1000000;
+	return ((uval * 0xFFFF) / 100) / 1000000;
 }
 
 int sht3xd_attr_set(struct device *dev,
@@ -71,7 +75,7 @@ int sht3xd_attr_set(struct device *dev,
 
 	if (sht3xd_write_reg(drv_data, set_cmd, reg_val) < 0 ||
 	    sht3xd_write_reg(drv_data, clear_cmd, reg_val) < 0) {
-		SYS_LOG_DBG("Failed to write threshold value!");
+		LOG_DBG("Failed to write threshold value!");
 		return -EIO;
 	}
 
@@ -86,7 +90,7 @@ static void sht3xd_gpio_callback(struct device *dev,
 
 	ARG_UNUSED(pins);
 
-	gpio_pin_disable_callback(dev, CONFIG_SHT3XD_GPIO_PIN_NUM);
+	gpio_pin_disable_callback(dev, DT_SHT3XD_GPIO_ALERT_PIN);
 
 #if defined(CONFIG_SHT3XD_TRIGGER_OWN_THREAD)
 	k_sem_give(&drv_data->gpio_sem);
@@ -104,7 +108,7 @@ static void sht3xd_thread_cb(void *arg)
 		drv_data->handler(dev, &drv_data->trigger);
 	}
 
-	gpio_pin_enable_callback(drv_data->gpio, CONFIG_SHT3XD_GPIO_PIN_NUM);
+	gpio_pin_enable_callback(drv_data->gpio, DT_SHT3XD_GPIO_ALERT_PIN);
 }
 
 #ifdef CONFIG_SHT3XD_TRIGGER_OWN_THREAD
@@ -142,10 +146,10 @@ int sht3xd_trigger_set(struct device *dev,
 		return -ENOTSUP;
 	}
 
-	gpio_pin_disable_callback(drv_data->gpio, CONFIG_SHT3XD_GPIO_PIN_NUM);
+	gpio_pin_disable_callback(drv_data->gpio, DT_SHT3XD_GPIO_ALERT_PIN);
 	drv_data->handler = handler;
 	drv_data->trigger = *trig;
-	gpio_pin_enable_callback(drv_data->gpio, CONFIG_SHT3XD_GPIO_PIN_NUM);
+	gpio_pin_enable_callback(drv_data->gpio, DT_SHT3XD_GPIO_ALERT_PIN);
 
 	return 0;
 }
@@ -154,52 +158,53 @@ int sht3xd_init_interrupt(struct device *dev)
 {
 	struct sht3xd_data *drv_data = dev->driver_data;
 
-	drv_data->t_low = 0;
-	drv_data->rh_low = 0;
+	drv_data->t_low = 0U;
+	drv_data->rh_low = 0U;
 	drv_data->t_high = 0xFFFF;
 	drv_data->rh_high = 0xFFFF;
 
 	/* set alert thresholds to match reamsurement ranges */
 	if (sht3xd_write_reg(drv_data, SHT3XD_CMD_WRITE_TH_HIGH_SET, 0xFFFF)
 			     < 0) {
-		SYS_LOG_DBG("Failed to write threshold high set value!");
+		LOG_DBG("Failed to write threshold high set value!");
 		return -EIO;
 	}
 
 	if (sht3xd_write_reg(drv_data, SHT3XD_CMD_WRITE_TH_HIGH_CLEAR,
 			     0xFFFF) < 0) {
-		SYS_LOG_DBG("Failed to write threshold high clear value!");
+		LOG_DBG("Failed to write threshold high clear value!");
 		return -EIO;
 	}
 
 	if (sht3xd_write_reg(drv_data, SHT3XD_CMD_WRITE_TH_LOW_SET, 0) < 0) {
-		SYS_LOG_DBG("Failed to write threshold low set value!");
+		LOG_DBG("Failed to write threshold low set value!");
 		return -EIO;
 	}
 
 	if (sht3xd_write_reg(drv_data, SHT3XD_CMD_WRITE_TH_LOW_SET, 0) < 0) {
-		SYS_LOG_DBG("Failed to write threshold low clear value!");
+		LOG_DBG("Failed to write threshold low clear value!");
 		return -EIO;
 	}
 
 	/* setup gpio interrupt */
-	drv_data->gpio = device_get_binding(CONFIG_SHT3XD_GPIO_DEV_NAME);
+	drv_data->gpio = device_get_binding(DT_SHT3XD_GPIO_ALERT_DEV_NAME);
 	if (drv_data->gpio == NULL) {
-		SYS_LOG_DBG("Failed to get pointer to %s device!",
-		    CONFIG_SHT3XD_GPIO_DEV_NAME);
+		LOG_DBG("Failed to get pointer to %s device!",
+		    DT_SHT3XD_GPIO_ALERT_DEV_NAME);
 		return -EINVAL;
 	}
 
-	gpio_pin_configure(drv_data->gpio, CONFIG_SHT3XD_GPIO_PIN_NUM,
-			   GPIO_DIR_IN | GPIO_INT | GPIO_INT_LEVEL |
+	gpio_pin_configure(drv_data->gpio, DT_SHT3XD_GPIO_ALERT_PIN,
+			   GPIO_DIR_IN | GPIO_INT |
+			   GPIO_INT_EDGE | GPIO_INT_DOUBLE_EDGE |
 			   GPIO_INT_ACTIVE_HIGH | GPIO_INT_DEBOUNCE);
 
 	gpio_init_callback(&drv_data->gpio_cb,
 			   sht3xd_gpio_callback,
-			   BIT(CONFIG_SHT3XD_GPIO_PIN_NUM));
+			   BIT(DT_SHT3XD_GPIO_ALERT_PIN));
 
 	if (gpio_add_callback(drv_data->gpio, &drv_data->gpio_cb) < 0) {
-		SYS_LOG_DBG("Failed to set gpio callback!");
+		LOG_DBG("Failed to set gpio callback!");
 		return -EIO;
 	}
 

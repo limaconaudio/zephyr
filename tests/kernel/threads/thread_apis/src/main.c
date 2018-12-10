@@ -73,7 +73,7 @@ static void thread_name_entry(void)
 
 static void customdata_entry(void *p1, void *p2, void *p3)
 {
-	u32_t data = 1;
+	u32_t data = 1U;
 
 	zassert_is_null(k_thread_custom_data_get(), NULL);
 	while (1) {
@@ -115,6 +115,14 @@ void test_thread_name_get_set(void)
 	int ret;
 	const char *thread_name;
 
+	/* Set and get current thread's name */
+	k_thread_name_set(NULL, "parent_thread");
+	thread_name = k_thread_name_get(k_current_get());
+
+	ret = strcmp(thread_name, "parent_thread");
+	zassert_equal(ret, 0, "parent thread name does not match");
+
+	/* Set and get child thread's name */
 	k_tid_t tid = k_thread_create(&tdata_name, tstack_name, STACK_SIZE,
 				      (k_thread_entry_t)thread_name_entry,
 				      NULL, NULL, NULL,
@@ -127,7 +135,7 @@ void test_thread_name_get_set(void)
 	thread_name = k_thread_name_get(tid);
 
 	ret = strcmp(thread_name, "customdata");
-	zassert_equal(ret, 0, "thread name does not match");
+	zassert_equal(ret, 0, "child thread name does not match");
 
 	/* cleanup environment */
 	k_thread_abort(tid);

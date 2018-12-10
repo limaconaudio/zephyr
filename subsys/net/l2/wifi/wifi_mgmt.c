@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_wifi_mgmt
-#define NET_LOG_LEVEL CONFIG_NET_L2_WIFI_MGMT_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_wifi_mgmt, CONFIG_NET_L2_WIFI_MGMT_LOG_LEVEL);
 
 #include <errno.h>
 
@@ -21,6 +21,10 @@ static int wifi_connect(u32_t mgmt_request, struct net_if *iface,
 	struct device *dev = net_if_get_device(iface);
 	struct net_wifi_mgmt_offload *off_api =
 		(struct net_wifi_mgmt_offload *) dev->driver_api;
+
+	if (off_api == NULL || off_api->connect == NULL) {
+		return -ENOTSUP;
+	}
 
 	NET_DBG("%s %u %u %u %s %u",
 		params->ssid, params->ssid_length,
@@ -73,6 +77,10 @@ static int wifi_scan(u32_t mgmt_request, struct net_if *iface,
 	struct net_wifi_mgmt_offload *off_api =
 		(struct net_wifi_mgmt_offload *) dev->driver_api;
 
+	if (off_api == NULL || off_api->scan == NULL) {
+		return -ENOTSUP;
+	}
+
 	return off_api->scan(dev, _scan_result_cb);
 }
 
@@ -85,6 +93,10 @@ static int wifi_disconnect(u32_t mgmt_request, struct net_if *iface,
 	struct device *dev = net_if_get_device(iface);
 	struct net_wifi_mgmt_offload *off_api =
 		(struct net_wifi_mgmt_offload *) dev->driver_api;
+
+	if (off_api == NULL || off_api->disconnect == NULL) {
+		return -ENOTSUP;
+	}
 
 	return off_api->disconnect(dev);
 }

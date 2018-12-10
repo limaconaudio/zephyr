@@ -25,17 +25,21 @@ config ARC
 config ARM
 	bool "ARM architecture"
 	select ARCH_HAS_THREAD_ABORT
+	select HAS_DTS
 
 config X86
 	bool "x86 architecture"
 	select ATOMIC_OPERATIONS_BUILTIN
+	select HAS_DTS
 
 config NIOS2
 	bool "Nios II Gen 2 architecture"
 	select ATOMIC_OPERATIONS_C
+	select HAS_DTS
 
 config RISCV32
 	bool "RISCV32 architecture"
+	select HAS_DTS
 
 config XTENSA
 	bool "Xtensa architecture"
@@ -72,6 +76,35 @@ config BIG_ENDIAN
          is used to select linker script OUTPUT_FORMAT and command
          line option for gen_isr_tables.py.
 
+if ARCH_HAS_TRUSTED_EXECUTION
+
+config TRUSTED_EXECUTION_SECURE
+	bool "Trusted Execution: Secure firmware image"
+	help
+	  Select this option to enable building a Secure firmware
+	  image for a platform that supports Trusted Execution. A
+	  Secure firmware image will execute in Secure state. It may
+	  allow the CPU to execute in Non-Secure (Normal) state.
+	  Therefore, a Secure firmware image shall be able to
+	  configure security attributions of CPU resources (memory
+	  areas, peripherals, interrupts, etc.) as well as to handle
+	  faults, related to security violations. It may optionally
+	  allow certain functions to be called from the Non-Secure
+	  (Normal) domain.
+
+config TRUSTED_EXECUTION_NONSECURE
+	depends on !TRUSTED_EXECUTION_SECURE
+	bool "Trusted Execution: Non-Secure firmware image"
+	help
+	  Select this option to enable building a Non-Secure
+	  firmware image for a platform that supports Trusted
+	  Execution. A Non-Secure firmware image will execute
+	  in Non-Secure (Normal) state. Therefore, it shall not
+	  access CPU resources (memory areas, peripherals,
+	  interrupts etc.) belonging to the Secure domain.
+
+endif # ARCH_HAS_TRUSTED_EXECUTION
+
 config HW_STACK_PROTECTION
 	bool "Hardware Stack Protection"
 	depends on ARCH_HAS_STACK_PROTECTION
@@ -105,6 +138,7 @@ config USERSPACE
 
 config PRIVILEGED_STACK_SIZE
 	int "Size of privileged stack"
+	default 512 if MPU_STACK_GUARD || BUILTIN_STACK_GUARD
 	default 384 if ARC
 	default 256
 	depends on ARCH_HAS_USERSPACE
@@ -116,7 +150,7 @@ config PRIVILEGED_STACK_SIZE
 
 config PRIVILEGED_STACK_TEXT_AREA
 	int "Privileged stacks text area"
-	default 256 if (DEBUG || STACK_CANARIES)
+	default 256 if (DEBUG || STACK_CANARIES || CODE_DATA_RELOCATION)
 	default 128
 	depends on ARCH_HAS_USERSPACE
 	help
@@ -125,6 +159,7 @@ config PRIVILEGED_STACK_TEXT_AREA
 config KOBJECT_TEXT_AREA
 	int "Size if kobject text area"
 	default 256 if (!SIZE_OPTIMIZATIONS || STACK_CANARIES || ARC)
+	default 256 if CODE_DATA_RELOCATION
 	default 128
 	depends on ARCH_HAS_USERSPACE
 	help
@@ -168,10 +203,30 @@ config SIMPLE_FATAL_ERROR_HANDLER
 	  for footprint-concerned systems. Only enable this option if you do not
 	  want debug capabilities in case of system fatal error.
 
+if ARCH_HAS_NOCACHE_MEMORY_SUPPORT
+
+config NOCACHE_MEMORY
+	bool "Support for uncached memory"
+	help
+	  Add a "nocache" read-write memory section that is configured to
+	  not be cached. This memory section can be used to perform DMA
+	  transfers when cache coherence issues are not optimal or can not
+	  be solved using cache maintenance operations.
+
+endif # ARCH_HAS_NOCACHE_MEMORY_SUPPORT
+
 menu "Interrupt Configuration"
 #
 # Interrupt related configs
 #
+config DYNAMIC_INTERRUPTS
+	bool "Enable installation of IRQs at runtime"
+	default n
+	help
+	  Enable installation of interrupts at runtime, which will move some
+	  interrupt-related data structures to RAM instead of ROM, and
+	  on some architectures increase code size.
+
 config GEN_ISR_TABLES
 	bool "Use generated IRQ tables"
 	help
@@ -227,6 +282,9 @@ endmenu
 #
 # Architecture Capabilities
 #
+config ARCH_HAS_TRUSTED_EXECUTION
+	bool
+
 config ARCH_HAS_STACK_PROTECTION
 	bool
 
@@ -234,6 +292,9 @@ config ARCH_HAS_USERSPACE
 	bool
 
 config ARCH_HAS_EXECUTABLE_PAGE_BIT
+	bool
+
+config ARCH_HAS_NOCACHE_MEMORY_SUPPORT
 	bool
 
 #
@@ -314,6 +375,13 @@ config BOOTLOADER_CONTEXT_RESTORE_SUPPORTED
 # End hidden CPU family configs
 #
 
+config CPU_HAS_TEE
+	bool
+	help
+	  This option is enabled when the CPU has support for Trusted
+	  Execution Environment (e.g. when it has a security attribution
+	  unit).
+
 config CPU_HAS_FPU
 	bool
 	help
@@ -325,6 +393,14 @@ config CPU_HAS_MPU
 	# Omit prompt to signify "hidden" option
 	help
 	  This option is enabled when the CPU has a Memory Protection Unit (MPU).
+
+config MEMORY_PROTECTION
+	bool
+	# Omit prompt to signify "hidden" option
+	help
+	  This option is enabled when Memory Protection features are supported.
+	  Memory protection support is currently available on ARC, ARM, and x86
+	  architectures.
 
 config MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT
 	bool
@@ -369,8 +445,7 @@ config SOC
 	help
 	  SoC name which can be found under soc/<arch>/<soc name>.
 	  This option holds the directory name used by the build system to locate
-	  the correct linker and header files for the SoC. This option will go away
-	  once all SoCs are using family/series structure.
+	  the correct linker and header files for the SoC.
 
 config SOC_SERIES
 	string

@@ -123,14 +123,14 @@ void _new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 		thread->arch.priv_stack_start = 0;
 		thread->arch.priv_stack_size = 0;
 
-		stackAdjEnd = (char *)STACK_ROUND_DOWN(stackEnd);
-
 #ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
 		/* reserve stack space for the userspace local data struct */
 		stackAdjEnd = (char *)STACK_ROUND_DOWN(stackEnd
 			- sizeof(*thread->userspace_local_data));
 		thread->userspace_local_data =
 			(struct _thread_userspace_local_data *)stackAdjEnd;
+#else
+		stackAdjEnd = (char *)STACK_ROUND_DOWN(stackEnd);
 #endif
 	}
 
@@ -143,7 +143,7 @@ void _new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 		stackAdjEnd - sizeof(struct init_stack_frame));
 
 	/* fill init context */
-	pInitCtx->status32 = 0;
+	pInitCtx->status32 = 0U;
 	if (options & K_USER) {
 		pInitCtx->pc = ((u32_t)_user_thread_entry_wrapper);
 	} else {
@@ -169,7 +169,7 @@ void _new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 		STACK_ROUND_DOWN(stackAdjEnd) -
 		sizeof(struct init_stack_frame));
 
-	pInitCtx->status32 = 0;
+	pInitCtx->status32 = 0U;
 	pInitCtx->pc = ((u32_t)_thread_entry_wrapper);
 #endif
 

@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_llmnr_responder
-#define NET_LOG_LEVEL CONFIG_LLMNR_RESPONDER_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_llmnr_responder, CONFIG_LLMNR_RESPONDER_LOG_LEVEL);
 
 #include <zephyr.h>
 #include <init.h>
@@ -35,7 +35,10 @@
 #define LLMNR_TTL CONFIG_LLMNR_RESPONDER_TTL /* In seconds */
 
 static struct net_context *ipv4;
+
+#if defined(CONFIG_NET_IPV6)
 static struct net_context *ipv6;
+#endif
 
 #define BUF_ALLOC_TIMEOUT K_MSEC(100)
 
@@ -89,6 +92,10 @@ static void create_ipv4_dst_addr(struct net_pkt *pkt,
 	struct net_udp_hdr *udp_hdr, hdr;
 
 	udp_hdr = net_udp_get_hdr(pkt, &hdr);
+	if (!udp_hdr) {
+		NET_ERR("could not get UDP header");
+		return;
+	}
 
 	addr->sin_family = AF_INET;
 	addr->sin_port = udp_hdr->src_port;
@@ -268,7 +275,7 @@ static const u8_t *get_ipv4_src(struct net_if *iface, struct in_addr *dst)
 	const struct in_addr *addr;
 
 	addr = net_if_ipv4_select_src_addr(iface, dst);
-	if (!addr || net_is_ipv4_addr_unspecified(addr)) {
+	if (!addr || net_ipv4_is_addr_unspecified(addr)) {
 		return NULL;
 	}
 
@@ -282,7 +289,7 @@ static const u8_t *get_ipv6_src(struct net_if *iface, struct in6_addr *dst)
 	const struct in6_addr *addr;
 
 	addr = net_if_ipv6_select_src_addr(iface, dst);
-	if (!addr || net_is_ipv6_addr_unspecified(addr)) {
+	if (!addr || net_ipv6_is_addr_unspecified(addr)) {
 		return NULL;
 	}
 
@@ -326,6 +333,7 @@ static int create_ipv4_answer(struct net_context *ctx,
 
 		addr_len = sizeof(struct in6_addr);
 #else
+		addr = NULL;
 		addr_len = 0;
 #endif
 	} else {
@@ -459,7 +467,7 @@ static int dns_read(struct net_context *ctx,
 	int hostname_len = strlen(hostname);
 	struct net_buf *result;
 	struct dns_msg_t dns_msg;
-	u16_t dns_id = 0;
+	u16_t dns_id = 0U;
 	int data_len;
 	int queries;
 	int offset;

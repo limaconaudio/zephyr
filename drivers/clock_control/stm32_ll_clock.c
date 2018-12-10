@@ -25,6 +25,12 @@
 #define apb2_prescaler(v) _apb2_prescaler(v)
 #endif /* CONFIG_SOC_SERIES_STM32F0X  */
 
+#define _mco1_prescaler(v) LL_RCC_MCO1_DIV_ ## v
+#define mco1_prescaler(v) _mco1_prescaler(v)
+
+#define _mco2_prescaler(v) LL_RCC_MCO2_DIV_ ## v
+#define mco2_prescaler(v) _mco2_prescaler(v)
+
 /**
  * @brief fill in AHB/APB buses configuration structure
  */
@@ -83,6 +89,8 @@ static inline int stm32_clock_control_on(struct device *dev,
 		LL_IOP_GRP1_EnableClock(pclken->enr);
 		break;
 #endif /* CONFIG_SOC_SERIES_STM32L0X */
+	default:
+		return -ENOTSUP;
 	}
 
 	return 0;
@@ -127,6 +135,8 @@ static inline int stm32_clock_control_off(struct device *dev,
 		LL_IOP_GRP1_DisableClock(pclken->enr);
 		break;
 #endif /* CONFIG_SOC_SERIES_STM32L0X */
+	default:
+		return -ENOTSUP;
 	}
 
 	return 0;
@@ -173,6 +183,8 @@ static int stm32_clock_control_get_subsys_rate(struct device *clock,
 		*rate = apb2_clock;
 		break;
 #endif /* CONFIG_SOC_SERIES_STM32F0X */
+	default:
+		return -ENOTSUP;
 	}
 
 	return 0;
@@ -204,6 +216,23 @@ static void stm32_clock_switch_to_hsi(u32_t ahb_prescaler)
 	LL_RCC_SetAHBPrescaler(ahb_prescaler);
 	while (LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_HSI) {
 	}
+}
+
+/*
+ * MCO configure doesn't active requested clock source,
+ * so please make sure the clock source was enabled.
+ */
+static inline void stm32_clock_control_mco_init(void)
+{
+#ifndef CONFIG_CLOCK_STM32_MCO1_SRC_NOCLOCK
+	LL_RCC_ConfigMCO(MCO1_SOURCE,
+			 mco1_prescaler(CONFIG_CLOCK_STM32_MCO1_DIV));
+#endif /* CONFIG_CLOCK_STM32_MCO1_SRC_NOCLOCK */
+
+#ifndef CONFIG_CLOCK_STM32_MCO2_SRC_NOCLOCK
+	LL_RCC_ConfigMCO(MCO2_SOURCE,
+			 mco2_prescaler(CONFIG_CLOCK_STM32_MCO2_DIV));
+#endif /* CONFIG_CLOCK_STM32_MCO2_SRC_NOCLOCK */
 }
 
 static int stm32_clock_control_init(struct device *dev)
@@ -384,6 +413,9 @@ static int stm32_clock_control_init(struct device *dev)
 	LL_RCC_PLL_Disable();
 
 #endif /* CONFIG_CLOCK_STM32_SYSCLK_SRC_... */
+
+	/* configure MCO1/MCO2 based on Kconfig */
+	stm32_clock_control_mco_init();
 
 	return 0;
 }

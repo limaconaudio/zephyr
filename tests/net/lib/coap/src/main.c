@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_test
-#define NET_LOG_LEVEL CONFIG_COAP_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_test, CONFIG_COAP_LOG_LEVEL);
 
 #include <errno.h>
 #include <zephyr/types.h>
@@ -128,7 +128,7 @@ static int test_build_simple_pdu(void)
 	struct net_pkt *pkt;
 	struct net_buf *frag;
 	const char token[] = "token";
-	u8_t format = 0;
+	u8_t format = 0U;
 	int result = TC_FAIL;
 	int r;
 

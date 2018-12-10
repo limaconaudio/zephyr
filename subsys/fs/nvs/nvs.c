@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <nvs/nvs.h>
-#include <crc8.h>
+#include <crc.h>
 #include "nvs_priv.h"
 
 #define LOG_LEVEL CONFIG_NVS_LOG_LEVEL
@@ -38,7 +38,7 @@ static int _nvs_flash_al_wrt(struct nvs_fs *fs, u32_t addr, const void *data,
 	int rc = 0;
 	off_t offset;
 	size_t blen;
-	u8_t buf[fs->write_block_size];
+	u8_t buf[NVS_BLOCK_SIZE];
 
 	if (!len) {
 		/* Nothing to write, avoid changing the flash protection */
@@ -331,11 +331,11 @@ static int _nvs_prev_ate(struct nvs_fs *fs, u32_t *addr, struct nvs_ate *ate)
 		(*addr) -= (1 << ADDR_SECT_SHIFT);
 		while (1) {
 			*addr -= ate_size;
-			rc = _nvs_flash_cmp_const(fs, *addr, 0xff, ate_size);
+			rc = _nvs_flash_cmp_const(fs, *addr, 0xff, sizeof(struct nvs_ate));
 			if (!rc) {
 				break;
 			}
-			rc = _nvs_flash_cmp_const(fs, *addr, 0x00, ate_size);
+			rc = _nvs_flash_cmp_const(fs, *addr, 0x00, sizeof(struct nvs_ate));
 			if (!rc) {
 				break;
 			}
@@ -370,11 +370,11 @@ static int _nvs_sector_close(struct nvs_fs *fs)
 	u8_t buf[sizeof(struct nvs_ate)];
 	size_t ate_size;
 
-	ate_size = sizeof(struct nvs_ate);
+	ate_size = _nvs_al_size(fs, sizeof(struct nvs_ate));
 
 	(void)memset(buf, 0, ate_size);
 
-	rc = _nvs_flash_al_wrt(fs, fs->ate_wra, buf, ate_size);
+	rc = _nvs_flash_al_wrt(fs, fs->ate_wra, buf, sizeof(struct nvs_ate));
 	if (rc) {
 		return rc;
 	}
@@ -408,12 +408,12 @@ static int _nvs_gc(struct nvs_fs *fs)
 
 	while (1) {
 		/* if the sector is empty don't do gc */
-		rc = _nvs_flash_cmp_const(fs, gc_addr, 0xff, ate_size);
+		rc = _nvs_flash_cmp_const(fs, gc_addr, 0xff, sizeof(struct nvs_ate));
 		if (!rc) {
 			break;
 		}
 		/* if sector end is reached stop gc */
-		rc = _nvs_flash_cmp_const(fs, gc_addr, 0x00, ate_size);
+		rc = _nvs_flash_cmp_const(fs, gc_addr, 0x00, sizeof(struct nvs_ate));
 		if (!rc) {
 			break;
 		}
@@ -555,12 +555,12 @@ int nvs_reinit(struct nvs_fs *fs)
 		if (rc) {
 			goto end;
 		}
-		rc = _nvs_flash_cmp_const(fs, addr - ate_size, 0x00, ate_size);
+		rc = _nvs_flash_cmp_const(fs, addr - ate_size, 0x00, sizeof(struct nvs_ate));
 		if (!rc) {
 			/* we are just before (or after) sector end */
 			continue;
 		}
-		rc = _nvs_flash_cmp_const(fs, addr - ate_size, 0xff, ate_size);
+		rc = _nvs_flash_cmp_const(fs, addr - ate_size, 0xff, sizeof(struct nvs_ate));
 		if (!rc) {
 			break;
 		}
@@ -574,7 +574,7 @@ int nvs_reinit(struct nvs_fs *fs)
 	 * exception, when addr is the very end of a sector; then we keep
 	 * fs->ate_wra.
 	 */
-	rc = _nvs_flash_cmp_const(fs, addr, 0xff, ate_size);
+	rc = _nvs_flash_cmp_const(fs, addr, 0xff, sizeof(struct nvs_ate));
 	if (rc < 0) {
 		goto end;
 	}
@@ -655,6 +655,12 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 
 	fs->write_block_size = flash_get_write_block_size(fs->flash_device);
 
+	/* check that the write block size is supported */
+	if (fs->write_block_size > NVS_BLOCK_SIZE) {
+		LOG_ERR("Unsupported write block size");
+		return -EINVAL;
+	}
+
 	/* check the number of sectors, it should be at least 2 */
 	if (fs->sector_count < 2) {
 		LOG_ERR("Configuration error - sector count");
@@ -703,7 +709,7 @@ ssize_t nvs_write(struct nvs_fs *fs, u16_t id, const void *data, size_t len)
 	/* find latest entry with same id */
 	wlk_addr = fs->ate_wra;
 	rd_addr = wlk_addr;
-	freed_space = 0;
+	freed_space = 0U;
 
 	while (1) {
 		rd_addr = wlk_addr;
@@ -805,7 +811,7 @@ ssize_t nvs_read_hist(struct nvs_fs *fs, u16_t id, void *data, size_t len,
 		return -EINVAL;
 	}
 
-	cnt_his = 0;
+	cnt_his = 0U;
 
 	wlk_addr = fs->ate_wra;
 	rd_addr = wlk_addr;
