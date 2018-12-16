@@ -181,7 +181,7 @@ static inline void spi_context_cs_configure(struct spi_context *ctx)
 			       ctx->config->cs->gpio_pin,
 			       spi_context_cs_inactive_value(ctx));
 	} else {
-		LOG_INF("CS control inhibited (no GPIO device)");
+		printk("CS control inhibited (no GPIO device)\n");
 	}
 }
 
@@ -212,7 +212,7 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 			       const struct spi_buf_set *rx_bufs,
 			       u8_t dfs)
 {
-	LOG_DBG("tx_bufs %p - rx_bufs %p - %u", tx_bufs, rx_bufs, dfs);
+	printk("tx_bufs %p - rx_bufs %p - %u\n", tx_bufs, rx_bufs, dfs);
 
 	if (tx_bufs) {
 		ctx->current_tx = tx_bufs->buffers;
@@ -244,8 +244,8 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 	ctx->recv_frames = 0;
 #endif /* CONFIG_SPI_SLAVE */
 
-	LOG_DBG("current_tx %p (%zu), current_rx %p (%zu),"
-		    " tx buf/len %p/%zu, rx buf/len %p/%zu",
+	printk("current_tx %p (%zu)\n, current_rx %p (%zu)\n,"
+		    " tx buf/len %p/%zu\n, rx buf/len %p/%zu\n",
 		    ctx->current_tx, ctx->tx_count,
 		    ctx->current_rx, ctx->rx_count,
 		    ctx->tx_buf, ctx->tx_len, ctx->rx_buf, ctx->rx_len);
@@ -259,7 +259,7 @@ void spi_context_update_tx(struct spi_context *ctx, u8_t dfs, u32_t len)
 	}
 
 	if (len > ctx->tx_len) {
-		LOG_ERR("Update exceeds current buffer");
+		printk("Update exceeds current buffer\n");
 		return;
 	}
 
@@ -277,7 +277,7 @@ void spi_context_update_tx(struct spi_context *ctx, u8_t dfs, u32_t len)
 		ctx->tx_buf += dfs * len;
 	}
 
-	LOG_DBG("tx buf/len %p/%zu", ctx->tx_buf, ctx->tx_len);
+	printk("tx buf/len %p/%zu\n", ctx->tx_buf, ctx->tx_len);
 }
 
 static ALWAYS_INLINE
@@ -307,7 +307,7 @@ void spi_context_update_rx(struct spi_context *ctx, u8_t dfs, u32_t len)
 	}
 
 	if (len > ctx->rx_len) {
-		LOG_ERR("Update exceeds current buffer");
+		printk("Update exceeds current buffer\n");
 		return;
 	}
 
@@ -325,7 +325,7 @@ void spi_context_update_rx(struct spi_context *ctx, u8_t dfs, u32_t len)
 		ctx->rx_buf += dfs * len;
 	}
 
-	LOG_DBG("rx buf/len %p/%zu", ctx->rx_buf, ctx->rx_len);
+	printk("rx buf/len %p/%zu\n", ctx->rx_buf, ctx->rx_len);
 }
 
 static ALWAYS_INLINE

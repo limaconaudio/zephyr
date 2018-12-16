@@ -257,4 +257,6 @@ source "drivers/spi/Kconfig.sam0"
 
 source "drivers/spi/Kconfig.nrfx"
 
+source "drivers/spi/Kconfig.kendryte"
+
 endif # SPI

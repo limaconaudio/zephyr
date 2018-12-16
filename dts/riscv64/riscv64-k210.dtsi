@@ -65,6 +65,16 @@
 			riscv,max-priority = <7>;
 			riscv,ndev = <52>;
 		};
+		spi0: spi@52000000 {
+			compatible = "kendryte,spi";
+			reg = <0x52000000 0x10000>;
+			label = "spi_0";
+		};
+		spi1: spi@53000000 {
+			compatible = "kendryte,spi";
+			reg = <0x53000000 0x10000>;
+			label = "spi_1";
+		};
 		sysctl: clock-controller@50440000 {
 			compatible = "kendryte,sysctl";
 			reg = <0x50440000 0x10000>;

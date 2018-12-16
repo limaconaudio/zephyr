@@ -430,6 +430,122 @@ u32_t kendryte_clock_source_get_freq(volatile kendryte_sysctl *sysctl,
     return result;
 }
 
+int kendryte_clock_set_threshold(struct device *dev,
+			       kendryte_threshold_t thres, int threshold)
+{
+	const struct kendryte_clock_control_config *info =
+					dev->config->config_info;
+	volatile kendryte_sysctl *sysctl = (volatile kendryte_sysctl *)info->base;
+
+	switch (thres) {
+	/*
+	 * These threshold is 2 bit width
+	 */
+	case KENDRYTE_THRESHOLD_ACLK:
+	    sysctl->clk_sel0.aclk_divider_sel = (uint8_t)threshold & 0x03;
+	    break;
+
+	/*
+	 * These threshold is 3 bit width
+	 */
+        case KENDRYTE_THRESHOLD_APB0:
+            sysctl->clk_sel0.apb0_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+        case KENDRYTE_THRESHOLD_APB1:
+            sysctl->clk_sel0.apb1_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+        case KENDRYTE_THRESHOLD_APB2:
+            sysctl->clk_sel0.apb2_clk_sel = (uint8_t)threshold & 0x07;
+            break;
+
+        /*
+         * These threshold is 4 bit width
+         */
+        case KENDRYTE_THRESHOLD_SRAM0:
+            sysctl->clk_th0.sram0_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case KENDRYTE_THRESHOLD_SRAM1:
+            sysctl->clk_th0.sram1_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case KENDRYTE_THRESHOLD_AI:
+            sysctl->clk_th0.ai_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case KENDRYTE_THRESHOLD_DVP:
+            sysctl->clk_th0.dvp_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+        case KENDRYTE_THRESHOLD_ROM:
+            sysctl->clk_th0.rom_gclk_threshold = (uint8_t)threshold & 0x0F;
+            break;
+
+        /*
+         * These threshold is 8 bit width
+         */
+        case KENDRYTE_THRESHOLD_SPI0:
+            sysctl->clk_th1.spi0_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_SPI1:
+            sysctl->clk_th1.spi1_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_SPI2:
+            sysctl->clk_th1.spi2_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_SPI3:
+            sysctl->clk_th1.spi3_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_TIMER0:
+            sysctl->clk_th2.timer0_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_TIMER1:
+            sysctl->clk_th2.timer1_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_TIMER2:
+            sysctl->clk_th2.timer2_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2S0_M:
+            sysctl->clk_th4.i2s0_mclk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2S1_M:
+            sysctl->clk_th4.i2s1_mclk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2S2_M:
+            sysctl->clk_th5.i2s2_mclk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2C0:
+            sysctl->clk_th5.i2c0_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2C1:
+            sysctl->clk_th5.i2c1_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2C2:
+            sysctl->clk_th5.i2c2_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_WDT0:
+            sysctl->clk_th6.wdt0_clk_threshold = (uint8_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_WDT1:
+            sysctl->clk_th6.wdt1_clk_threshold = (uint8_t)threshold;
+            break;
+
+        /*
+         * These threshold is 16 bit width
+         */
+        case KENDRYTE_THRESHOLD_I2S0:
+            sysctl->clk_th3.i2s0_clk_threshold = (uint16_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2S1:
+            sysctl->clk_th3.i2s1_clk_threshold = (uint16_t)threshold;
+            break;
+        case KENDRYTE_THRESHOLD_I2S2:
+            sysctl->clk_th4.i2s2_clk_threshold = (uint16_t)threshold;
+            break;
+
+        default:
+            return -1;
+    }
+
+    return 0;
+}
+
 int kendryte_clock_get_threshold(volatile kendryte_sysctl *sysctl,
 				 kendryte_threshold_t thres)
 {

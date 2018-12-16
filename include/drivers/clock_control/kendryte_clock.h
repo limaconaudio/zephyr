@@ -683,4 +683,7 @@ typedef struct general_pll
     volatile u32_t reserved : 4;
 } __attribute__((packed, aligned(4))) sysctl_general_pll_t;
 
+int kendryte_clock_set_threshold(struct device *dev,
+			       kendryte_threshold_t thres, int threshold);
+
 #endif /* ZEPHYR_INCLUDE_DRIVERS_CLOCK_CONTROL_KENDRYTE_CLOCK_H_ */

@@ -1,0 +1,11 @@
+# Kconfig - Kendryte SPI driver configuration options
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig SPI_KENDRYTE
+	bool "Enable KENDRYTE SPI driver"
+	depends on SPI && SOC_RISCV64_K210
+	select HAS_DTS_SPI
+	help
+	  SPI driver for KENDRYTE SoCs.
