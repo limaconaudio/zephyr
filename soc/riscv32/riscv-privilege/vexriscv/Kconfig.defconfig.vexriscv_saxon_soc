@@ -48,8 +48,4 @@ config RISCV_MTIMECMP_BASE
 	hex
 	default 0xF0008008
 
-
-config UART_BASE
-	hex
-	default 0xF0010000
 endif

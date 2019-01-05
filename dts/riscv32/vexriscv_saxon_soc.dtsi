@@ -23,14 +23,14 @@
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "microsemi,miv-soc", "simple-bus";
+		compatible = "spinal,saxon";
 		ranges;
 
 
-		uart0: uart@70001000 {
-			compatible = "microsemi,coreuart";
-			reg = <0x70001000 0x1000>;
-			label = "uart_0";
+		uart0: uart@0 {
+			compatible = "spinal,lib-com-uart-uartctrl";
+			reg = <0xF0010000 0x1000>;
+			label = "uart0";
 			status = "disabled";
 			current-speed = <0>;
 			clock-frequency = <0>;

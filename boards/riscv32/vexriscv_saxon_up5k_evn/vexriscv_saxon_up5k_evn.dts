@@ -9,8 +9,8 @@
 #include <vexriscv_saxon_soc.dtsi>
 
 / {
-	model = "SiFive HiFive 1";
-	compatible = "sifive,hifive1";
+	model = "Saxon up5k evn";
+	compatible = "spinal,saxon";
 	aliases {
 	};
 
@@ -23,5 +23,5 @@
 &uart0 {
 	status = "ok";
 	current-speed = <115200>;
-	clock-frequency = <66000000>;
+	clock-frequency = <12000000>;
 };
