@@ -1,0 +1,7 @@
+
+menuconfig UART_SPINAL_LIB_COM_UART_UARTCTRL
+	bool "vexriscv UART driver"
+	select SERIAL_HAS_DRIVER
+	help
+	  Enable the vexriscv UART driver.
+

@@ -1,0 +1,3 @@
+config BOARD_VEXRISCV_SAXON_UP5K_EVN
+	bool "VexRiscv"
+	depends on SOC_VEXRISCV_SAXON_SOC
