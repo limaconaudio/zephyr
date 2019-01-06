@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_LEVEL CONFIG_DISC_LOG_LEVEL
-#include <logging/log.h>
-LOG_MODULE_REGISTER(sdhc);
-
 #include <disk_access.h>
 #include <gpio.h>
 #include <misc/byteorder.h>
@@ -348,7 +344,7 @@ static int sdhc_tx_cmd(struct sdhc_data *data, u8_t cmd, u32_t payload)
 {
 	u8_t buf[SDHC_CMD_SIZE];
 
-	LOG_DBG("cmd%d payload=%u", cmd, payload);
+	printk("\ncmd%d payload=%u", cmd, payload);
 	sdhc_trace(data, 0, 0, NULL, 0);
 
 	/* Encode the command */
@@ -374,7 +370,7 @@ static int sdhc_skip(struct sdhc_data *data, int discard)
 		}
 	} while (sdhc_retry_ok(&retry));
 
-	LOG_WRN("Timeout while waiting for !%d", discard);
+	printk("Timeout while waiting for !%d", discard);
 	return -ETIMEDOUT;
 }
 
@@ -725,6 +721,7 @@ static int sdhc_detect(struct sdhc_data *data)
 		return err;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	/* Wait for the card to leave idle state */
 	do {
 		sdhc_cmd_r1_raw(data, SDHC_APP_CMD, 0);
@@ -735,33 +732,39 @@ static int sdhc_detect(struct sdhc_data *data)
 		}
 	} while (sdhc_retry_ok(&retry));
 
+	printk("%s: %d\n", __func__, __LINE__);
 	if (err != 0) {
 		/* Card never exited idle */
 		return -ETIMEDOUT;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	/* Read OCR and confirm this is a SDHC card */
 	err = sdhc_cmd_r3(data, SDHC_READ_OCR, 0, &ocr);
 	if (err != 0) {
 		return err;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	if ((ocr & SDHC_CCS) == 0) {
 		/* A 'SDSC' card */
 		return -ENOTSUP;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	/* Read the CSD */
 	err = sdhc_cmd_r1(data, SDHC_SEND_CSD, 0);
 	if (err != 0) {
 		return err;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	err = sdhc_rx_block(data, buf, sizeof(buf));
 	if (err != 0) {
 		return err;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	/* Bits 126..127 are the structure version */
 	structure = (buf[0] >> 6);
 	if (structure != SDHC_CSD_V2) {
@@ -769,6 +772,7 @@ static int sdhc_detect(struct sdhc_data *data)
 		return -ENOTSUP;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	/* Bits 48..69 are the capacity of the card in 512 KiB units, minus 1.
 	 */
 	csize = sys_get_be32(&buf[6]) & ((1 << 22) - 1);
@@ -779,7 +783,7 @@ static int sdhc_detect(struct sdhc_data *data)
 
 	data->sector_count = (csize + 1) * (512 * 1024 / SDHC_SECTOR_SIZE);
 
-	LOG_INF("Found a ~%u MiB SDHC card.",
+	printk("Found a ~%u MiB SDHC card.",
 		data->sector_count / (1024 * 1024 / SDHC_SECTOR_SIZE));
 
 	/* Read the CID */
@@ -793,7 +797,7 @@ static int sdhc_detect(struct sdhc_data *data)
 		return err;
 	}
 
-	LOG_INF("Manufacturer ID=%d OEM='%c%c' Name='%c%c%c%c%c' "
+	printk("Manufacturer ID=%d OEM='%c%c' Name='%c%c%c%c%c' "
 		"Revision=0x%x Serial=0x%x",
 		buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6],
 		buf[7], buf[8], sys_get_be32(&buf[9]));
@@ -897,6 +901,7 @@ static int sdhc_init(struct device *dev)
 {
 	struct sdhc_data *data = dev->driver_data;
 
+	printk("%s: %d\n", __func__, __LINE__);
 	data->spi = device_get_binding(DT_DISK_SDHC0_BUS_NAME);
 
 	data->cfg.frequency = SDHC_INITIAL_SPEED;
@@ -905,10 +910,13 @@ static int sdhc_init(struct device *dev)
 	data->cs = device_get_binding(DT_DISK_SDHC0_CS_GPIOS_CONTROLLER);
 	__ASSERT_NO_MSG(data->cs != NULL);
 
+	printk("%s: %d\n", __func__, __LINE__);
 	data->pin = DT_DISK_SDHC0_CS_GPIOS_PIN;
 
+	printk("%s: %d\n", __func__, __LINE__);
 	disk_sdhc_init(dev);
 
+	printk("%s: %d\n", __func__, __LINE__);
 	return gpio_pin_configure(data->cs, data->pin, GPIO_DIR_OUT);
 }
 
@@ -929,7 +937,7 @@ static int disk_sdhc_access_read(struct disk_info *disk, u8_t *buf,
 	struct sdhc_data *data = dev->driver_data;
 	int err;
 
-	LOG_DBG("sector=%u count=%u", sector, count);
+	printk("sector=%u count=%u", sector, count);
 
 	err = sdhc_read(data, buf, sector, count);
 	if (err != 0 && sdhc_is_retryable(err)) {
@@ -947,7 +955,7 @@ static int disk_sdhc_access_write(struct disk_info *disk, const u8_t *buf,
 	struct sdhc_data *data = dev->driver_data;
 	int err;
 
-	LOG_DBG("sector=%u count=%u", sector, count);
+	printk("sector=%u count=%u", sector, count);
 
 	err = sdhc_write(data, buf, sector, count);
 	if (err != 0 && sdhc_is_retryable(err)) {
@@ -994,14 +1002,17 @@ static int disk_sdhc_access_init(struct disk_info *disk)
 	struct sdhc_data *data = dev->driver_data;
 	int err;
 
+	printk("%s: %d\n", __func__, __LINE__);
 	if (data->status == DISK_STATUS_OK) {
 		/* Called twice, don't re-init. */
 		return 0;
 	}
 
+	printk("%s: %d\n", __func__, __LINE__);
 	err = sdhc_detect(data);
 	sdhc_set_cs(data, 1);
 
+	printk("%s: %d\n", __func__, __LINE__);
 	return err;
 }
 

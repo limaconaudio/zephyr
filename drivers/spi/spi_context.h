@@ -212,8 +212,6 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 			       const struct spi_buf_set *rx_bufs,
 			       u8_t dfs)
 {
-	printk("tx_bufs %p - rx_bufs %p - %u\n", tx_bufs, rx_bufs, dfs);
-
 	if (tx_bufs) {
 		ctx->current_tx = tx_bufs->buffers;
 		ctx->tx_count = tx_bufs->count;
@@ -244,11 +242,6 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 	ctx->recv_frames = 0;
 #endif /* CONFIG_SPI_SLAVE */
 
-	printk("current_tx %p (%zu)\n, current_rx %p (%zu)\n,"
-		    " tx buf/len %p/%zu\n, rx buf/len %p/%zu\n",
-		    ctx->current_tx, ctx->tx_count,
-		    ctx->current_rx, ctx->rx_count,
-		    ctx->tx_buf, ctx->tx_len, ctx->rx_buf, ctx->rx_len);
 }
 
 static ALWAYS_INLINE
@@ -277,7 +270,6 @@ void spi_context_update_tx(struct spi_context *ctx, u8_t dfs, u32_t len)
 		ctx->tx_buf += dfs * len;
 	}
 
-	printk("tx buf/len %p/%zu\n", ctx->tx_buf, ctx->tx_len);
 }
 
 static ALWAYS_INLINE
@@ -325,7 +317,6 @@ void spi_context_update_rx(struct spi_context *ctx, u8_t dfs, u32_t len)
 		ctx->rx_buf += dfs * len;
 	}
 
-	printk("rx buf/len %p/%zu\n", ctx->rx_buf, ctx->rx_len);
 }
 
 static ALWAYS_INLINE

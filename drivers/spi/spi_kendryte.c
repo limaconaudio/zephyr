@@ -48,7 +48,6 @@ void kendryte_spi_set_clk(struct device *dev, u32_t spi_clk)
 //				&rate);
 	rate = 390000000;
 
-	printk("SPI0 Clk rate: %d\n", rate);
 	spi_baudr = rate / spi_clk;
 
 	if (spi_baudr < 2 ) {
@@ -87,7 +86,6 @@ static int spi_kendryte_configure(struct device *dev,
 	else
 		work_mode = SPI_WORK_MODE_0;
 
-	printk("SPI Work mode: %d\n", work_mode);
 	spi->imr = 0x00;
 	spi->dmacr = 0x00;
 	spi->dmatdlr = 0x10;
@@ -158,11 +156,9 @@ static void spi_kendryte_shift_frames(struct device *dev,
 
 	spi->ssienr = 0x01;
 	spi->ser = 1 << SPI_CHIP_SELECT_3;
-	printk("SPI CTRLR0 %d\n", spi->ctrlr0);
 
 	while (spi_context_tx_on(&data->ctx)) {
 		tx_frame = spi_kendryte_next_tx(data, word_size);
-		printk("Sending frame: %x\t", tx_frame);
 	
 		switch (word_size) {
 		case 32:
@@ -199,7 +195,6 @@ static void spi_kendryte_shift_frames(struct device *dev,
 
 	spi->dr[0] = 0xffffffff;
 	while (spi_context_rx_on(&data->ctx)) {
-		printk("Rx FIFO Len: %d\n", spi->rxflr);
 		switch (word_size) {
 		case 32:
 			rx_frame = spi->dr[0];
@@ -223,7 +218,6 @@ static void spi_kendryte_shift_frames(struct device *dev,
 			spi_context_update_rx(&data->ctx, 1, 1);
 			break;
 		}
-		printk("Received frame: %x\n", rx_frame);
 	}
 	
 	spi->ssienr = 0x00;

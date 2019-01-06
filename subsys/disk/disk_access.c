@@ -125,13 +125,13 @@ int disk_access_register(struct disk_info *disk)
 
 	k_mutex_lock(&mutex, K_FOREVER);
 	if ((disk == NULL) || (disk->name == NULL)) {
-		SYS_LOG_ERR("invalid disk interface!!");
+		printk("invalid disk interface!!");
 		rc = -EINVAL;
 		goto reg_err;
 	}
 
 	if (disk_access_get_di(disk->name) != NULL) {
-		SYS_LOG_ERR("disk interface already registered!!");
+		printk("disk interface already registered!!");
 		rc = -EINVAL;
 		goto reg_err;
 	}
@@ -150,13 +150,13 @@ int disk_access_unregister(struct disk_info *disk)
 
 	k_mutex_lock(&mutex, K_FOREVER);
 	if ((disk == NULL) || (disk->name == NULL)) {
-		SYS_LOG_ERR("invalid disk interface!!");
+		printk("invalid disk interface!!");
 		rc = -EINVAL;
 		goto unreg_err;
 	}
 
 	if (disk_access_get_di(disk->name) == NULL) {
-		SYS_LOG_ERR("disk interface not registered!!");
+		printk("disk interface not registered!!");
 		rc = -EINVAL;
 		goto unreg_err;
 	}
