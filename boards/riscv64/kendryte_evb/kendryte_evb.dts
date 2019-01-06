@@ -18,6 +18,10 @@
 	status = "ok";
 };
 
+&gpiohs {
+	status = "ok";
+};
+
 &spi0 {
 	status = "ok";
 };

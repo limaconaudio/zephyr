@@ -18,3 +18,20 @@ config GPIO_KENDRYTE_GPIO_NAME
 	default "gpio"
 
 endif # GPIO_KENDRYTE
+
+menuconfig GPIOHS_KENDRYTE
+	bool "Kendryte K210 GPIO HS driver"
+	depends on GPIO && SOC_RISCV64_K210
+	select HAS_DTS_GPIO
+	help
+	  Enable driver for the Kendryte K210 GPIO HS controller.
+
+	  Says n if not sure.
+
+if GPIOHS_KENDRYTE
+
+config GPIOHS_KENDRYTE_GPIO_NAME
+	string "GPIO HS driver name"
+	default "gpiohs"
+
+endif # GPIOHS_KENDRYTE
