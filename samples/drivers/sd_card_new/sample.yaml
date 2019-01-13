@@ -1,0 +1,7 @@
+sample:
+  name: SPI Sample
+tests:
+  test:
+    platform_whitelist: kendryte_evb
+    tags: apps
+    depends_on: spi
