@@ -137,6 +137,21 @@ static bool spi_kendryte_transfer_ongoing(struct spi_kendryte_data *data)
 	return spi_context_tx_on(&data->ctx) || spi_context_rx_on(&data->ctx);
 }
 
+void debug_pr(volatile spi_t *spi_adapter)
+{
+	printf("Reg dump: baudr: %d, imr: %x, dmacr: %x, dmatdlr: %x, dmardlr: %x, ser: %x, ssienr: %x, ctrlr0: %x, spi_ctrlr0: %x, endian: %x\n",
+    spi_adapter->baudr,
+    spi_adapter->imr,
+    spi_adapter->dmacr,
+    spi_adapter->dmatdlr,
+    spi_adapter->dmardlr,
+    spi_adapter->ser,
+    spi_adapter->ssienr,
+    spi_adapter->ctrlr0,
+    spi_adapter->spi_ctrlr0,
+    spi_adapter->endian);
+}
+
 /* Shift a SPI frame as master. */
 static void spi_kendryte_shift_frames(struct device *dev,
 				      const struct spi_buf_set *tx_bufs,
@@ -154,6 +169,8 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	reg |= SPI_TMOD_TRANS << 8;
 	spi->ctrlr0 = reg;
 
+	//spi->ctrlr1 = (data->ctx.rx_len / word_size) - 1;
+	spi->ctrlr1 = (8/8 - 1);
 	spi->ssienr = 0x01;
 	spi->ser = 1 << SPI_CHIP_SELECT_3;
 
@@ -163,11 +180,11 @@ static void spi_kendryte_shift_frames(struct device *dev,
 		switch (word_size) {
 		case 32:
 			spi->dr[0] = tx_frame;
-			spi_context_update_tx(&data->ctx, 4, 1);
+			spi_context_update_tx(&data->ctx, 1, 4);
 			break;
 		case 16:
 			spi->dr[0] = (u16_t) tx_frame;
-			spi_context_update_tx(&data->ctx, 2, 1);
+			spi_context_update_tx(&data->ctx, 1, 2);
 			break;
 		default:
 			spi->dr[0] = (u8_t) tx_frame;
@@ -186,14 +203,13 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	/* Set TMOD register value */
 	reg = spi->ctrlr0 & ~(3 << 8);
 	reg |= SPI_TMOD_RECV << 8;
-	spi->ctrlr0 = reg;
+	reg &= ~(1 << 8);
+	spi->ctrlr0 = reg | (1 << 9);
 
 	spi->ssienr = 0x01;
-	spi->ser = 1 << SPI_CHIP_SELECT_3;
-
-	spi->ctrlr1 = word_size - 1;
 
 	spi->dr[0] = 0xffffffff;
+	spi->ser = 1 << SPI_CHIP_SELECT_3;
 	while (spi_context_rx_on(&data->ctx)) {
 		switch (word_size) {
 		case 32:
@@ -201,14 +217,14 @@ static void spi_kendryte_shift_frames(struct device *dev,
 			if (spi_context_rx_buf_on(&data->ctx)) {
 				UNALIGNED_PUT(rx_frame, (u32_t *)data->ctx.rx_buf);
 			}
-			spi_context_update_rx(&data->ctx, 4, 1);
+			spi_context_update_rx(&data->ctx, 1, 4);
 			break;
 		case 16:
 			rx_frame = (u16_t) spi->dr[0];
 			if (spi_context_rx_buf_on(&data->ctx)) {
 				UNALIGNED_PUT(rx_frame, (u16_t *)data->ctx.rx_buf);
 			}
-			spi_context_update_rx(&data->ctx, 2, 1);
+			spi_context_update_rx(&data->ctx, 1, 2);
 			break;
 		default:
 			rx_frame = (u8_t) spi->dr[0];
@@ -218,11 +234,11 @@ static void spi_kendryte_shift_frames(struct device *dev,
 			spi_context_update_rx(&data->ctx, 1, 1);
 			break;
 		}
+	k_sleep(10);
 	}
-	
+
 	spi->ssienr = 0x00;
 	spi->ser = 0x00;
-
 }
 
 static int transceive(struct device *dev,
