@@ -1,0 +1,5 @@
+menuconfig UART_VEXRISCV_CPP_REGRESSION
+	bool "vexriscv sim UART driver"
+	select SERIAL_HAS_DRIVER
+	help
+	  Enable the vexriscv sim UART driver.

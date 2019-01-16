@@ -1,0 +1,3 @@
+config BOARD_VEXRISCV_CPP_REGRESSION
+	bool "VexRiscv"
+	depends on SOC_VEXRISCV_CPP_REGRESSION

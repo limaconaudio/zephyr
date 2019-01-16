@@ -107,4 +107,6 @@ source "drivers/serial/Kconfig.psoc6"
 
 source "drivers/serial/Kconfig.spinal_lib_com_uart_uartCtrl"
 
+source "drivers/serial/Kconfig.vexriscv_cpp_regression"
+
 endif

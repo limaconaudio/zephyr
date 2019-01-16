@@ -6,6 +6,10 @@ config SOC_VEXRISCV_SAXON_SOC
 	bool "VexRiscv SoC"
 	select ATOMIC_OPERATIONS_C
 
+config SOC_VEXRISCV_CPP_REGRESSION
+	bool "VexRiscv SoC"
+	select ATOMIC_OPERATIONS_C
+
 
 
 endchoice
