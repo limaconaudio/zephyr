@@ -1,0 +1,6 @@
+if BOARD_VEXRISCV_CPP_REGRESSION
+
+config BOARD
+	default "vexriscv_cpp_regression"
+
+endif

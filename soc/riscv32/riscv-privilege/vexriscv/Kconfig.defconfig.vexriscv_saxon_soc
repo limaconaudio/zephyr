@@ -1,0 +1,51 @@
+if SOC_VEXRISCV_SAXON_SOC
+
+config SOC
+	string
+	default "vexriscv_saxon_soc"
+
+config RISCV_SOC_INTERRUPT_INIT
+	bool
+	default y
+
+config RISCV_HAS_CPU_IDLE
+	bool
+	default n
+
+config RISCV_HAS_PLIC
+	bool
+	default n
+
+config NUM_IRQS
+	int
+	default 42
+
+config XIP
+	bool
+	default y
+
+config RISCV_ROM_BASE_ADDR
+	hex
+	default 0x01100000
+
+config RISCV_ROM_SIZE
+	hex
+	default 0x00100000
+
+config RISCV_RAM_BASE_ADDR
+	hex
+	default	0x80000000
+
+config RISCV_RAM_SIZE
+	hex
+	default 0x00010000
+
+config RISCV_MTIME_BASE
+	hex
+	default 0xF0008000
+
+config RISCV_MTIMECMP_BASE
+	hex
+	default 0xF0008008
+
+endif

@@ -1,0 +1,39 @@
+/*
+ * Copyright (c) 2018 Linaro Limited
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			clock-frequency = <0>;
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <0>;
+			riscv,isa = "rv32i";
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spinal,vexriscv_cpp_regression";
+		ranges;
+
+
+		uart0: uart@0 {
+			compatible = "spinal,vexriscv-cpp-regression";
+			reg = <0xF0010000 0x1000>;
+			label = "uart0";
+			status = "disabled";
+			current-speed = <0>;
+			clock-frequency = <0>;
+		};
+	};
+};

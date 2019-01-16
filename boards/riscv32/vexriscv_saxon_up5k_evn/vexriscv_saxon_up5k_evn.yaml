@@ -1,0 +1,11 @@
+identifier: vexriscv_saxon_up5k_evn
+name: VexRiscv board
+type: mcu
+arch: riscv32
+toolchain:
+  - zephyr
+ram: 64
+testing:
+  ignore_tags:
+    - net
+    - bluetooth

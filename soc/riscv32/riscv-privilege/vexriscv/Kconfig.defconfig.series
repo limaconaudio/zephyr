@@ -1,0 +1,11 @@
+if SOC_SERIES_RISCV32_VEXRISCV
+
+config SOC_SERIES
+	string
+	default "vexriscv"
+
+source "soc/riscv32/riscv-privilege/vexriscv/Kconfig.defconfig.vexriscv_saxon_soc"
+source "soc/riscv32/riscv-privilege/vexriscv/Kconfig.defconfig.vexriscv_cpp_regression"
+
+endif # SOC_SERIES_RISCV32_VEXRISCV
+

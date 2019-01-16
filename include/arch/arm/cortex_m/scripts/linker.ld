@@ -292,6 +292,7 @@ SECTIONS
 
     GROUP_START(RAMABLE_REGION)
 
+	. = RAM_ADDR;
 	/* Align the start of image SRAM with the
 	 * minimum granularity required by MPU.
 	 */
@@ -346,15 +347,15 @@ SECTIONS
 	{
 		APP_INPUT_SECTION(.noinit)
 		APP_INPUT_SECTION(".noinit.*")
+
+		__app_last_address_used = .;
+
+		/* Align the end of the application memory
+		 * with MPU alignment requirement.
+		 */
+		MPU_ALIGN(__app_ram_size);
+		__app_ram_end = .;
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
-
-	__app_last_address_used = .;
-
-	/* Align the end of the application memory
-	 * with MPU alignment requirement.
-	 */
-	MPU_ALIGN(__app_ram_size);
-	__app_ram_end = .;
 	__app_ram_size = __app_ram_end - __app_ram_start;
 #endif /* CONFIG_APPLICATION_MEMORY */
 

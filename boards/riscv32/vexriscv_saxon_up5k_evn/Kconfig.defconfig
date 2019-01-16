@@ -1,0 +1,6 @@
+if BOARD_VEXRISCV_SAXON_UP5K_EVN
+
+config BOARD
+	default "vexriscv_saxon_up5k_evn"
+
+endif

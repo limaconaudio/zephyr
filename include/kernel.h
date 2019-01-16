@@ -199,7 +199,7 @@ struct _k_object_assignment {
  * Intended to be called as the last statement in kernel object init
  * functions.
  *
- * @param object Address of the kernel object
+ * @param obj Address of the kernel object
  */
 void _k_object_init(void *obj);
 #else
@@ -724,21 +724,21 @@ extern FUNC_NORETURN void k_thread_user_mode_enter(k_thread_entry_t entry,
 						   void *p3);
 
 /**
- * @brief Grant a thread access to a NULL-terminated  set of kernel objects
+ * @brief Grant a thread access to a set of kernel objects
  *
  * This is a convenience function. For the provided thread, grant access to
  * the remaining arguments, which must be pointers to kernel objects.
- * The final argument must be a NULL.
  *
  * The thread object must be initialized (i.e. running). The objects don't
  * need to be.
+ * Note that NULL shouldn't be passed as an argument.
  *
  * @param thread Thread to grant access to objects
- * @param ... NULL-terminated list of kernel object pointers
+ * @param ... list of kernel object pointers
  * @req K-THREAD-004
  */
-extern void __attribute__((sentinel))
-	k_thread_access_grant(struct k_thread *thread, ...);
+#define k_thread_access_grant(thread, ...) \
+	FOR_EACH_FIXED_ARG(k_object_access_grant, thread, __VA_ARGS__)
 
 /**
  * @brief Assign a resource memory pool to a thread
@@ -1499,11 +1499,11 @@ extern s32_t z_timeout_remaining(struct _timeout *timeout);
  *
  * @return Remaining time (in milliseconds).
  */
-__syscall s32_t k_timer_remaining_get(struct k_timer *timer);
+__syscall u32_t k_timer_remaining_get(struct k_timer *timer);
 
-static inline s32_t _impl_k_timer_remaining_get(struct k_timer *timer)
+static inline u32_t _impl_k_timer_remaining_get(struct k_timer *timer)
 {
-	return __ticks_to_ms(z_timeout_remaining(&timer->timeout));
+	return (u32_t)__ticks_to_ms(z_timeout_remaining(&timer->timeout));
 }
 
 /**
@@ -2560,7 +2560,7 @@ static inline void k_work_submit_to_queue(struct k_work_q *work_q,
 /**
  * @brief Submit a work item to a user mode workqueue
  *
- * Sumbits a work item to a workqueue that runs in user mode. A temporary
+ * Submits a work item to a workqueue that runs in user mode. A temporary
  * memory allocation is made from the caller's resource pool which is freed
  * once the worker thread consumes the k_work item. The workqueue
  * thread must have memory access to the k_work item being submitted. The caller
