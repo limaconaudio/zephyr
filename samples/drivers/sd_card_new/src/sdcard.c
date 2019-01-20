@@ -37,9 +37,9 @@ SD_CardInfo cardinfo;
 struct device *cs;
 struct device *spi;
 int pin = DT_DISK_SDHC0_CS_GPIOS_PIN;
-struct spi_config cfg = {
+static struct spi_config cfg = {
 	.frequency = 200000,
-	.operation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LINES_SINGLE,
+	.operation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8),
 	.slave = 0,
 };
 
@@ -92,40 +92,6 @@ static void sd_read_data(uint8_t *data_buff, uint32_t length)
 	spi_read(spi, &cfg, &rx);
 }
 
-static uint8_t sd_send_recv(uint8_t *data_buff, uint32_t length)
-{
-	uint8_t rx_buf[6];
-
-	struct spi_buf spi_tx_bufs[] = {
-                {
-                        .buf = (u8_t *)data_buff,
-                        .len = length
-                }
-        };
-
-        const struct spi_buf_set tx = {
-                .buffers = spi_tx_bufs,
-                .count = 1
-        };
-
-	struct spi_buf spi_rx_bufs[] = {
-                {
-                        .buf = rx_buf,
-                        .len = 6
-                }
-        };
-
-        const struct spi_buf_set rx = {
-                .buffers = spi_rx_bufs,
-                .count = 1
-        };
-
-	spi_transceive(spi, &cfg, &tx, &rx);
-
-	printk("rx buf: %d %d\n", rx_buf[0], rx_buf[1]);
-	return rx_buf[1];
-}
-
 /*
  * @brief  Send 5 bytes command to the SD card.
  * @param  Cmd: The user expected command to send to SD card.
@@ -151,9 +117,8 @@ static uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc)
 	/*!< SD chip select low */
 	SD_CS_LOW();
 	/*!< Send the Cmd bytes */
-//	sd_write_data(frame, 6);
-//	return 0;
-	return sd_send_recv(frame, 6);
+	sd_write_data(frame, 6);
+	return 0;
 }
 
 /*
@@ -179,17 +144,17 @@ static void sd_end_cmd(void)
  *         - 0xFF: Sequence failed
  *         - 0: Sequence succeed
  */
-static uint8_t sd_get_response(void)
+static uint8_t sd_get_response(int16_t exp)
 {
-	uint8_t result[2] = {0xff, 0xff};
+	uint8_t result;
 	uint16_t timeout = 0x0FFF;
+
 	/*!< Check if response is got or a timeout is happen */
 	while (timeout--) {
-		sd_read_data(result, 2);
+		sd_read_data(&result, 1);
 		/*!< Right response got */
-		if (result[1] != 0xFF) {
-			printk("Result: %d\n", result[1]);
-			return result[1];
+		if (result != 0xFF) {
+			return result;
 		}
 	}
 	/*!< After time out */
@@ -237,11 +202,11 @@ static uint8_t sd_get_csdregister(SD_CSD *SD_csd)
 	/*!< Send CMD9 (CSD register) or CMD10(CSD register) */
 	sd_send_cmd(SD_CMD9, 0, 0);
 	/*!< Wait for response in the R1 format (0x00 is no errors) */
-	if (sd_get_response() != 0x00) {
+	if (sd_get_response(0) != 0x00) {
 		sd_end_cmd();
 		return 0xFF;
 	}
-	if (sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ) {
+	if (sd_get_response(SD_START_DATA_SINGLE_BLOCK_READ) != SD_START_DATA_SINGLE_BLOCK_READ) {
 		sd_end_cmd();
 		return 0xFF;
 	}
@@ -322,11 +287,11 @@ static uint8_t sd_get_cidregister(SD_CID *SD_cid)
 	/*!< Send CMD10 (CID register) */
 	sd_send_cmd(SD_CMD10, 0, 0);
 	/*!< Wait for response in the R1 format (0x00 is no errors) */
-	if (sd_get_response() != 0x00) {
+	if (sd_get_response(0) != 0x00) {
 		sd_end_cmd();
 		return 0xFF;
 	}
-	if (sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ) {
+	if (sd_get_response(SD_START_DATA_SINGLE_BLOCK_READ) != SD_START_DATA_SINGLE_BLOCK_READ) {
 		sd_end_cmd();
 		return 0xFF;
 	}
@@ -424,7 +389,7 @@ uint8_t sd_init(void)
 	/*!< SD initialized and set to SPI mode properly */
 
     result = sd_send_cmd(SD_CMD0, 0, 0x95);
-    result = sd_get_response();
+    result = sd_get_response(1);
     sd_end_cmd();
     if (result != 0x01)
     {
@@ -433,7 +398,7 @@ uint8_t sd_init(void)
     }
 
 	result = sd_send_cmd(SD_CMD8, 0x01AA, 0x87);
-        result = sd_get_response();
+        result = sd_get_response(1);
 	sd_read_data(frame, 4);
 	sd_end_cmd();
 	if (result != 0x01)
@@ -441,18 +406,17 @@ uint8_t sd_init(void)
         printk("SD_CMD8 is %X\n", result);
 		return 0xFF;
     }
-	printf("CMD8 done\n");
 	index = 0xFF;
 	while (index--) {
-		result = sd_send_cmd(SD_CMD55, 0, 0);
-    		result = sd_get_response();
+		sd_send_cmd(SD_CMD55, 0, 0);
+    		result = sd_get_response(1);
 		sd_end_cmd();
 		if (result != 0x01) {
 		printf("CMD55 err\n");
 		return 0xFF;
 		}
 		sd_send_cmd(SD_ACMD41, 0x40000000, 0);
-    		result = sd_get_response();
+    		result = sd_get_response(0);
 		sd_end_cmd();
 		if (result == 0x00)
 			break;
@@ -462,11 +426,10 @@ uint8_t sd_init(void)
         printk("SD_CMD55 is %X\n", result);
 		return 0xFF;
     }
-	printf("CMD55 done\n");
 	index = 255;
 	while(index--){
 		result = sd_send_cmd(SD_CMD58, 0, 1);
-    		result = sd_get_response();
+    		result = sd_get_response(0);
 		sd_read_data(frame, 4);
 		sd_end_cmd();
 		if(result == 0){
@@ -478,9 +441,9 @@ uint8_t sd_init(void)
 	    printk("SD_CMD58 is %X\n", result);
 		return 0xFF;
 	}
-	printf("CMD58 done\n");
 	if ((frame[0] & 0x40) == 0)
 		return 0xFF;
+//	cfg.frequency = 10000000;
 	return sd_get_cardinfo(&cardinfo);
 }
 
@@ -505,12 +468,12 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 		sd_send_cmd(SD_CMD18, sector, 0);
 	}
 	/*!< Check if the SD acknowledged the read block command: R1 response (0x00: no errors) */
-	if (sd_get_response() != 0x00) {
+	if (sd_get_response(0) != 0x00) {
 		sd_end_cmd();
 		return 0xFF;
 	}
 	while (count) {
-		if (sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ)
+		if (sd_get_response(SD_START_DATA_SINGLE_BLOCK_READ) != SD_START_DATA_SINGLE_BLOCK_READ)
 			break;
 		/*!< Read the SD block data : read NumByteToRead data */
 		sd_read_data(data_buff, 512);
@@ -522,7 +485,7 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 	sd_end_cmd();
 	if (flag) {
 		sd_send_cmd(SD_CMD12, 0, 0);
-		sd_get_response();
+		sd_get_response(1);
 		sd_end_cmd();
 		sd_end_cmd();
 	}
@@ -549,12 +512,12 @@ uint8_t sd_write_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 	} else {
 		frame[1] = SD_START_DATA_MULTIPLE_BLOCK_WRITE;
 		sd_send_cmd(SD_ACMD23, count, 0);
-		sd_get_response();
+		sd_get_response(1);
 		sd_end_cmd();
 		sd_send_cmd(SD_CMD25, sector, 0);
 	}
 	/*!< Check if the SD acknowledged the write block command: R1 response (0x00: no errors) */
-	if (sd_get_response() != 0x00) {
+	if (sd_get_response(0) != 0x00) {
 		sd_end_cmd();
 		return 0xFF;
 	}
@@ -577,3 +540,4 @@ uint8_t sd_write_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 	/*!< Returns the reponse */
 	return 0;
 }
+
