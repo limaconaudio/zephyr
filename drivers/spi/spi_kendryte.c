@@ -37,11 +37,9 @@ struct spi_kendryte_data {
 
 void kendryte_spi_set_clk(struct device *dev, u32_t spi_clk)
 {
-	const struct spi_kendryte_cfg *cfg = DEV_CFG(dev);
-	struct spi_kendryte_data *data = DEV_DATA(dev);
 	volatile spi_t *spi = DEV_SPI(dev);
-	u32_t rate;
-	u32_t spi_baudr;
+	u64_t rate;
+	u64_t spi_baudr;
 
 	// FIXME: Get clock rate from API
 //	clock_control_get_rate(data->clk, (clock_control_subsys_t)cfg->clock_id,
@@ -56,6 +54,8 @@ void kendryte_spi_set_clk(struct device *dev, u32_t spi_clk)
 		spi_baudr = 65534;
 	}
 
+	if (spi_baudr == 39)
+		spi_baudr--;
 	spi->baudr = spi_baudr;
 }
 
@@ -88,7 +88,7 @@ static int spi_kendryte_configure(struct device *dev,
 
 	spi->imr = 0x00;
 	spi->dmacr = 0x00;
-	spi->dmatdlr = 0x10;
+	spi->dmatdlr = 0x00;
 	spi->dmardlr = 0x00;
 	spi->ser = 0x00;
 	spi->ssienr = 0x00;
@@ -139,7 +139,7 @@ static bool spi_kendryte_transfer_ongoing(struct spi_kendryte_data *data)
 
 void debug_pr(volatile spi_t *spi_adapter)
 {
-	printf("Reg dump: baudr: %d, imr: %x, dmacr: %x, dmatdlr: %x, dmardlr: %x, ser: %x, ssienr: %x, ctrlr0: %x, spi_ctrlr0: %x, endian: %x\n",
+	printk("Reg dump: baudr: %d, imr: %x, dmacr: %x, dmatdlr: %x, dmardlr: %x, ser: %x, ssienr: %x, ctrlr0: %x, spi_ctrlr0: %x, endian: %x\n",
     spi_adapter->baudr,
     spi_adapter->imr,
     spi_adapter->dmacr,
@@ -160,38 +160,56 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	struct spi_kendryte_data *data = DEV_DATA(dev);
 	volatile spi_t *spi = DEV_SPI(dev);
 	u32_t tx_frame, rx_frame;
-	u32_t reg;
+	u32_t reg, fifo_len, index;
 	u8_t word_size = SPI_WORD_SIZE_GET(data->ctx.config->operation);
-	int i;
 
 	/* Set TMOD register value */
-	reg = spi->ctrlr0 & ~(3 << 8);
+	reg = spi->ctrlr0;
+	reg &= ~(3 << 8);
 	reg |= SPI_TMOD_TRANS << 8;
 	spi->ctrlr0 = reg;
 
-	//spi->ctrlr1 = (data->ctx.rx_len / word_size) - 1;
-	spi->ctrlr1 = (8/8 - 1);
 	spi->ssienr = 0x01;
 	spi->ser = 1 << SPI_CHIP_SELECT_3;
 
 	while (spi_context_tx_on(&data->ctx)) {
-		tx_frame = spi_kendryte_next_tx(data, word_size);
-	
+		fifo_len = 32 - spi->txflr;
+		fifo_len = fifo_len < data->ctx.tx_len ? fifo_len : data->ctx.tx_len;
+
 		switch (word_size) {
 		case 32:
-			spi->dr[0] = tx_frame;
-			spi_context_update_tx(&data->ctx, 1, 4);
+			fifo_len = fifo_len / 4 * 4;
+			for (index = 0; index < fifo_len / 4; index++) {
+				tx_frame = spi_kendryte_next_tx(data, word_size);
+	
+				spi->dr[0] = tx_frame;
+				spi_context_update_tx(&data->ctx, 1, 4);
+				if (!(spi_context_tx_on(&data->ctx)))
+					break;
+			}
 			break;
 		case 16:
-			spi->dr[0] = (u16_t) tx_frame;
-			spi_context_update_tx(&data->ctx, 1, 2);
+			fifo_len = fifo_len / 2 * 2;
+			for (index = 0; index < fifo_len / 2; index++) {
+				tx_frame = spi_kendryte_next_tx(data, word_size);
+	
+				spi->dr[0] = (u16_t) tx_frame;
+				spi_context_update_tx(&data->ctx, 1, 2);
+				if (!(spi_context_tx_on(&data->ctx)))
+					break;
+			}
 			break;
 		default:
-			spi->dr[0] = (u8_t) tx_frame;
-			spi_context_update_tx(&data->ctx, 1, 1);
+			for (index = 0; index < fifo_len; index++) {
+				tx_frame = spi_kendryte_next_tx(data, word_size);
+	
+				spi->dr[0] = (u8_t) tx_frame;
+				spi_context_update_tx(&data->ctx, 1, 1);
+				if (!(spi_context_tx_on(&data->ctx)))
+					break;
+			}
 			break;
 		}
-
 	}
 
 	/* Wait until data is pushed out */
@@ -201,42 +219,52 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	spi->ser = 0x00;
 
 	/* Set TMOD register value */
-	reg = spi->ctrlr0 & ~(3 << 8);
+	reg = spi->ctrlr0;
+	reg &= ~(3 << 8);
 	reg |= SPI_TMOD_RECV << 8;
-	reg &= ~(1 << 8);
-	spi->ctrlr0 = reg | (1 << 9);
+	spi->ctrlr0 = reg;
 
+	spi->ctrlr1 = (data->ctx.rx_len / word_size) - 1;
 	spi->ssienr = 0x01;
 
 	spi->dr[0] = 0xffffffff;
 	spi->ser = 1 << SPI_CHIP_SELECT_3;
 	while (spi_context_rx_on(&data->ctx)) {
+		fifo_len = spi->rxflr;
+		fifo_len = fifo_len < data->ctx.rx_len ? fifo_len : data->ctx.rx_len;
+		
 		switch (word_size) {
 		case 32:
-			rx_frame = spi->dr[0];
-			if (spi_context_rx_buf_on(&data->ctx)) {
-				UNALIGNED_PUT(rx_frame, (u32_t *)data->ctx.rx_buf);
+			fifo_len = fifo_len / 4 * 4;
+			for (index = 0; index < fifo_len / 4; index++) {
+				rx_frame = spi->dr[0];
+				if (spi_context_rx_buf_on(&data->ctx)) {
+					UNALIGNED_PUT(rx_frame, (u32_t *)data->ctx.rx_buf);
+				}
+				spi_context_update_rx(&data->ctx, 1, 4);
 			}
-			spi_context_update_rx(&data->ctx, 1, 4);
 			break;
 		case 16:
-			rx_frame = (u16_t) spi->dr[0];
-			if (spi_context_rx_buf_on(&data->ctx)) {
-				UNALIGNED_PUT(rx_frame, (u16_t *)data->ctx.rx_buf);
+			fifo_len = fifo_len / 2 * 2;
+			for (index = 0; index < fifo_len / 2; index++) {
+				rx_frame = (u16_t) spi->dr[0];
+				if (spi_context_rx_buf_on(&data->ctx)) {
+					UNALIGNED_PUT(rx_frame, (u16_t *)data->ctx.rx_buf);
+				}
+				spi_context_update_rx(&data->ctx, 1, 2);
 			}
-			spi_context_update_rx(&data->ctx, 1, 2);
 			break;
 		default:
-			rx_frame = (u8_t) spi->dr[0];
-			if (spi_context_rx_buf_on(&data->ctx)) {
-				UNALIGNED_PUT(rx_frame, (u8_t *)data->ctx.rx_buf);
+			for (index = 0; index < fifo_len; index++) {
+				rx_frame = (u8_t) spi->dr[0];
+				if (spi_context_rx_buf_on(&data->ctx)) {
+					UNALIGNED_PUT(rx_frame, (u8_t *)data->ctx.rx_buf);
+				}
+				spi_context_update_rx(&data->ctx, 1, 1);
 			}
-			spi_context_update_rx(&data->ctx, 1, 1);
 			break;
 		}
-	k_sleep(10);
 	}
-
 	spi->ssienr = 0x00;
 	spi->ser = 0x00;
 }
