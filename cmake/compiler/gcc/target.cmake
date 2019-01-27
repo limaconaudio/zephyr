@@ -83,6 +83,11 @@ else()
     list(APPEND TOOLCHAIN_C_FLAGS
       -mcpu=${GCC_M_CPU}
       )
+  elseif("${ARCH}" STREQUAL "riscv32")
+    list(APPEND TOOLCHAIN_C_FLAGS
+      -march=${CONFIG_RISCV_ARCH} 
+      -mabi=${CONFIG_RISCV_ABI}
+    )
   endif()
 
   execute_process(

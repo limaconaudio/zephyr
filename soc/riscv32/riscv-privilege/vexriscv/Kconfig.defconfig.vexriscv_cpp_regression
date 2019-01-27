@@ -4,6 +4,14 @@ config SOC
 	string
 	default "vexriscv_cpp_regression"
 
+config RISCV_ARCH
+	string
+	default "rv32i"
+
+config RISCV_ABI
+	string
+	default "ilp32"
+
 config SYS_CLOCK_HW_CYCLES_PER_SEC
 	int
 	default 1000000
