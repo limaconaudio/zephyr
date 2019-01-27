@@ -88,6 +88,10 @@ else()
       -march=${CONFIG_RISCV_ARCH} 
       -mabi=${CONFIG_RISCV_ABI}
     )
+    list(APPEND TOOLCHAIN_LD_FLAGS
+      -march=${CONFIG_RISCV_ARCH} 
+      -mabi=${CONFIG_RISCV_ABI}
+    )
   endif()
 
   execute_process(
