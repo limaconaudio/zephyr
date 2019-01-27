@@ -2,7 +2,15 @@
 #include <stdio.h>
 #include <gpio.h>
 #include <spi.h>
+#include <dma.h>
 
+#include <zephyr.h>
+
+#include <device.h>
+#include <dma.h>
+#include <kernel.h>
+#include <misc/printk.h>
+#include <string.h>
 /*
  * @brief  Start Data tokens:
  *         Tokens (necessary because at nop/idle (and CS active) only 0xff is
@@ -72,6 +80,7 @@ static void sd_write_data(uint8_t *data_buff, uint32_t length)
                 .count = 1
         };
 
+	cfg.use_dma = 0;
 	spi_write(spi, &cfg, &tx);
 }
 
@@ -88,6 +97,27 @@ static void sd_read_data(uint8_t *data_buff, uint32_t length)
                 .buffers = spi_bufs,
                 .count = 1
         };
+
+	cfg.use_dma = 0;
+	spi_read(spi, &cfg, &rx);
+}
+
+static void sd_read_data_dma(uint8_t *data_buff, uint32_t length)
+{
+	struct spi_buf spi_bufs[] = {
+                {
+                        .buf = (u8_t *)data_buff,
+                        .len = length
+                }
+        };
+
+        const struct spi_buf_set rx = {
+                .buffers = spi_bufs,
+                .count = 1
+        };
+
+	cfg.spi_channel = 0;
+	cfg.use_dma = 1;
 
 	spi_read(spi, &cfg, &rx);
 }
@@ -448,18 +478,18 @@ uint8_t sd_init(void)
 }
 
 /*
- * @brief  Reads a block of data from the SD.
+ * @brief  reads a block of data from the sd.
  * @param  data_buff: pointer to the buffer that receives the data read from the
- *                  SD.
- * @param  sector: SD's internal address to read from.
- * @retval The SD Response:
- *         - 0xFF: Sequence failed
- *         - 0: Sequence succeed
+ *                  sd.
+ * @param  sector: sd's internal address to read from.
+ * @retval the sd response:
+ *         - 0xff: sequence failed
+ *         - 0: sequence succeed
  */
 uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 {
 	uint8_t frame[2], flag;
-	/*!< Send CMD17 (SD_CMD17) to read one block */
+	/*!< send cmd17 (SD_CMD17) to read one block */
 	if (count == 1) {
 		flag = 0;
 		sd_send_cmd(SD_CMD17, sector, 0);
@@ -467,17 +497,17 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 		flag = 1;
 		sd_send_cmd(SD_CMD18, sector, 0);
 	}
-	/*!< Check if the SD acknowledged the read block command: R1 response (0x00: no errors) */
+	/*!< check if the sd acknowledged the read block command: r1 response (0x00: no errors) */
 	if (sd_get_response(0) != 0x00) {
 		sd_end_cmd();
-		return 0xFF;
+		return 0xff;
 	}
 	while (count) {
 		if (sd_get_response(SD_START_DATA_SINGLE_BLOCK_READ) != SD_START_DATA_SINGLE_BLOCK_READ)
 			break;
-		/*!< Read the SD block data : read NumByteToRead data */
+		/*!< read the sd block data : read numbytetoread data */
 		sd_read_data(data_buff, 512);
-		/*!< Get CRC bytes (not really needed by us, but required by SD) */
+		/*!< get crc bytes (not really needed by us, but required by sd) */
 		sd_read_data(frame, 2);
 		data_buff += 512;
 		count--;
@@ -489,10 +519,55 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
 		sd_end_cmd();
 		sd_end_cmd();
 	}
-	/*!< Returns the reponse */
-	return count > 0 ? 0xFF : 0;
+	/*!< returns the reponse */
+	return count > 0 ? 0xff : 0;
 }
 
+/*
+ * @brief  reads a block of data from the sd.
+ * @param  data_buff: pointer to the buffer that receives the data read from the
+ *                  sd.
+ * @param  sector: sd's internal address to read from.
+ * @retval the sd response:
+ *         - 0xff: sequence failed
+ *         - 0: sequence succeed
+ */
+uint8_t sd_read_sector_dma(uint8_t *data_buff, uint32_t sector, uint32_t count)
+{
+	uint8_t frame[2], flag;
+	/*!< send cmd17 (SD_CMD17) to read one block */
+	if (count == 1) {
+		flag = 0;
+		sd_send_cmd(SD_CMD17, sector, 0);
+	} else {
+		flag = 1;
+		sd_send_cmd(SD_CMD18, sector, 0);
+	}
+	/*!< check if the sd acknowledged the read block command: r1 response (0x00: no errors) */
+	if (sd_get_response(0) != 0x00) {
+		sd_end_cmd();
+		return 0xff;
+	}
+	while (count) {
+		if (sd_get_response(SD_START_DATA_SINGLE_BLOCK_READ) != SD_START_DATA_SINGLE_BLOCK_READ)
+			break;
+		/*!< read the sd block data : read numbytetoread data */
+		sd_read_data_dma(data_buff, 512);
+		/*!< get crc bytes (not really needed by us, but required by sd) */
+		sd_read_data(frame, 2);
+		data_buff += 512;
+		count--;
+	}
+	sd_end_cmd();
+	if (flag) {
+		sd_send_cmd(SD_CMD12, 0, 0);
+		sd_get_response(1);
+		sd_end_cmd();
+		sd_end_cmd();
+	}
+	/*!< returns the reponse */
+	return count > 0 ? 0xff : 0;
+}
 /*
  * @brief  Writes a block on the SD
  * @param  data_buff: pointer to the buffer containing the data to be written on

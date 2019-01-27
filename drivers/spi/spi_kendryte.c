@@ -5,8 +5,11 @@
 #include <misc/util.h>
 #include <kernel.h>
 #include <board.h>
+#include <dma.h>
+#include <dma/kendryte_dma.h>
 #include <errno.h>
 #include <spi.h>
+#include <string.h>
 #include <toolchain.h>
 
 #include <clock_control/kendryte_clock.h>
@@ -24,6 +27,9 @@
 #define DEV_DATA(dev)					\
 (struct spi_kendryte_data * const)(dev->driver_data)
 
+#define DMA_CHANNEL 0
+#define DMA_SLOT 2
+
 struct spi_kendryte_cfg {
 	u64_t base;
 	u32_t clock_id;
@@ -33,6 +39,7 @@ struct spi_kendryte_cfg {
 struct spi_kendryte_data {
 	struct device *clk;
 	struct spi_context ctx;
+	struct device *dma;
 } kendryte_spi_data;
 
 void kendryte_spi_set_clk(struct device *dev, u32_t spi_clk)
@@ -101,6 +108,43 @@ static int spi_kendryte_configure(struct device *dev,
 	return 0;
 }
 
+static int spi_kendryte_dma_configure(struct device *dev,
+			       const struct spi_config *config)
+{
+	struct spi_kendryte_data *data = DEV_DATA(dev);
+	volatile spi_t *spi = DEV_SPI(dev);
+	spi_frame_format_t frame_format = SPI_FF_STANDARD;
+	spi_work_mode_t work_mode;
+	uint8_t dfs_offset = 16, frf_offset = 21, work_mode_offset = 6;
+	uint8_t cpol = SPI_MODE_GET(config->operation) & SPI_MODE_CPOL;
+	uint8_t cpha = SPI_MODE_GET(config->operation) & SPI_MODE_CPHA;
+
+	sysctl_dma_select(dev, (sysctl_dma_channel_t) DMA_CHANNEL,
+			   SYSCTL_DMA_SELECT_SSI0_RX_REQ +
+			   config->spi_channel * 2);
+	kendryte_spi_set_clk(dev, config->frequency);
+
+	if (cpol & cpha)
+		work_mode = SPI_WORK_MODE_3;
+	else if (cpol)
+		work_mode = SPI_WORK_MODE_2;
+	else if (cpha)
+		work_mode = SPI_WORK_MODE_1;
+	else
+		work_mode = SPI_WORK_MODE_0;
+
+	spi->imr = 0x00;
+	spi->ser = 0x00;
+	spi->ssienr = 0x00;
+	spi->ctrlr0 = (work_mode << work_mode_offset) |
+			(frame_format << frf_offset) |
+			((SPI_WORD_SIZE_GET(config->operation) - 1) << dfs_offset);
+	spi->spi_ctrlr0 = 0;
+	spi->endian = 0;
+
+	return 0;
+}
+
 static int spi_kendryte_release(struct device *dev,
 			     const struct spi_config *config)
 {
@@ -150,6 +194,65 @@ void debug_pr(volatile spi_t *spi_adapter)
     spi_adapter->ctrlr0,
     spi_adapter->spi_ctrlr0,
     spi_adapter->endian);
+}
+
+static void dma_tx_callback(struct device *dev_dma, u32_t channel, int status)
+{
+	printk("DMA Tx Done\n");
+}
+
+static void dma_rx_callback(struct device *dev_dma, u32_t channel, int status)
+{
+	printk("DMA Rx Done\n");
+}
+
+/* Shift a SPI frame as master. */
+static void spi_kendryte_dma_shift_frames(struct device *dev,
+				      const struct spi_buf_set *tx_bufs,
+				      const struct spi_buf_set *rx_bufs)
+{
+	struct spi_kendryte_data *data = DEV_DATA(dev);
+	volatile spi_t *spi = DEV_SPI(dev);
+	u32_t tx_frame, rx_frame;
+	u32_t reg, fifo_len, index;
+	u8_t word_size = SPI_WORD_SIZE_GET(data->ctx.config->operation);
+	struct dma_block_config blk_cfg;
+	struct dma_config dma_cfg;
+	u32_t dma_channel = DMA_CHANNEL;
+	int i, ret;
+
+	/* Set TMOD register value */
+	reg = spi->ctrlr0;
+	reg &= ~(3 << 8);
+	reg |= SPI_TMOD_TRANS << 8;
+	spi->ctrlr0 = reg;
+
+	spi->ssienr = 0x01;
+	spi->ser = 1 << SPI_CHIP_SELECT_3;
+
+	dma_cfg.block_count = 1;
+	dma_cfg.dma_slot = DMA_SLOT;
+	dma_cfg.channel_direction = PERIPHERAL_TO_MEMORY;
+	dma_cfg.source_burst_length = 1;
+	dma_cfg.dest_burst_length = 1;
+	dma_cfg.dma_callback = dma_rx_callback;
+
+	blk_cfg.block_size = 8;
+	blk_cfg.source_address = (u32_t)&spi->dr[0];
+	blk_cfg.dest_address = (u32_t)rx_bufs;
+
+	dma_cfg.head_block = &blk_cfg;
+	ret = dma_config(data->dma, DMA_CHANNEL, &dma_cfg);
+	if (ret < 0) {
+		printk("DMA cg err: %d\n", ret);
+		return;
+	}
+
+	ret = dma_start(data->dma, DMA_CHANNEL);
+	if (ret < 0) {
+		printk("DMA start error: %d\n", ret);
+		return;
+	}
 }
 
 /* Shift a SPI frame as master. */
@@ -283,22 +386,41 @@ static int transceive(struct device *dev,
 		return 0;
 	}
 
-	spi_context_lock(&data->ctx, asynchronous, signal);
+	if (config->use_dma) {
+		spi_context_lock(&data->ctx, asynchronous, signal);
 
-	ret = spi_kendryte_configure(dev, config);
-	if (ret) {
-		return ret;
+		spi->dmacr = 0x2;
+		spi->ssienr = 0x01;
+
+		ret = spi_kendryte_dma_configure(dev, config);
+		if (ret) {
+			return ret;
+		}
+
+		/* Set buffers info */
+		spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
+
+		spi_kendryte_dma_shift_frames(dev, tx_bufs, rx_bufs);
+
+		dmac_wait_done(data->dma, DMA_CHANNEL);
+	} else {
+		spi_context_lock(&data->ctx, asynchronous, signal);
+
+		ret = spi_kendryte_configure(dev, config);
+		if (ret) {
+			return ret;
+		}
+
+		/* Set buffers info */
+		spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
+
+		/* This is turned off in spi_kendryte_complete(). */
+	//	spi_context_cs_control(&data->ctx, true);
+
+		do {
+			spi_kendryte_shift_frames(dev, tx_bufs, rx_bufs);
+		} while (spi_kendryte_transfer_ongoing(data));
 	}
-
-	/* Set buffers info */
-	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
-
-	/* This is turned off in spi_kendryte_complete(). */
-//	spi_context_cs_control(&data->ctx, true);
-
-	do {
-		spi_kendryte_shift_frames(dev, tx_bufs, rx_bufs);
-	} while (spi_kendryte_transfer_ongoing(data));
 
 	spi->ser = 0x00;
 	spi->ssienr = 0x00;
@@ -326,9 +448,11 @@ static int spi_kendryte_init(struct device *dev)
 	const struct spi_kendryte_cfg *cfg = DEV_CFG(dev);
 	struct spi_kendryte_data *data = DEV_DATA(dev);
 
+    	data->dma = device_get_binding(CONFIG_KENDRYTE_DMA_NAME);
+	__ASSERT_NO_MSG(data->dma);
+
 	/* Enable SPI clock */
 	data->clk = device_get_binding(CONFIG_KENDRYTE_SYSCTL_NAME);
-
 	__ASSERT_NO_MSG(data->clk);
 
 	clock_control_on(data->clk, (clock_control_subsys_t) cfg->clock_id);

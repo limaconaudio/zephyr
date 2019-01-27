@@ -15,12 +15,12 @@ int main(void)
         return -1;
     }
 
-/*    if(fs_test())
+    if(fs_test())
     {
         printk("FAT32 err\n");
         return -1;
     }
-*/
+
     return 0;
 }
 
@@ -42,6 +42,8 @@ static int sdcard_test(void)
     return 0;
 }
 
+struct device *dma_dev;
+
 static int fs_test(void)
 {
     static FATFS sdcard_fs;
@@ -58,12 +60,14 @@ static int fs_test(void)
     printk("printf filename\n");
     status = f_findfirst(&dj, &fno, _T("0:"), _T("*"));
     while (status == FR_OK && fno.fname[0]) {
+	printk("Name: %s\n", fno.fname);
         if (fno.fattrib & AM_DIR)
             printk("dir:%s\n", fno.fname);
         else
             printk("file:%s\n", fno.fname);
         status = f_findnext(&dj, &fno);
     }
+	printk("%s: %d\n", __func__, __LINE__);
     f_closedir(&dj);
     return 0;
 }

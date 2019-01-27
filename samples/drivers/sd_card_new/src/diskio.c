@@ -44,7 +44,7 @@ DSTATUS disk_initialize(BYTE pdrv)
 
 DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 {
-	if (sd_read_sector(buff, sector, count) == 0)
+	if (sd_read_sector_dma(buff, sector, count) == 0)
 		return RES_OK;
 	return RES_ERROR;
 }

@@ -162,6 +162,8 @@ struct spi_config {
 	u32_t		frequency;
 	u16_t		operation;
 	u16_t		slave;
+	u16_t		use_dma;
+	u16_t		spi_channel;
 
 	const struct spi_cs_control *cs;
 };

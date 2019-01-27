@@ -9,6 +9,7 @@
 #include <init.h>
 #include <stdio.h>
 #include <string.h>
+#include <misc/util.h>
 
 #include <clock_control/kendryte_clock.h>
 #include <dma/kendryte_dma.h>
@@ -78,6 +79,13 @@ void dmac_wait_idle(volatile dmac_t *dmac,
 {
 	while (!dmac_is_idle(dmac, channel_num));
 	dmac_channel_interrupt_clear(dmac, channel_num); /* clear interrupt */
+}
+
+void dmac_wait_done(volatile dmac_t *dmac, dmac_channel_number_t channel_num)
+{
+    while (!(readq(&dmac->channel[channel_num].intstatus) & 0x2))
+        ;
+    dmac_channel_interrupt_clear(dmac, channel_num); /* clear interrupt */
 }
 
 void dmac_channel_enable(volatile dmac_t *dmac,
@@ -210,6 +218,7 @@ static int dmac_kendryte_config(struct device *dev, u32_t id,
 	int ret;
 
 	if (id >= DMAC_CHANNEL_MAX) {
+		printk("Invalid DMA channel\n");
 		return -EINVAL;
 	}
 
