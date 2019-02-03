@@ -20,8 +20,14 @@
 	};
 };
 
+&gpioA {
+	status = "ok";
+};
+
+
 &uart0 {
 	status = "ok";
 	current-speed = <115200>;
 	clock-frequency = <12000000>;
 };
+

@@ -1,3 +1,1 @@
-zephyr_sources()
-
-
+zephyr_sources_ifdef(CONFIG_SOC_VEXRISCV_SAXON_SOC       soc_saxon.c)

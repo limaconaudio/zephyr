@@ -52,6 +52,8 @@ source "drivers/gpio/Kconfig.pulpino"
 
 source "drivers/gpio/Kconfig.sifive"
 
+source "drivers/gpio/Kconfig.spinal_lib_io"
+
 source "drivers/gpio/Kconfig.cc2650"
 
 source "drivers/gpio/Kconfig.esp32"

@@ -22,11 +22,11 @@ config RISCV_HAS_CPU_IDLE
 
 config RISCV_HAS_PLIC
 	bool
-	default n
+	default y
 
 config NUM_IRQS
 	int
-	default 42
+	default 64
 
 config XIP
 	bool
@@ -55,5 +55,10 @@ config RISCV_MTIME_BASE
 config RISCV_MTIMECMP_BASE
 	hex
 	default 0xF0008008
+
+
+config SAXON_GPIOA
+	bool "YOLO"
+	default n
 
 endif
