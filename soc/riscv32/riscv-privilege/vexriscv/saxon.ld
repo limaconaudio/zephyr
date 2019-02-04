@@ -35,6 +35,9 @@
 #define _EXCEPTION_SECTION_NAME     exceptions
 #define _RESET_SECTION_NAME         reset
 
+#define SAXON_REGION_SLOW GROUP_LINK_IN(ROMABLE_REGION)
+#define SAXON_REGION_FAST GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
+
 MEMORY
 {
 #ifdef CONFIG_XIP
@@ -101,18 +104,11 @@ SECTIONS
 
     _image_text_end = .;
 
-#include <linker/common-rom.ld>
+
 
     SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
 	{
 		 . = ALIGN(4);
-		 *(.rodata)
-		 *(".rodata.*")
-		 *(.gnu.linkonce.r.*)
-
-#ifdef CONFIG_SOC_RODATA_LD
-#include <soc-rodata.ld>
-#endif
 
 	} GROUP_LINK_IN(ROMABLE_REGION)
 
@@ -138,7 +134,18 @@ SECTIONS
 #ifdef CONFIG_SOC_RWDATA_LD
 #include <soc-rwdata.ld>
 #endif
+		 . = ALIGN(4);
 
+		 *(.rodata)
+		 *(".rodata.*")
+		 *(.gnu.linkonce.r.*)
+
+#ifdef CONFIG_SOC_RODATA_LD
+#include <soc-rodata.ld>
+#endif
+
+	
+		#include "saxon-common-rom.ld"
 	}  GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 #include <linker/common-ram.ld>
