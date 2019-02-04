@@ -42,8 +42,8 @@
 			#gpio-cells = <2>;
 		};
 		
-		uart0: uart@0 {
-			compatible = "spinal,lib-com-uart-uartctrl";
+		uart0: uart@F0010000 {
+			compatible = "spinal,lib-com-uart";
 			reg = <0xF0010000 0x1000>;
 			label = "uart0";
 			status = "disabled";

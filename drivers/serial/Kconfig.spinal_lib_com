@@ -1,5 +1,5 @@
 
-menuconfig UART_SPINAL_LIB_COM_UART_UARTCTRL
+menuconfig UART_SPINAL_LIB_COM
 	bool "vexriscv UART driver"
 	select SERIAL_HAS_DRIVER
 	help

@@ -18,7 +18,7 @@ properties:
       type: string
       category: required
       description: compatible strings
-      constraint: "spinal,lib-com-uart-uartctrl"
+      constraint: "spinal,lib-com-uart"
       generation: define
 
     reg:
