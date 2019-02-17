@@ -121,6 +121,43 @@ typedef enum _kendryte_threshold_t
     KENDRYTE_THRESHOLD_MAX = 28
 } kendryte_threshold_t;
 
+/**
+ * @brief      System controller reset control id
+ */
+typedef enum _sysctl_reset_t
+{
+    SYSCTL_RESET_SOC,
+    SYSCTL_RESET_ROM,
+    SYSCTL_RESET_DMA,
+    SYSCTL_RESET_AI,
+    SYSCTL_RESET_DVP,
+    SYSCTL_RESET_FFT,
+    SYSCTL_RESET_GPIO,
+    SYSCTL_RESET_SPI0,
+    SYSCTL_RESET_SPI1,
+    SYSCTL_RESET_SPI2,
+    SYSCTL_RESET_SPI3,
+    SYSCTL_RESET_I2S0,
+    SYSCTL_RESET_I2S1,
+    SYSCTL_RESET_I2S2,
+    SYSCTL_RESET_I2C0,
+    SYSCTL_RESET_I2C1,
+    SYSCTL_RESET_I2C2,
+    SYSCTL_RESET_UART1,
+    SYSCTL_RESET_UART2,
+    SYSCTL_RESET_UART3,
+    SYSCTL_RESET_AES,
+    SYSCTL_RESET_FPIOA,
+    SYSCTL_RESET_TIMER0,
+    SYSCTL_RESET_TIMER1,
+    SYSCTL_RESET_TIMER2,
+    SYSCTL_RESET_WDT0,
+    SYSCTL_RESET_WDT1,
+    SYSCTL_RESET_SHA,
+    SYSCTL_RESET_RTC,
+    SYSCTL_RESET_MAX = 31
+} sysctl_reset_t;
+
 typedef enum _sysctl_dma_channel_t
 {
     SYSCTL_DMA_CHANNEL_0,
@@ -736,5 +773,6 @@ int kendryte_clock_set_threshold(struct device *dev,
 			       kendryte_threshold_t thres, int threshold);
 
 int sysctl_dma_select(struct device *dev,sysctl_dma_channel_t channel, sysctl_dma_select_t select);
+void sysctl_reset(struct device *dev, sysctl_reset_t reset);
 
 #endif /* ZEPHYR_INCLUDE_DRIVERS_CLOCK_CONTROL_KENDRYTE_CLOCK_H_ */

@@ -49,6 +49,114 @@ const u8_t get_source_aclk[] = {
     [1] = KENDRYTE_SOURCE_PLL0,
 };
 
+static void sysctl_reset_ctl(volatile kendryte_sysctl *sysctl,
+		sysctl_reset_t reset, uint8_t rst_value)
+{
+    switch (reset)
+    {
+        case SYSCTL_RESET_SOC:
+            sysctl->soft_reset.soft_reset = rst_value;
+            break;
+        case SYSCTL_RESET_ROM:
+            sysctl->peri_reset.rom_reset = rst_value;
+            break;
+        case SYSCTL_RESET_DMA:
+            sysctl->peri_reset.dma_reset = rst_value;
+            break;
+        case SYSCTL_RESET_AI:
+            sysctl->peri_reset.ai_reset = rst_value;
+            break;
+        case SYSCTL_RESET_DVP:
+            sysctl->peri_reset.dvp_reset = rst_value;
+            break;
+        case SYSCTL_RESET_FFT:
+            sysctl->peri_reset.fft_reset = rst_value;
+            break;
+        case SYSCTL_RESET_GPIO:
+            sysctl->peri_reset.gpio_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI0:
+            sysctl->peri_reset.spi0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI1:
+            sysctl->peri_reset.spi1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI2:
+            sysctl->peri_reset.spi2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SPI3:
+            sysctl->peri_reset.spi3_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S0:
+            sysctl->peri_reset.i2s0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S1:
+            sysctl->peri_reset.i2s1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2S2:
+            sysctl->peri_reset.i2s2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C0:
+            sysctl->peri_reset.i2c0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C1:
+            sysctl->peri_reset.i2c1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_I2C2:
+            sysctl->peri_reset.i2c2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART1:
+            sysctl->peri_reset.uart1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART2:
+            sysctl->peri_reset.uart2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_UART3:
+            sysctl->peri_reset.uart3_reset = rst_value;
+            break;
+        case SYSCTL_RESET_AES:
+            sysctl->peri_reset.aes_reset = rst_value;
+            break;
+        case SYSCTL_RESET_FPIOA:
+            sysctl->peri_reset.fpioa_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER0:
+            sysctl->peri_reset.timer0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER1:
+            sysctl->peri_reset.timer1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_TIMER2:
+            sysctl->peri_reset.timer2_reset = rst_value;
+            break;
+        case SYSCTL_RESET_WDT0:
+            sysctl->peri_reset.wdt0_reset = rst_value;
+            break;
+        case SYSCTL_RESET_WDT1:
+            sysctl->peri_reset.wdt1_reset = rst_value;
+            break;
+        case SYSCTL_RESET_SHA:
+            sysctl->peri_reset.sha_reset = rst_value;
+            break;
+        case SYSCTL_RESET_RTC:
+            sysctl->peri_reset.rtc_reset = rst_value;
+            break;
+
+        default:
+            break;
+    }
+}
+
+void sysctl_reset(struct device *dev, sysctl_reset_t reset)
+{
+	const struct kendryte_clock_control_config *info =
+					dev->config->config_info;
+	volatile kendryte_sysctl *sysctl = (volatile kendryte_sysctl *)info->base;
+
+	sysctl_reset_ctl(sysctl, reset, 1);
+	sysctl_reset_ctl(sysctl, reset, 0);
+}
+
 int sysctl_dma_select(struct device *dev, sysctl_dma_channel_t channel,
 		sysctl_dma_select_t select)
 {
