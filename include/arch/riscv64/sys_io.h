@@ -16,7 +16,6 @@
 #include <sys_io.h>
 
 /* Memory mapped registers I/O functions */
-/*
 static inline u32_t sys_read32(mem_addr_t addr)
 {
 	return *(volatile u32_t *)addr;
@@ -37,9 +36,7 @@ static inline void sys_write8(u8_t data, mem_addr_t addr)
 {
 	*(volatile u8_t *)addr = data;
 }
-*/
 /* Memory bit manipulation functions */
-/*
 static inline void sys_set_bit(mem_addr_t addr, unsigned int bit)
 {
 	u32_t temp = *(volatile u32_t *)addr;
@@ -123,7 +120,6 @@ static ALWAYS_INLINE
 
 	return ret;
 }
-*/
 #endif /* !_ASMLANGUAGE */
 
 #endif /* ZEPHYR_INCLUDE_ARCH_RISCV32_SYS_IO_H_ */

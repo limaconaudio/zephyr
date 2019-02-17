@@ -1,0 +1,25 @@
+# Kconfig - Kendryte I2S configuration options
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig I2S_KENDRYTE
+	bool "Kendryte I2S Driver"
+	depends on I2S && SOC_RISCV64_K210
+	select DMA
+	help
+	  Enable Inter Sound (I2S) bus driver for Kendryte K210.
+
+if I2S_KENDRYTE
+
+config I2S_KENDRYTE_TX_BLOCK_COUNT
+	int "TX queue length"
+	default 4
+	help
+	  The maximum number of blocks that can be accommodated in the Tx queue.
+
+config I2S_KENDRYTE_0_NAME
+	string "I2S 0 device name"
+	default "I2S_0"
+
+endif # I2S_KENDRYTE
