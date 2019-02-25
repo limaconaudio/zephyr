@@ -110,6 +110,24 @@
 			label = "uart_3";
 			status = "disabled";
 		};
+		i2s0: i2s@50250000 {
+			compatible = "kendryte,i2s";
+			reg = <0x50250000 0x10000>;
+			label = "i2s_0";
+			status = "disabled";
+		};
+		i2s1: i2s@50260000 {
+			compatible = "kendryte,i2s";
+			reg = <0x50260000 0x10000>;
+			label = "i2s_1";
+			status = "disabled";
+		};
+		i2s2: i2s@50270000 {
+			compatible = "kendryte,i2s";
+			reg = <0x50270000 0x10000>;
+			label = "i2s_2";
+			status = "disabled";
+		};
 		wdt0: watchdog@50400000 {
 			compatible = "kendryte,wdt";
 			reg = <0x50400000 0x10000>;

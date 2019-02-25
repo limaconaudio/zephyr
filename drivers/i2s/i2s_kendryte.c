@@ -16,12 +16,12 @@
 #include <i2s.h>
 #include <soc.h>
 #include <sys_io.h>
-#include "i2s_kendryte.h"
 
-#include <clock_control/kendryte_clock.h>
 #include <clock_control.h>
+#include <clock_control/kendryte_clock.h>
+#include <i2s/i2s_kendryte.h>
 
-struct i2s_kendryte_config {
+struct i2s_kendryte_cfg {
 	u64_t base;
 	u32_t clock_id;
 	u32_t thres_id;
@@ -29,9 +29,30 @@ struct i2s_kendryte_config {
 	u32_t dev_id;
 };
 
+struct queue_item {
+	void *mem_block;
+	size_t size;
+};
+
+/* Minimal ring buffer implementation */
+struct ring_buf {
+	struct queue_item *buf;
+	u16_t len;
+	u16_t head;
+	u16_t tail;
+};
+
+struct stream {
+	struct i2s_config cfg;
+	struct ring_buf mem_block_queue;
+	void *mem_block;
+	bool last_block;
+};
+
 /* Device run time data */
 struct i2s_kendryte_data {
 	struct device *clk;
+	struct stream tx;
 };
 
 #define DEV_CFG(dev)					\
@@ -43,6 +64,60 @@ struct i2s_kendryte_data {
 
 #define DEV_DATA(dev)					\
 	(struct i2s_kendryte_data * const)(dev->driver_data)
+
+#define MODULO_INC(val, max) { val = (++val < max) ? val : 0; }
+
+/*
+ * Get data from the queue
+ */
+static int queue_get(struct ring_buf *rb, void **mem_block, size_t *size)
+{
+	unsigned int key;
+
+	key = irq_lock();
+
+	if (rb->tail == rb->head) {
+		/* Ring buffer is empty */
+		irq_unlock(key);
+		return -ENOMEM;
+	}
+
+	*mem_block = rb->buf[rb->tail].mem_block;
+	*size = rb->buf[rb->tail].size;
+	MODULO_INC(rb->tail, rb->len);
+
+	irq_unlock(key);
+
+	return 0;
+}
+
+/*
+ * Put data in the queue
+ */
+static int queue_put(struct ring_buf *rb, void *mem_block, size_t size)
+{
+	u16_t head_next;
+	unsigned int key;
+
+	key = irq_lock();
+
+	head_next = rb->head;
+	MODULO_INC(head_next, rb->len);
+
+	if (head_next == rb->tail) {
+		/* Ring buffer is full */
+		irq_unlock(key);
+		return -ENOMEM;
+	}
+
+	rb->buf[rb->head].mem_block = mem_block;
+	rb->buf[rb->head].size = size;
+	rb->head = head_next;
+
+	irq_unlock(key);
+
+	return 0;
+}
 
 static int i2s_set_mask_interrupt(volatile i2s_t *i2s,
 		i2s_device_number_t device_num,
@@ -203,10 +278,10 @@ static int i2s_set_tx_threshold(volatile i2s_t *i2s,
 	return 0;
 }
 
-static int i2s_kendryte_configure(struct device *dev, enum i2s_dir dir,
+static int i2s_kendryte_cfgure(struct device *dev, enum i2s_dir dir,
 			      struct i2s_config *i2s_cfg)
 {
-	const struct i2s_kendryte_config *const cfg = DEV_CFG(dev);
+	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
 	struct i2s_kendryte_data *const data = DEV_DATA(dev);
 	volatile i2s_t *i2s = DEV_I2S(dev);
 	u8_t num_words = i2s_cfg->channels;
@@ -214,11 +289,12 @@ static int i2s_kendryte_configure(struct device *dev, enum i2s_dir dir,
 	u8_t word_size_bytes;
 	i2s_work_mode_t word_mode;
 	u32_t word_select_size = i2s_cfg->frame_clk_freq;
-	u32_t channel_mask;
+	u32_t channel_mask, trigger_level = 2;
+	u32_t channel_num = I2S_CHANNEL_0; /* use I2S_CHANNEL_0 for now */
 	int i;
 
 	if (dir != I2S_DIR_TX) {
-		LOG_ERR("TX direction must be selected");
+		printk("TX direction must be selected");
 		return -EINVAL;
 	}
 
@@ -277,8 +353,57 @@ static int i2s_kendryte_write(struct device *dev, void *mem_block, size_t size)
 {
 	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
 	struct i2s_kendryte_data *data = DEV_DATA(dev);
+
+	/* Add data to the end of the TX queue */
+	queue_put(&data->tx.mem_block_queue, mem_block, size);
+
+	return 0;
+}
+
+static int tx_stream_start(struct device *dev)
+{
+	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
+	struct i2s_kendryte_data *data = DEV_DATA(dev);
 	volatile i2s_t *i2s = DEV_I2S(dev);
+	size_t mem_block_size;
+	isr_t u_isr;
+	u32_t left_buffer = 0;
+	u32_t right_buffer = 0;
+	u32_t i = 0, j = 0;
+	u32_t channel_num = I2S_CHANNEL_0; /* use I2S_CHANNEL_0 for now */
 	int ret;
+	u8_t single_length = 16;
+
+	ret = queue_get(&data->tx.mem_block_queue, &data->tx.mem_block,
+			&mem_block_size);
+	if (ret < 0) {
+		return ret;
+	}
+
+	mem_block_size = mem_block_size / (single_length / 8) / 2; /* sample num */
+	/* Clear overrun flag */
+	sys_read32(&i2s->channel[channel_num].tor);
+
+	for (j = 0; j < mem_block_size;) {
+		u_isr.reg_data = sys_read32(&i2s->channel[channel_num].isr);
+		if (u_isr.isr.txfe == 1) {
+			switch(single_length) {
+			case 16:
+				left_buffer = ((uint16_t *)data->tx.mem_block)[i++];
+				right_buffer = ((uint16_t *)data->tx.mem_block)[i++];
+				break;
+			case 32:
+				left_buffer = ((uint32_t *)data->tx.mem_block)[i++];
+				right_buffer = ((uint32_t *)data->tx.mem_block)[i++];
+				break;
+			default:
+				return -EINVAL;
+			}
+			sys_write32(left_buffer, &i2s->channel[channel_num].left_rxtx);
+			sys_write32(right_buffer, &i2s->channel[channel_num].right_rxtx);
+			j++;
+		}
+	}
 
 	return 0;
 }
@@ -286,6 +411,23 @@ static int i2s_kendryte_write(struct device *dev, void *mem_block, size_t size)
 static int i2s_kendryte_trigger(struct device *dev, enum i2s_dir dir,
 			    enum i2s_trigger_cmd cmd)
 {
+	int ret;
+
+	switch (cmd) {
+	case I2S_TRIGGER_START:
+		ret = tx_stream_start(dev);
+		if (ret < 0) {
+			printk("START trigger failed %d", ret);
+			return ret;
+		}
+		break;
+
+	case I2S_TRIGGER_STOP:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -301,24 +443,20 @@ static int i2s_kendryte_initialize(struct device *dev)
 	clock_control_on(data->clk, (clock_control_subsys_t) cfg->clock_id +
 			cfg->dev_id);
 
-	sysctl_reset(cfg->reset_id + cfg->dev_id);
+	sysctl_reset(data->clk, cfg->reset_id + cfg->dev_id);
 	kendryte_clock_set_threshold(data->clk,
 				     (kendryte_threshold_t) cfg->thres_id +
 				     cfg->dev_id, 7);
 
-	/* Initialize semaphores */
-	k_sem_init(&data->tx.sem, CONFIG_I2S_KENDRYTE_TX_BLOCK_COUNT,
-		   CONFIG_I2S_KENDRYTE_TX_BLOCK_COUNT);
-
-	i2s_set_enable(cfg->dev_id, 1);
-	i2s_disable_block(cfg->dev_id, I2S_TRANSMITTER);
-	i2s_disable_block(cfg->dev_id, I2S_RECEIVER);
+	i2s_set_enable(i2s, cfg->dev_id, 1);
+	i2s_disable_block(i2s, cfg->dev_id, I2S_TRANSMITTER);
+	i2s_disable_block(i2s, cfg->dev_id, I2S_RECEIVER);
 
 	return 0;
 }
 
 static const struct i2s_driver_api i2s_kendryte_driver_api = {
-	.configure = i2s_kendryte_configure,
+	.configure = i2s_kendryte_cfgure,
 	.write = i2s_kendryte_write,
 	.trigger = i2s_kendryte_trigger,
 };
@@ -327,14 +465,14 @@ static const struct i2s_driver_api i2s_kendryte_driver_api = {
 
 struct i2s_kendryte_data i2s_kendryte_data1;
 
-static const struct i2s_kendryte_config i2s_kendryte_cfg = {
-	.base = CONFIG_KENDRYTE_I2S_BASE_ADDR,
-	.clock_id = KENDRYTE_CLOCK_I2S,
+static const struct i2s_kendryte_cfg i2s_kendryte_cfg1 = {
+	.base = CONFIG_KENDRYTE_I2S_0_BASE_ADDR,
+	.clock_id = KENDRYTE_CLOCK_I2S0,
 	.thres_id = KENDRYTE_THRESHOLD_I2S0,
 	.reset_id = SYSCTL_RESET_I2S0,
 	.dev_id = I2S_DEVICE_0,
 };
 
-DEVICE_AND_API_INIT(i2s_kendryte, CONFIG_I2S_KENDRYTE_NAME, &i2s_kendryte_initialize,
-		    &i2s_kendryte_data1, &i2s_kendryte_cfg, POST_KERNEL,
+DEVICE_AND_API_INIT(i2s_kendryte, CONFIG_KENDRYTE_I2S_0_LABEL, &i2s_kendryte_initialize,
+		    &i2s_kendryte_data1, &i2s_kendryte_cfg1, POST_KERNEL,
 		    CONFIG_I2S_INIT_PRIORITY, &i2s_kendryte_driver_api);

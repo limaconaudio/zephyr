@@ -1,0 +1,30 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+title: Kendryte I2S
+version: 0.1
+
+description: >
+    This binding gives a base representation of the Kendryte I2S controller
+
+inherits:
+    !include i2s.yaml
+
+properties:
+    compatible:
+      constraint: "kendryte,i2s"
+
+    reg:
+      type: array
+      description: mmio register space
+      generation: define
+      category: required
+
+    label:
+      type: string
+      category: required
+      description: Human readable string describing the device (used by Zephyr for API name)
+      generation: define
+
+...

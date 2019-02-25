@@ -22,6 +22,10 @@
 	status = "ok";
 };
 
+&i2s0 {
+	status = "ok";
+};
+
 &spi0 {
 	status = "ok";
 	cs-gpios = <&gpiohs 7 0>;
