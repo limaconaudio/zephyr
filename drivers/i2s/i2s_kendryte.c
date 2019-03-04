@@ -29,22 +29,8 @@ struct i2s_kendryte_cfg {
 	u32_t dev_id;
 };
 
-struct queue_item {
-	void *mem_block;
-	size_t size;
-};
-
-/* Minimal ring buffer implementation */
-struct ring_buf {
-	struct queue_item *buf;
-	u16_t len;
-	u16_t head;
-	u16_t tail;
-};
-
 struct stream {
 	struct i2s_config cfg;
-	struct ring_buf mem_block_queue;
 	void *mem_block;
 	bool last_block;
 };
@@ -54,6 +40,9 @@ struct i2s_kendryte_data {
 	struct device *clk;
 	struct stream tx;
 };
+
+static u8_t *pcm_data;
+static u32_t pcm_size;
 
 #define DEV_CFG(dev)					\
 	((const struct i2s_kendryte_cfg * const)	\
@@ -67,58 +56,6 @@ struct i2s_kendryte_data {
 
 #define MODULO_INC(val, max) { val = (++val < max) ? val : 0; }
 
-/*
- * Get data from the queue
- */
-static int queue_get(struct ring_buf *rb, void **mem_block, size_t *size)
-{
-	unsigned int key;
-
-	key = irq_lock();
-
-	if (rb->tail == rb->head) {
-		/* Ring buffer is empty */
-		irq_unlock(key);
-		return -ENOMEM;
-	}
-
-	*mem_block = rb->buf[rb->tail].mem_block;
-	*size = rb->buf[rb->tail].size;
-	MODULO_INC(rb->tail, rb->len);
-
-	irq_unlock(key);
-
-	return 0;
-}
-
-/*
- * Put data in the queue
- */
-static int queue_put(struct ring_buf *rb, void *mem_block, size_t size)
-{
-	u16_t head_next;
-	unsigned int key;
-
-	key = irq_lock();
-
-	head_next = rb->head;
-	MODULO_INC(head_next, rb->len);
-
-	if (head_next == rb->tail) {
-		/* Ring buffer is full */
-		irq_unlock(key);
-		return -ENOMEM;
-	}
-
-	rb->buf[rb->head].mem_block = mem_block;
-	rb->buf[rb->head].size = size;
-	rb->head = head_next;
-
-	irq_unlock(key);
-
-	return 0;
-}
-
 static int i2s_set_mask_interrupt(volatile i2s_t *i2s,
 		i2s_device_number_t device_num,
 		i2s_channel_num_t channel_num,
@@ -127,7 +64,7 @@ static int i2s_set_mask_interrupt(volatile i2s_t *i2s,
 {
 	imr_t u_imr;
 
-	if (channel_num < I2S_CHANNEL_0 || channel_num > I2S_CHANNEL_3)
+	if (channel_num < I2S_CHANNEL_1 || channel_num > I2S_CHANNEL_3)
 		return -1;
 
 	u_imr.reg_data = sys_read32(&i2s->channel[channel_num].imr);
@@ -163,7 +100,7 @@ static int i2s_transmit_channel_enable(volatile i2s_t *i2s,
 {
 	ter_t u_ter;
 
-	if (channel_num < I2S_CHANNEL_0 || channel_num > I2S_CHANNEL_3)
+	if (channel_num < I2S_CHANNEL_1 || channel_num > I2S_CHANNEL_3)
 		return -1;
 
 	u_ter.reg_data = sys_read32(&i2s->channel[channel_num].ter);
@@ -226,7 +163,7 @@ static int i2s_set_tx_word_length(volatile i2s_t *i2s,
 	if (word_length > RESOLUTION_32_BIT || word_length < IGNORE_WORD_LENGTH)
 		return -1;
 
-	if (channel_num < I2S_CHANNEL_0 || channel_num > I2S_CHANNEL_3)
+	if (channel_num < I2S_CHANNEL_1 || channel_num > I2S_CHANNEL_3)
 		return -1;
 
 	u_tcr.reg_data = sys_read32(&i2s->channel[channel_num].tcr);
@@ -268,7 +205,7 @@ static int i2s_set_tx_threshold(volatile i2s_t *i2s,
 	if (threshold < TRIGGER_LEVEL_1 || threshold > TRIGGER_LEVEL_16)
 		return -1;
 
-	if (channel_num < I2S_CHANNEL_0 || channel_num > I2S_CHANNEL_3)
+	if (channel_num < I2S_CHANNEL_1 || channel_num > I2S_CHANNEL_3)
 		return -1;
 
 	u_tfcr.reg_data = sys_read32(&i2s->channel[channel_num].tfcr);
@@ -278,19 +215,18 @@ static int i2s_set_tx_threshold(volatile i2s_t *i2s,
 	return 0;
 }
 
-static int i2s_kendryte_cfgure(struct device *dev, enum i2s_dir dir,
+static int i2s_kendryte_configure(struct device *dev, enum i2s_dir dir,
 			      struct i2s_config *i2s_cfg)
 {
 	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
 	struct i2s_kendryte_data *const data = DEV_DATA(dev);
 	volatile i2s_t *i2s = DEV_I2S(dev);
-	u8_t num_words = i2s_cfg->channels;
 	u8_t word_size_bits = i2s_cfg->word_size;
 	u8_t word_size_bytes;
 	i2s_work_mode_t word_mode;
 	u32_t word_select_size = i2s_cfg->frame_clk_freq;
-	u32_t channel_mask, trigger_level = 2;
-	u32_t channel_num = I2S_CHANNEL_0; /* use I2S_CHANNEL_0 for now */
+	u32_t channel_mask, trigger_level;
+	u32_t channel_num = I2S_CHANNEL_1; /* use I2S_CHANNEL_1 for now */
 	int i;
 
 	if (dir != I2S_DIR_TX) {
@@ -298,13 +234,15 @@ static int i2s_kendryte_cfgure(struct device *dev, enum i2s_dir dir,
 		return -EINVAL;
 	}
 
-	channel_mask = 0x03;
+	channel_mask = 0x0C;
+	trigger_level = 4;
+
 	for (i = 0; i < 4; i++) {
 		if ((channel_mask & 0x3) == 0x3) {
-			i2s_set_mask_interrupt(i2s, cfg->dev_id, I2S_CHANNEL_0 + i, 1, 1, 1, 1);
-			i2s_transimit_enable(i2s, cfg->dev_id, I2S_CHANNEL_0 + i);
+			i2s_set_mask_interrupt(i2s, cfg->dev_id, I2S_CHANNEL_1 + i, 1, 1, 1, 1);
+			i2s_transimit_enable(i2s, cfg->dev_id, I2S_CHANNEL_1 + i);
 		} else {
-			i2s_transmit_channel_enable(i2s, cfg->dev_id, I2S_CHANNEL_0 + i, 0);
+			i2s_transmit_channel_enable(i2s, cfg->dev_id, I2S_CHANNEL_1 + i, 0);
 		}
 		channel_mask >>= 2;
 	}
@@ -354,8 +292,9 @@ static int i2s_kendryte_write(struct device *dev, void *mem_block, size_t size)
 	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
 	struct i2s_kendryte_data *data = DEV_DATA(dev);
 
-	/* Add data to the end of the TX queue */
-	queue_put(&data->tx.mem_block_queue, mem_block, size);
+	/* Add data to the global ptr */
+	pcm_data = (u8_t *)mem_block;
+	pcm_size = size;
 
 	return 0;
 }
@@ -365,36 +304,30 @@ static int tx_stream_start(struct device *dev)
 	const struct i2s_kendryte_cfg *const cfg = DEV_CFG(dev);
 	struct i2s_kendryte_data *data = DEV_DATA(dev);
 	volatile i2s_t *i2s = DEV_I2S(dev);
-	size_t mem_block_size;
 	isr_t u_isr;
 	u32_t left_buffer = 0;
 	u32_t right_buffer = 0;
 	u32_t i = 0, j = 0;
-	u32_t channel_num = I2S_CHANNEL_0; /* use I2S_CHANNEL_0 for now */
+	u32_t channel_num = I2S_CHANNEL_1; /* use I2S_CHANNEL_1 for now */
 	int ret;
 	u8_t single_length = 16;
+	u8_t track_num = 2;
 
-	ret = queue_get(&data->tx.mem_block_queue, &data->tx.mem_block,
-			&mem_block_size);
-	if (ret < 0) {
-		return ret;
-	}
-
-	mem_block_size = mem_block_size / (single_length / 8) / 2; /* sample num */
+	pcm_size = pcm_size / (single_length / 8) / 2; /* sample num */
 	/* Clear overrun flag */
 	sys_read32(&i2s->channel[channel_num].tor);
 
-	for (j = 0; j < mem_block_size;) {
+	for (j = 0; j < pcm_size;) {
 		u_isr.reg_data = sys_read32(&i2s->channel[channel_num].isr);
 		if (u_isr.isr.txfe == 1) {
 			switch(single_length) {
 			case 16:
-				left_buffer = ((uint16_t *)data->tx.mem_block)[i++];
-				right_buffer = ((uint16_t *)data->tx.mem_block)[i++];
+				left_buffer = ((uint16_t *)pcm_data)[i++];
+				right_buffer = ((uint16_t *)pcm_data)[i++];
 				break;
 			case 32:
-				left_buffer = ((uint32_t *)data->tx.mem_block)[i++];
-				right_buffer = ((uint32_t *)data->tx.mem_block)[i++];
+				left_buffer = ((uint32_t *)pcm_data)[i++];
+				right_buffer = ((uint32_t *)pcm_data)[i++];
 				break;
 			default:
 				return -EINVAL;
@@ -417,7 +350,7 @@ static int i2s_kendryte_trigger(struct device *dev, enum i2s_dir dir,
 	case I2S_TRIGGER_START:
 		ret = tx_stream_start(dev);
 		if (ret < 0) {
-			printk("START trigger failed %d", ret);
+			printk("START trigger failed %d\n", ret);
 			return ret;
 		}
 		break;
@@ -456,7 +389,7 @@ static int i2s_kendryte_initialize(struct device *dev)
 }
 
 static const struct i2s_driver_api i2s_kendryte_driver_api = {
-	.configure = i2s_kendryte_cfgure,
+	.configure = i2s_kendryte_configure,
 	.write = i2s_kendryte_write,
 	.trigger = i2s_kendryte_trigger,
 };

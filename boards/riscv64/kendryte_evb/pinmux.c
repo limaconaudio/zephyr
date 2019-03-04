@@ -26,6 +26,11 @@ static int kendryte_pinmux_init(struct device *dev)
 	pinmux_pin_set(p, 31, FUNC_SPI0_D1);
 	pinmux_pin_set(p, 32, FUNC_GPIOHS7);
 
+	/* I2S0 */
+	pinmux_pin_set(p, 33, FUNC_I2S0_OUT_D1);
+	pinmux_pin_set(p, 35, FUNC_I2S0_SCLK);
+	pinmux_pin_set(p, 34, FUNC_I2S0_WS);
+
 	return 0;
 }
 

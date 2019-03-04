@@ -11,6 +11,7 @@
 #include <board.h>
 #include <device.h>
 #include <init.h>
+#include <math.h>
 
 #include <sys_io.h>
 
@@ -24,6 +25,8 @@ struct kendryte_clock_control_config {
 u32_t kendryte_clock_source_get_freq(volatile kendryte_sysctl *sysctl,
 				     kendryte_clock_source_t input);
 u32_t kendryte_pll_get_freq(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll);
+u32_t kendryte_pll_set_freq(volatile kendryte_sysctl *sysctl,
+				kendryte_pll_t pll, u32_t pll_freq);
 u32_t kendryte_clock_get_freq(volatile kendryte_sysctl *sysctl,
 			      kendryte_peripheral_clocks_t clock);
 
@@ -506,6 +509,458 @@ int kendryte_clock_get_clock_select(volatile kendryte_sysctl *sysctl,
     }
 
     return clock_select;
+}
+
+
+int sysctl_clock_set_clock_select(volatile kendryte_sysctl *sysctl,
+				kendryte_clock_select_t which, int select)
+{
+    int result = 0;
+    switch (which)
+    {
+        /*
+         * This clock select is 1 bit width
+         */
+        case KENDRYTE_CLOCK_SELECT_PLL0_BYPASS:
+            sysctl->pll0.pll_bypass0 = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_PLL1_BYPASS:
+            sysctl->pll1.pll_bypass1 = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_PLL2_BYPASS:
+            sysctl->pll2.pll_bypass2 = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_ACLK:
+            sysctl->clk_sel0.aclk_sel = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_SPI3:
+            sysctl->clk_sel0.spi3_clk_sel = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_TIMER0:
+            sysctl->clk_sel0.timer0_clk_sel = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_TIMER1:
+            sysctl->clk_sel0.timer1_clk_sel = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_TIMER2:
+            sysctl->clk_sel0.timer2_clk_sel = select & 0x01;
+            break;
+        case KENDRYTE_CLOCK_SELECT_SPI3_SAMPLE:
+            sysctl->clk_sel1.spi3_sample_clk_sel = select & 0x01;
+            break;
+
+        /*
+         * These clock select is 2 bit width
+         */
+        case KENDRYTE_CLOCK_SELECT_PLL2:
+            sysctl->pll2.pll_ckin_sel2 = select & 0x03;
+            break;
+
+        default:
+            result = -1;
+            break;
+    }
+
+    return result;
+}
+
+static int sysctl_pll_is_lock(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll)
+{
+    /*
+     * All bit enable means PLL lock
+     *
+     * struct pll_lock_t
+     * {
+     *         uint8_t overflow : 1;
+     *         uint8_t rfslip : 1;
+     *         uint8_t fbslip : 1;
+     * };
+     *
+     */
+
+    if (pll >= KENDRYTE_PLL_MAX)
+        return 0;
+
+    switch (pll)
+    {
+        case KENDRYTE_PLL0:
+            return sysctl->pll_lock.pll_lock0 == 3;
+
+        case KENDRYTE_PLL1:
+            return sysctl->pll_lock.pll_lock1 & 1;
+
+        case KENDRYTE_PLL2:
+            return sysctl->pll_lock.pll_lock2 & 1;
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+static int sysctl_pll_clear_slip(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll)
+{
+    if (pll >= KENDRYTE_PLL_MAX)
+        return -1;
+
+    switch (pll)
+    {
+        case KENDRYTE_PLL0:
+            sysctl->pll_lock.pll_slip_clear0 = 1;
+            break;
+
+        case KENDRYTE_PLL1:
+            sysctl->pll_lock.pll_slip_clear1 = 1;
+            break;
+
+        case KENDRYTE_PLL2:
+            sysctl->pll_lock.pll_slip_clear2 = 1;
+            break;
+
+        default:
+            break;
+    }
+
+    return sysctl_pll_is_lock(sysctl, pll) ? 0 : -1;
+}
+
+static uint32_t sysctl_pll_source_set_freq(volatile kendryte_sysctl *sysctl,
+			kendryte_pll_t pll, kendryte_clock_source_t source, uint32_t freq)
+{
+    uint32_t freq_in = 0;
+
+    if (pll >= KENDRYTE_PLL_MAX)
+        return 0;
+
+    if (source >= KENDRYTE_SOURCE_MAX)
+        return 0;
+
+    switch (pll)
+    {
+        case KENDRYTE_PLL0:
+        case KENDRYTE_PLL1:
+            /*
+             * Check input clock source
+             */
+            if (source != KENDRYTE_SOURCE_IN0)
+                return 0;
+            freq_in = kendryte_clock_source_get_freq(sysctl, KENDRYTE_SOURCE_IN0);
+            /*
+             * Check input clock freq
+             */
+            if (freq_in == 0)
+                return 0;
+            break;
+
+        case KENDRYTE_PLL2:
+            /*
+             * Check input clock source
+             */
+            if (source < sizeof(get_select_pll2))
+                freq_in = kendryte_clock_source_get_freq(sysctl, source);
+            /*
+             * Check input clock freq
+             */
+            if (freq_in == 0)
+                return 0;
+            break;
+
+        default:
+            return 0;
+    }
+
+    /*
+     * Begin calculate PLL registers' value
+     */
+
+    /* constants */
+    const double vco_min = 3.5e+08;
+    const double vco_max = 1.75e+09;
+    const double ref_min = 1.36719e+07;
+    const double ref_max = 1.75e+09;
+    const int nr_min     = 1;
+    const int nr_max     = 16;
+    const int nf_min     = 1;
+    const int nf_max     = 64;
+    const int no_min     = 1;
+    const int no_max     = 16;
+    const int nb_min     = 1;
+    const int nb_max     = 64;
+    const int max_vco    = 1;
+    const int ref_rng    = 1;
+
+    /* variables */
+    int nr     = 0;
+    int nrx    = 0;
+    int nf     = 0;
+    int nfi    = 0;
+    int no     = 0;
+    int noe    = 0;
+    int not    = 0;
+    int nor    = 0;
+    int nore   = 0;
+    int nb     = 0;
+    int first  = 0;
+    int firstx = 0;
+    int found  = 0;
+
+    long long nfx = 0;
+    double fin = 0, fout = 0, fvco = 0;
+    double val = 0, nval = 0, err = 0, merr = 0, terr = 0;
+    int x_nrx = 0, x_no = 0, x_nb = 0;
+    long long x_nfx = 0;
+    double x_fvco = 0, x_err = 0;
+
+    fin   = freq_in;
+    fout  = freq;
+    val   = fout / fin;
+    terr  = 0.5 / ((double)(nf_max / 2));
+    first = firstx = 1;
+    if (terr != -2)
+    {
+        first = 0;
+        if (terr == 0)
+            terr = 1e-16;
+        merr = fabs(terr);
+    }
+    found = 0;
+    for (nfi = val; nfi < nf_max; ++nfi)
+    {
+        nr = rint(((double)nfi) / val);
+        if (nr == 0)
+            continue;
+        if ((ref_rng) && (nr < nr_min))
+            continue;
+        if (fin / ((double)nr) > ref_max)
+            continue;
+        nrx = nr;
+        nf = nfx = nfi;
+        nval = ((double)nfx) / ((double)nr);
+        if (nf == 0)
+            nf = 1;
+        err = 1 - nval / val;
+
+        if ((first) || (fabs(err) < merr * (1 + 1e-6)) || (fabs(err) < 1e-16))
+        {
+            not = floor(vco_max / fout);
+            for (no = (not > no_max) ? no_max : not; no > no_min; --no)
+            {
+                if ((ref_rng) && ((nr / no) < nr_min))
+                    continue;
+                if ((nr % no) == 0)
+                    break;
+            }
+            if ((nr % no) != 0)
+                continue;
+            nor  = ((not > no_max) ? no_max : not) / no;
+            nore = nf_max / nf;
+            if (nor > nore)
+                nor = nore;
+            noe  = ceil(vco_min / fout);
+            if (!max_vco)
+            {
+                nore = (noe - 1) / no + 1;
+                nor  = nore;
+                not  = 0; /* force next if to fail */
+            }
+            if ((((no * nor) < (not >> 1)) || ((no * nor) < noe)) && ((no * nor) < (nf_max / nf)))
+            {
+                no = nf_max / nf;
+                if (no > no_max)
+                    no = no_max;
+                if (no > not)
+                    no = not;
+                nfx *= no;
+                nf *= no;
+                if ((no > 1) && (!firstx))
+                    continue;
+                /* wait for larger nf in later iterations */
+            }
+            else
+            {
+                nrx /= no;
+                nfx *= nor;
+                nf *= nor;
+                no *= nor;
+                if (no > no_max)
+                    continue;
+                if ((nor > 1) && (!firstx))
+                    continue;
+                /* wait for larger nf in later iterations */
+            }
+
+            nb = nfx;
+            if (nb < nb_min)
+                nb = nb_min;
+            if (nb > nb_max)
+                continue;
+
+            fvco = fin / ((double)nrx) * ((double)nfx);
+            if (fvco < vco_min)
+                continue;
+            if (fvco > vco_max)
+                continue;
+            if (nf < nf_min)
+                continue;
+            if ((ref_rng) && (fin / ((double)nrx) < ref_min))
+                continue;
+            if ((ref_rng) && (nrx > nr_max))
+                continue;
+            if (!(((firstx) && (terr < 0)) || (fabs(err) < merr * (1 - 1e-6)) || ((max_vco) && (no > x_no))))
+                continue;
+            if ((!firstx) && (terr >= 0) && (nrx > x_nrx))
+                continue;
+
+            found  = 1;
+            x_no   = no;
+            x_nrx  = nrx;
+            x_nfx  = nfx;
+            x_nb   = nb;
+            x_fvco = fvco;
+            x_err  = err;
+            first  = firstx = 0;
+            merr   = fabs(err);
+            if (terr != -1)
+                continue;
+        }
+    }
+    if (!found)
+    {
+        return 0;
+    }
+
+    nrx  = x_nrx;
+    nfx  = x_nfx;
+    no   = x_no;
+    nb   = x_nb;
+    fvco = x_fvco;
+    err  = x_err;
+    if ((terr != -2) && (fabs(err) >= terr * (1 - 1e-6)))
+    {
+        return 0;
+    }
+
+    /*
+     * Begin write PLL registers' value,
+     * Using atomic write method.
+     */
+    sysctl_pll0_t pll0;
+    sysctl_pll1_t pll1;
+    sysctl_pll2_t pll2;
+
+    switch (pll)
+    {
+        case KENDRYTE_PLL0:
+            /* Read register from bus */
+            pll0 = sysctl->pll0;
+            /* Set register temporary value */
+            pll0.clkr0  = nrx - 1;
+            pll0.clkf0  = nfx - 1;
+            pll0.clkod0 = no - 1;
+            pll0.bwadj0 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll0 = pll0;
+            break;
+
+        case KENDRYTE_PLL1:
+            /* Read register from bus */
+            pll1 = sysctl->pll1;
+            /* Set register temporary value */
+            pll1.clkr1  = nrx - 1;
+            pll1.clkf1  = nfx - 1;
+            pll1.clkod1 = no - 1;
+            pll1.bwadj1 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll1 = pll1;
+            break;
+
+        case KENDRYTE_PLL2:
+            /* Read register from bus */
+            pll2 = sysctl->pll2;
+            /* Set register temporary value */
+            if (source < sizeof(get_select_pll2))
+                pll2.pll_ckin_sel2 = get_select_pll2[source];
+
+            pll2.clkr2  = nrx - 1;
+            pll2.clkf2  = nfx - 1;
+            pll2.clkod2 = no - 1;
+            pll2.bwadj2 = nb - 1;
+            /* Write register back to bus */
+            sysctl->pll2 = pll2;
+            break;
+
+        default:
+            return 0;
+    }
+
+    return kendryte_pll_get_freq(sysctl, pll);
+}
+
+u32_t kendryte_pll_set_freq(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll,
+				u32_t pll_freq)
+{
+    if(pll_freq == 0)
+        return 0;
+
+    volatile sysctl_general_pll_t *v_pll_t;
+    switch(pll)
+    {
+        case KENDRYTE_PLL0:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll0);
+            break;
+        case KENDRYTE_PLL1:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll1);
+            break;
+        case KENDRYTE_PLL2:
+            v_pll_t = (sysctl_general_pll_t *)(&sysctl->pll2);
+            break;
+        default:
+            return 0;
+            break;
+    }
+
+    /* 1. Change CPU CLK to XTAL */
+    if(pll == KENDRYTE_PLL0)
+        sysctl_clock_set_clock_select(sysctl, KENDRYTE_CLOCK_SELECT_ACLK, KENDRYTE_SOURCE_IN0);
+
+    /* 2. Disable PLL output */
+    v_pll_t->pll_out_en = 0;
+
+    /* 3. Turn off PLL */
+    v_pll_t->pll_pwrd = 0;
+
+    /* 4. Set PLL new value */
+    u32_t result;
+    if(pll == KENDRYTE_PLL2)
+        result = sysctl_pll_source_set_freq(sysctl, pll, v_pll_t->pll_ckin_sel, pll_freq);
+    else
+        result = sysctl_pll_source_set_freq(sysctl, pll, KENDRYTE_SOURCE_IN0, pll_freq);
+
+    /* 5. Power on PLL */
+    v_pll_t->pll_pwrd = 1;
+    /* wait >100ns */
+    k_sleep(1);
+
+    /* 6. Reset PLL then Release Reset*/
+    v_pll_t->pll_reset = 0;
+    v_pll_t->pll_reset = 1;
+    /* wait >100ns */
+    k_sleep(1);
+    v_pll_t->pll_reset = 0;
+
+    /* 7. Get lock status, wait PLL stable */
+    while (sysctl_pll_is_lock(sysctl, pll) == 0)
+        sysctl_pll_clear_slip(sysctl, pll);
+
+    /* 8. Enable PLL output */
+    v_pll_t->pll_out_en = 1;
+
+    /* 9. Change CPU CLK to PLL */
+    if(pll == KENDRYTE_PLL0)
+        sysctl_clock_set_clock_select(sysctl, KENDRYTE_CLOCK_SELECT_ACLK, KENDRYTE_SOURCE_PLL0);
+
+    return result;
 }
 
 u32_t kendryte_pll_get_freq(volatile kendryte_sysctl *sysctl, kendryte_pll_t pll)

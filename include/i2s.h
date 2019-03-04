@@ -306,6 +306,7 @@ struct i2s_config {
 	struct k_mem_slab *mem_slab;
 	size_t block_size;
 	s32_t timeout;
+	bool use_dma;
 };
 
 /**

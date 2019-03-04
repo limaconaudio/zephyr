@@ -771,6 +771,8 @@ typedef struct general_pll
 
 int kendryte_clock_set_threshold(struct device *dev,
 			       kendryte_threshold_t thres, int threshold);
+u32_t kendryte_pll_set_freq(volatile kendryte_sysctl *sysctl,
+				kendryte_pll_t pll, u32_t pll_freq);
 
 int sysctl_dma_select(struct device *dev,sysctl_dma_channel_t channel, sysctl_dma_select_t select);
 void sysctl_reset(struct device *dev, sysctl_reset_t reset);
