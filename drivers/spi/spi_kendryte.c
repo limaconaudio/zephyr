@@ -230,7 +230,7 @@ static void spi_kendryte_dma_shift_frames(struct device *dev,
 	spi->ssienr = 0x01;
 	spi->ser = 1 << SPI_CHIP_SELECT_3;
 
-	dma_cfg.block_count = 1;
+	dma_cfg.block_count = 1024;
 	dma_cfg.dma_slot = DMA_SLOT;
 	dma_cfg.channel_direction = PERIPHERAL_TO_MEMORY;
 	dma_cfg.source_burst_length = 1;
@@ -239,7 +239,7 @@ static void spi_kendryte_dma_shift_frames(struct device *dev,
 
 	blk_cfg.block_size = 8;
 	blk_cfg.source_address = (u32_t)&spi->dr[0];
-	blk_cfg.dest_address = (u32_t)rx_bufs;
+	blk_cfg.dest_address = (u32_t *)data->ctx.rx_buf;
 
 	dma_cfg.head_block = &blk_cfg;
 	ret = dma_config(data->dma, DMA_CHANNEL, &dma_cfg);
@@ -264,7 +264,8 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	volatile spi_t *spi = DEV_SPI(dev);
 	u32_t tx_frame, rx_frame;
 	u32_t reg, fifo_len, index;
-	u8_t word_size = SPI_WORD_SIZE_GET(data->ctx.config->operation);
+//	u8_t word_size = SPI_WORD_SIZE_GET(data->ctx.config->operation);
+	u8_t word_size = 1;
 
 	/* Set TMOD register value */
 	reg = spi->ctrlr0;
@@ -335,7 +336,7 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	while (spi_context_rx_on(&data->ctx)) {
 		fifo_len = spi->rxflr;
 		fifo_len = fifo_len < data->ctx.rx_len ? fifo_len : data->ctx.rx_len;
-		
+
 		switch (word_size) {
 		case 32:
 			fifo_len = fifo_len / 4 * 4;
@@ -372,11 +373,10 @@ static void spi_kendryte_shift_frames(struct device *dev,
 	spi->ser = 0x00;
 }
 
-static int transceive(struct device *dev,
+static int spi_kendryte_transceive(struct device *dev,
 		      const struct spi_config *config,
 		      const struct spi_buf_set *tx_bufs,
-		      const struct spi_buf_set *rx_bufs,
-		      bool asynchronous, struct k_poll_signal *signal)
+		      const struct spi_buf_set *rx_bufs)
 {
 	struct spi_kendryte_data *data = DEV_DATA(dev);
 	volatile spi_t *spi = DEV_SPI(dev);
@@ -386,8 +386,9 @@ static int transceive(struct device *dev,
 		return 0;
 	}
 
+	spi_context_lock(&data->ctx, false, NULL);
+
 	if (config->use_dma) {
-		spi_context_lock(&data->ctx, asynchronous, signal);
 
 		spi->dmacr = 0x2;
 		spi->ssienr = 0x01;
@@ -401,11 +402,9 @@ static int transceive(struct device *dev,
 		spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
 
 		spi_kendryte_dma_shift_frames(dev, tx_bufs, rx_bufs);
-
+		
 		dmac_wait_done(data->dma, DMA_CHANNEL);
 	} else {
-		spi_context_lock(&data->ctx, asynchronous, signal);
-
 		ret = spi_kendryte_configure(dev, config);
 		if (ret) {
 			return ret;
@@ -417,9 +416,7 @@ static int transceive(struct device *dev,
 		/* This is turned off in spi_kendryte_complete(). */
 	//	spi_context_cs_control(&data->ctx, true);
 
-		do {
-			spi_kendryte_shift_frames(dev, tx_bufs, rx_bufs);
-		} while (spi_kendryte_transfer_ongoing(data));
+		spi_kendryte_shift_frames(dev, tx_bufs, rx_bufs);
 	}
 
 	spi->ser = 0x00;
@@ -427,15 +424,7 @@ static int transceive(struct device *dev,
 
 	spi_context_release(&data->ctx, ret);
 
-	return ret;
-}
-
-static int spi_kendryte_transceive(struct device *dev,
-				const struct spi_config *config,
-				const struct spi_buf_set *tx_bufs,
-				const struct spi_buf_set *rx_bufs)
-{
-	return transceive(dev, config, tx_bufs, rx_bufs, false, NULL);
+	return 0;
 }
 
 static const struct spi_driver_api api_funcs = {
