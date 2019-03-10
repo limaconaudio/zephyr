@@ -81,8 +81,10 @@ void dmac_wait_idle(volatile dmac_t *dmac,
 	dmac_channel_interrupt_clear(dmac, channel_num); /* clear interrupt */
 }
 
-void dmac_wait_done(volatile dmac_t *dmac, dmac_channel_number_t channel_num)
+void dmac_wait_done(struct device *dev, dmac_channel_number_t channel_num)
 {
+    volatile dmac_t *dmac = DEV_DMA(dev);
+
     while (!(readq(&dmac->channel[channel_num].intstatus) & 0x2))
         ;
     dmac_channel_interrupt_clear(dmac, channel_num); /* clear interrupt */
@@ -279,7 +281,7 @@ static int dmac_kendryte_config(struct device *dev, u32_t id,
 
 	writeq(config->head_block->block_size - 1, &dmac->channel[id].block_ts);
 
-	return ret;
+	return 0;
 }
 
 static int dmac_kendryte_start(struct device *dev, u32_t id)

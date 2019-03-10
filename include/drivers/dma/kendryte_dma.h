@@ -1389,6 +1389,6 @@ typedef struct _dmac_lli_item
 } __attribute__((packed, aligned(64))) dmac_lli_item_t;
 
 extern volatile dmac_t *const dmac;
-void dmac_wait_done(volatile dmac_t *dmac, dmac_channel_number_t channel_num);
+void dmac_wait_done(struct device *dev, dmac_channel_number_t channel_num);
 
 #endif /* _DRIVER_DMAC_H */
