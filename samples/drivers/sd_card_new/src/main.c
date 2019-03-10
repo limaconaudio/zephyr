@@ -57,17 +57,14 @@ static int fs_test(void)
     if (status != FR_OK)
         return status;
 
-    printk("printf filename\n");
     status = f_findfirst(&dj, &fno, _T("0:"), _T("*"));
     while (status == FR_OK && fno.fname[0]) {
-	printk("Name: %s\n", fno.fname);
         if (fno.fattrib & AM_DIR)
             printk("dir:%s\n", fno.fname);
         else
             printk("file:%s\n", fno.fname);
         status = f_findnext(&dj, &fno);
     }
-	printk("%s: %d\n", __func__, __LINE__);
     f_closedir(&dj);
     return 0;
 }

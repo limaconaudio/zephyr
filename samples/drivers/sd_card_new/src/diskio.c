@@ -9,6 +9,8 @@
 
 #include "diskio.h"		/* FatFs lower layer API */
 #include "sdcard.h"
+#include <zephyr.h>
+#include <misc/printk.h>
 
 /* Definitions of physical drive number for each drive */
 #define M0		0	/* Example: Map MMC/SD card to physical drive 0 */
@@ -44,7 +46,7 @@ DSTATUS disk_initialize(BYTE pdrv)
 
 DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 {
-	if (sd_read_sector_dma(buff, sector, count) == 0)
+	if (sd_read_sector(buff, sector, count) == 0)
 		return RES_OK;
 	return RES_ERROR;
 }
