@@ -14,7 +14,7 @@
 			i-cache-sets = <128>;
 			i-cache-size = <16384>;
 			reg = <0>;
-			riscv,isa = "rv64imac";
+			riscv,isa = "rv64imafdc";
 			status = "okay";
 			timebase-frequency = <32768>;
 			hlic: interrupt-controller {
