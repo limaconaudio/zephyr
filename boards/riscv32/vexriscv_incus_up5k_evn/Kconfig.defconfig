@@ -1,0 +1,6 @@
+if BOARD_VEXRISCV_INCUS_UP5K_EVN
+
+config BOARD
+	default "Incus UP5K Evn"
+
+endif

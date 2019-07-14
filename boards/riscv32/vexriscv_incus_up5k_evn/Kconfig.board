@@ -1,0 +1,3 @@
+config BOARD_VEXRISCV_INCUS_UP5K_EVN
+	bool "Incus UP5K Evn"
+	depends on SOC_VEXRISCV_INCUS_SOC

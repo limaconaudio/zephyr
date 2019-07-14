@@ -1,0 +1,11 @@
+identifier: vexriscv_incus_up5k_evn
+name: Incus UP5K Evn
+type: mcu
+arch: riscv32
+toolchain:
+  - zephyr
+ram: 64
+testing:
+  ignore_tags:
+    - net
+    - bluetooth
