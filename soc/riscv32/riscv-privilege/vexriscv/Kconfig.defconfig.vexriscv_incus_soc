@@ -1,0 +1,59 @@
+if SOC_VEXRISCV_INCUS_SOC
+
+config SOC
+	string
+	default "vexriscv_incus_soc"
+
+config RISCV_ARCH
+	string
+	default "rv32i"
+
+config RISCV_ABI
+	string
+	default "ilp32"
+
+config RISCV_SOC_INTERRUPT_INIT
+	bool
+	default y
+
+config RISCV_HAS_CPU_IDLE
+	bool
+	default n
+
+config RISCV_HAS_PLIC
+	bool
+	default y
+
+config NUM_IRQS
+	int
+	default 64
+
+config XIP
+	bool
+	default y
+
+config RISCV_ROM_BASE_ADDR
+	hex
+	default 0x20100000
+
+config RISCV_ROM_SIZE
+	hex
+	default 0x00300000
+
+config RISCV_RAM_BASE_ADDR
+	hex
+	default	0x80000000
+
+config RISCV_RAM_SIZE
+	hex
+	default 0x00020000
+
+config RISCV_MTIME_BASE
+	hex
+	default 0x10008000
+
+config RISCV_MTIMECMP_BASE
+	hex
+	default 0x10008008
+
+endif

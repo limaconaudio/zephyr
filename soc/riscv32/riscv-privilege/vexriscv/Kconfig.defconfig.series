@@ -4,6 +4,7 @@ config SOC_SERIES
 	string
 	default "vexriscv"
 
+rsource "Kconfig.defconfig.vexriscv_incus_soc"
 rsource "Kconfig.defconfig.vexriscv_saxon_soc"
 rsource "Kconfig.defconfig.vexriscv_cpp_regression"
 

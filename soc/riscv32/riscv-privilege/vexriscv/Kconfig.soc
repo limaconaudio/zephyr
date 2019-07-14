@@ -2,6 +2,10 @@ choice
 prompt "VexRiscv implementation"
 depends on SOC_SERIES_RISCV32_VEXRISCV
 
+config SOC_VEXRISCV_INCUS_SOC
+	bool "VexRiscv based Incus SoC"
+	select ATOMIC_OPERATIONS_C
+
 config SOC_VEXRISCV_SAXON_SOC
 	bool "VexRiscv SoC"
 	select ATOMIC_OPERATIONS_C
@@ -9,8 +13,6 @@ config SOC_VEXRISCV_SAXON_SOC
 config SOC_VEXRISCV_CPP_REGRESSION
 	bool "VexRiscv SoC"
 	select ATOMIC_OPERATIONS_C
-
-
 
 endchoice
 

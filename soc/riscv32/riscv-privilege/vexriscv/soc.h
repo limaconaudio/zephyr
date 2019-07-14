@@ -31,5 +31,8 @@
 #include "soc_saxon.h"
 #endif
 
+#ifdef CONFIG_SOC_VEXRISCV_INCUS_SOC
+#include "soc_incus.h"
+#endif
 
 #endif /* __RISCV32_VEXRISCV_H_ */

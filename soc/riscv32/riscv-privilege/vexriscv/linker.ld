@@ -2,6 +2,8 @@
 
 #ifdef CONFIG_SOC_VEXRISCV_SAXON_SOC
 #include "saxon.ld"
+#elseif CONFIG_SOC_VEXRISCV_INCUS_SOC
+#include "incus.ld"
 #else
 #include <arch/riscv32/common/linker.ld>
 #endif
