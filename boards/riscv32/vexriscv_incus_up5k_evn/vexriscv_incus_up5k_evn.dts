@@ -13,11 +13,30 @@
 	compatible = "spinal,incus";
 
 	aliases {
+		led0 = &led0;
+		led1 = &led1;
+		led2 = &led2;
 	};
 
 	chosen {
 		zephyr,console = &uart0;
 		zephyr,shell-uart = &uart0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0: led_0 {
+			gpios = <&gpioA 0 GPIO_INT_ACTIVE_LOW>;
+			label = "Blue LED";
+		};
+		led1: led_1 {
+			gpios = <&gpioA 1 GPIO_INT_ACTIVE_HIGH>;
+			label = "Green LED";
+		};
+		led2: led_2 {
+			gpios = <&gpioA 2 GPIO_INT_ACTIVE_HIGH>;
+			label = "Red LED";
+		};
 	};
 };
 
