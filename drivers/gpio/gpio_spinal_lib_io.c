@@ -44,9 +44,6 @@ static int gpio_spinal_lib_io_config(struct device *dev,
 	if (pin >= 32)
 		return -EINVAL;
 
-	if (flags & (GPIO_POL_INV || GPIO_PUD_MASK))
-		return -EINVAL;
-
 	/* Configure gpio direction */
 	if (flags & GPIO_DIR_OUT) {
 		gpio->OUTPUT_ENABLE |= BIT(pin);
@@ -197,3 +194,5 @@ int gpio_spinal_lib_io_init(struct device *dev)
 
 	return 0;
 }
+
+GPIO_SPINAL_LIB_IO_DEVICE(DT_SPINAL_LIB_IO_GPIO_10000000_LABEL,DT_SPINAL_LIB_IO_GPIO_10000000_BASE_ADDRESS);

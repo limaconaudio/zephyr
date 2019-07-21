@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -35,9 +37,10 @@
 			compatible = "spinal,lib-io-gpio";
 			gpio-controller;
 			interrupt-parent = <&plic>;
-			interrupts = <2 3>;
+			interrupts = <4 5>;
 			reg = <0x10000000 0x1000>;
 			reg-names = "control";
+			label = "gpioA";
 			status = "disabled";
 			#gpio-cells = <2>;
 		};

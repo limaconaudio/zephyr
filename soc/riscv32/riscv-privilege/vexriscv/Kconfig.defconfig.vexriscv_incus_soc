@@ -56,4 +56,10 @@ config RISCV_MTIMECMP_BASE
 	hex
 	default 0x10008008
 
+if GPIO
+
+config GPIO_SPINAL_LIB_IO
+	default y
+endif
+
 endif

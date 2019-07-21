@@ -37,8 +37,8 @@ extern int gpio_spinal_lib_io_init(struct device *dev);
 	};								\
 									\
 	DEVICE_AND_API_INIT(gpio_spinal_lib_io_##name,				\
-			    str(name),	\
-				gpio_spinal_lib_io_init,				\
+			    name,	\
+			    gpio_spinal_lib_io_init,				\
 			    NULL,			\
 			    &gpio_spinal_lib_io_config_##name,			\
 			    POST_KERNEL,				\
